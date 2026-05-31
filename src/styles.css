@@ -188,3 +188,13 @@
   .focus-ring { outline: none; box-shadow: 0 0 0 3px var(--primary-glow); }
   .number { font-variant-numeric: tabular-nums; }
 }
+
+@media print {
+  @page { margin: 0; }
+  body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+  .print-break-inside-avoid { break-inside: avoid; }
+  .print-break-after-page { break-after: page; }
+  * { box-shadow: none !important; text-shadow: none !important; }
+}

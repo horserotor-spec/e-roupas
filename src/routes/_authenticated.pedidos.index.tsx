@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { orders, clientById, statusLabel, statusTone, isOverdue, type OrderStatus } from "@/lib/mock-data";
+import { statusLabel, statusTone, type OrderStatus } from "@/lib/constants";
+import { useOrders, Order } from "@/lib/api/orders";
 import { StatusBadge } from "@/components/StatusBadge";
-import { useState } from "react";
-import { Search, Plus, Flame } from "lucide-react";
+import { useState, useDeferredValue } from "react";
+import { Search, Plus, Flame, Loader2, Edit2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/pedidos/")({
   head: () => ({ meta: [{ title: "Pedidos · e-roupas OS" }] }),
@@ -19,19 +21,23 @@ const filters: { key: "todos" | "urgentes" | "atrasados" | OrderStatus; label: s
   { key: "expedicao", label: "Expedição" },
 ];
 
+function isOverdue(deadline: string | null, status: OrderStatus) {
+  if (!deadline) return false;
+  if (status === "entregue" || status === "finalizado") return false;
+  return new Date(deadline) < new Date();
+}
+
 function PedidosPage() {
   const [q, setQ] = useState("");
+  const deferredQ = useDeferredValue(q);
   const [f, setF] = useState<(typeof filters)[number]["key"]>("todos");
+  
+  const { data: orders = [], isLoading } = useOrders(deferredQ);
 
   const filtered = orders.filter((o) => {
     if (f === "urgentes" && !o.urgent) return false;
-    if (f === "atrasados" && !isOverdue(o)) return false;
+    if (f === "atrasados" && !isOverdue(o.deadline, o.status)) return false;
     if (f !== "todos" && f !== "urgentes" && f !== "atrasados" && o.status !== f) return false;
-    if (q) {
-      const c = clientById(o.clientId);
-      const blob = `${o.code} ${c?.name ?? ""} ${o.items.map((i) => i.product).join(" ")}`.toLowerCase();
-      if (!blob.includes(q.toLowerCase())) return false;
-    }
     return true;
   });
 
@@ -42,9 +48,9 @@ function PedidosPage() {
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Núcleo do ERP</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">Pedidos</h1>
         </div>
-        <button className="h-9 inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90">
+        <Link to="/pedidos/novo" className="h-9 inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90">
           <Plus className="size-4" /> Novo pedido
-        </button>
+        </Link>
       </div>
 
       <div className="flex items-center gap-2 mb-4 flex-wrap">
@@ -79,14 +85,23 @@ function PedidosPage() {
               <th className="text-left font-medium px-4 py-2.5">Status</th>
               <th className="text-left font-medium px-4 py-2.5 hidden md:table-cell">Prazo</th>
               <th className="text-right font-medium px-4 py-2.5 number">Total</th>
+              <th className="text-right font-medium px-4 py-2.5">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {filtered.map((o) => {
-              const c = clientById(o.clientId);
-              const overdue = isOverdue(o);
+            {isLoading && (
+              <tr>
+                <td colSpan={7} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                  <div className="flex justify-center items-center gap-2">
+                    <Loader2 className="size-4 animate-spin" /> Carregando pedidos...
+                  </div>
+                </td>
+              </tr>
+            )}
+            {!isLoading && filtered.map((o) => {
+              const overdue = isOverdue(o.deadline, o.status);
               return (
-                <tr key={o.id} className="hover:bg-muted/30 transition-colors">
+                <tr key={o.id} className="hover:bg-muted/30 transition-colors group">
                   <td className="px-4 py-3">
                     <Link to="/pedidos/$orderId" params={{ orderId: o.id }} className="font-mono text-xs hover:text-primary">{o.code}</Link>
                     {o.urgent && (
@@ -96,22 +111,33 @@ function PedidosPage() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="font-medium truncate">{c?.name}</div>
-                    <div className="text-xs text-muted-foreground">{o.brand === "ER" ? "e-roupas" : "peagah8"} · {o.owner}</div>
+                    <div className="font-medium truncate">{o.client_name}</div>
+                    <div className="text-xs text-muted-foreground">{o.brand_code} · {o.owner_name}</div>
                   </td>
                   <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground text-xs">
-                    {o.items.map((i) => `${i.qty}× ${i.product}`).join(" · ")}
+                    {o.items.map((i) => `${i.quantity}× ${i.product_name}`).join(" · ")}
                   </td>
-                  <td className="px-4 py-3"><StatusBadge tone={statusTone[o.status]}>{statusLabel[o.status]}</StatusBadge></td>
+                  <td className="px-4 py-3">
+                    <StatusBadge tone={statusTone[o.status] || "neutral"}>
+                      {statusLabel[o.status] || o.status}
+                    </StatusBadge>
+                  </td>
                   <td className={`px-4 py-3 hidden md:table-cell text-xs ${overdue ? "text-destructive font-medium" : "text-muted-foreground"}`}>
-                    {new Date(o.deadline).toLocaleDateString("pt-BR")}
+                    {o.deadline ? new Date(o.deadline).toLocaleDateString("pt-BR") : "—"}
                   </td>
-                  <td className="px-4 py-3 text-right number font-medium">R$ {o.total.toLocaleString("pt-BR")}</td>
+                  <td className="px-4 py-3 text-right number font-medium">R$ {o.final_total.toLocaleString("pt-BR")}</td>
+                  <td className="px-4 py-3 text-right">
+                    <Link to="/pedidos/$id" params={{ id: o.id }}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Edit2 className="size-4" />
+                      </Button>
+                    </Link>
+                  </td>
                 </tr>
               );
             })}
-            {filtered.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-muted-foreground">Nenhum pedido com esse filtro.</td></tr>
+            {!isLoading && filtered.length === 0 && (
+              <tr><td colSpan={7} className="px-4 py-12 text-center text-sm text-muted-foreground">Nenhum pedido com esse filtro.</td></tr>
             )}
           </tbody>
         </table>

@@ -1,14 +1,12 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { AppShell } from "@/components/layout/AppShell";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/_authenticated")({
-  beforeLoad: () => {
+  beforeLoad: async () => {
     if (typeof window === "undefined") return;
-    try {
-      const raw = localStorage.getItem("eroupas-os.user");
-      if (!raw) throw redirect({ to: "/login" });
-    } catch (e) {
-      if (e && typeof e === "object" && "to" in e) throw e;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
       throw redirect({ to: "/login" });
     }
   },

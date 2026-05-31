@@ -20,9 +20,12 @@ import { Route as AuthenticatedExpedicaoRouteImport } from './routes/_authentica
 import { Route as AuthenticatedEstoqueRouteImport } from './routes/_authenticated.estoque'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated.dashboard'
 import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated.configuracoes'
+import { Route as AuthenticatedProdutosIndexRouteImport } from './routes/_authenticated.produtos.index'
 import { Route as AuthenticatedPedidosIndexRouteImport } from './routes/_authenticated.pedidos.index'
 import { Route as AuthenticatedCrmIndexRouteImport } from './routes/_authenticated.crm.index'
+import { Route as AuthenticatedPedidosNovoRouteImport } from './routes/_authenticated.pedidos.novo'
 import { Route as AuthenticatedPedidosOrderIdRouteImport } from './routes/_authenticated.pedidos.$orderId'
+import { Route as AuthenticatedPedidosIdRouteImport } from './routes/_authenticated.pedidos.$id'
 import { Route as AuthenticatedCrmClientIdRouteImport } from './routes/_authenticated.crm.$clientId'
 
 const LoginRoute = LoginRouteImport.update({
@@ -80,6 +83,12 @@ const AuthenticatedConfiguracoesRoute =
     path: '/configuracoes',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedProdutosIndexRoute =
+  AuthenticatedProdutosIndexRouteImport.update({
+    id: '/produtos/',
+    path: '/produtos/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedPedidosIndexRoute =
   AuthenticatedPedidosIndexRouteImport.update({
     id: '/pedidos/',
@@ -91,12 +100,23 @@ const AuthenticatedCrmIndexRoute = AuthenticatedCrmIndexRouteImport.update({
   path: '/crm/',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedPedidosNovoRoute =
+  AuthenticatedPedidosNovoRouteImport.update({
+    id: '/pedidos/novo',
+    path: '/pedidos/novo',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedPedidosOrderIdRoute =
   AuthenticatedPedidosOrderIdRouteImport.update({
     id: '/pedidos/$orderId',
     path: '/pedidos/$orderId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedPedidosIdRoute = AuthenticatedPedidosIdRouteImport.update({
+  id: '/pedidos/$id',
+  path: '/pedidos/$id',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedCrmClientIdRoute =
   AuthenticatedCrmClientIdRouteImport.update({
     id: '/crm/$clientId',
@@ -116,9 +136,12 @@ export interface FileRoutesByFullPath {
   '/producao': typeof AuthenticatedProducaoRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/crm/$clientId': typeof AuthenticatedCrmClientIdRoute
+  '/pedidos/$id': typeof AuthenticatedPedidosIdRoute
   '/pedidos/$orderId': typeof AuthenticatedPedidosOrderIdRoute
+  '/pedidos/novo': typeof AuthenticatedPedidosNovoRoute
   '/crm/': typeof AuthenticatedCrmIndexRoute
   '/pedidos/': typeof AuthenticatedPedidosIndexRoute
+  '/produtos/': typeof AuthenticatedProdutosIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -132,9 +155,12 @@ export interface FileRoutesByTo {
   '/producao': typeof AuthenticatedProducaoRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/crm/$clientId': typeof AuthenticatedCrmClientIdRoute
+  '/pedidos/$id': typeof AuthenticatedPedidosIdRoute
   '/pedidos/$orderId': typeof AuthenticatedPedidosOrderIdRoute
+  '/pedidos/novo': typeof AuthenticatedPedidosNovoRoute
   '/crm': typeof AuthenticatedCrmIndexRoute
   '/pedidos': typeof AuthenticatedPedidosIndexRoute
+  '/produtos': typeof AuthenticatedProdutosIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -150,9 +176,12 @@ export interface FileRoutesById {
   '/_authenticated/producao': typeof AuthenticatedProducaoRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
   '/_authenticated/crm/$clientId': typeof AuthenticatedCrmClientIdRoute
+  '/_authenticated/pedidos/$id': typeof AuthenticatedPedidosIdRoute
   '/_authenticated/pedidos/$orderId': typeof AuthenticatedPedidosOrderIdRoute
+  '/_authenticated/pedidos/novo': typeof AuthenticatedPedidosNovoRoute
   '/_authenticated/crm/': typeof AuthenticatedCrmIndexRoute
   '/_authenticated/pedidos/': typeof AuthenticatedPedidosIndexRoute
+  '/_authenticated/produtos/': typeof AuthenticatedProdutosIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -168,9 +197,12 @@ export interface FileRouteTypes {
     | '/producao'
     | '/relatorios'
     | '/crm/$clientId'
+    | '/pedidos/$id'
     | '/pedidos/$orderId'
+    | '/pedidos/novo'
     | '/crm/'
     | '/pedidos/'
+    | '/produtos/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -184,9 +216,12 @@ export interface FileRouteTypes {
     | '/producao'
     | '/relatorios'
     | '/crm/$clientId'
+    | '/pedidos/$id'
     | '/pedidos/$orderId'
+    | '/pedidos/novo'
     | '/crm'
     | '/pedidos'
+    | '/produtos'
   id:
     | '__root__'
     | '/'
@@ -201,9 +236,12 @@ export interface FileRouteTypes {
     | '/_authenticated/producao'
     | '/_authenticated/relatorios'
     | '/_authenticated/crm/$clientId'
+    | '/_authenticated/pedidos/$id'
     | '/_authenticated/pedidos/$orderId'
+    | '/_authenticated/pedidos/novo'
     | '/_authenticated/crm/'
     | '/_authenticated/pedidos/'
+    | '/_authenticated/produtos/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -291,6 +329,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConfiguracoesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/produtos/': {
+      id: '/_authenticated/produtos/'
+      path: '/produtos'
+      fullPath: '/produtos/'
+      preLoaderRoute: typeof AuthenticatedProdutosIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/pedidos/': {
       id: '/_authenticated/pedidos/'
       path: '/pedidos'
@@ -305,11 +350,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCrmIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/pedidos/novo': {
+      id: '/_authenticated/pedidos/novo'
+      path: '/pedidos/novo'
+      fullPath: '/pedidos/novo'
+      preLoaderRoute: typeof AuthenticatedPedidosNovoRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/pedidos/$orderId': {
       id: '/_authenticated/pedidos/$orderId'
       path: '/pedidos/$orderId'
       fullPath: '/pedidos/$orderId'
       preLoaderRoute: typeof AuthenticatedPedidosOrderIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/pedidos/$id': {
+      id: '/_authenticated/pedidos/$id'
+      path: '/pedidos/$id'
+      fullPath: '/pedidos/$id'
+      preLoaderRoute: typeof AuthenticatedPedidosIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/crm/$clientId': {
@@ -332,9 +391,12 @@ interface AuthenticatedRouteChildren {
   AuthenticatedProducaoRoute: typeof AuthenticatedProducaoRoute
   AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
   AuthenticatedCrmClientIdRoute: typeof AuthenticatedCrmClientIdRoute
+  AuthenticatedPedidosIdRoute: typeof AuthenticatedPedidosIdRoute
   AuthenticatedPedidosOrderIdRoute: typeof AuthenticatedPedidosOrderIdRoute
+  AuthenticatedPedidosNovoRoute: typeof AuthenticatedPedidosNovoRoute
   AuthenticatedCrmIndexRoute: typeof AuthenticatedCrmIndexRoute
   AuthenticatedPedidosIndexRoute: typeof AuthenticatedPedidosIndexRoute
+  AuthenticatedProdutosIndexRoute: typeof AuthenticatedProdutosIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -347,9 +409,12 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedProducaoRoute: AuthenticatedProducaoRoute,
   AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
   AuthenticatedCrmClientIdRoute: AuthenticatedCrmClientIdRoute,
+  AuthenticatedPedidosIdRoute: AuthenticatedPedidosIdRoute,
   AuthenticatedPedidosOrderIdRoute: AuthenticatedPedidosOrderIdRoute,
+  AuthenticatedPedidosNovoRoute: AuthenticatedPedidosNovoRoute,
   AuthenticatedCrmIndexRoute: AuthenticatedCrmIndexRoute,
   AuthenticatedPedidosIndexRoute: AuthenticatedPedidosIndexRoute,
+  AuthenticatedProdutosIndexRoute: AuthenticatedProdutosIndexRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
@@ -364,3 +429,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

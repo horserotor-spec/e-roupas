@@ -1,7 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { clients } from "@/lib/mock-data";
-import { useState } from "react";
-import { Search, Plus } from "lucide-react";
+import { useClients, Client, useImportClients } from "@/lib/api/clients";
+import { useState, useDeferredValue, useRef } from "react";
+import { Search, Plus, Loader2, Edit2, Download, Upload } from "lucide-react";
+import { ClientFormDrawer } from "@/components/crm/ClientFormDrawer";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import Papa from "papaparse";
 
 export const Route = createFileRoute("/_authenticated/crm/")({
   head: () => ({ meta: [{ title: "CRM · e-roupas OS" }] }),
@@ -10,12 +14,123 @@ export const Route = createFileRoute("/_authenticated/crm/")({
 
 function CrmPage() {
   const [q, setQ] = useState("");
+  const deferredQ = useDeferredValue(q);
   const [brand, setBrand] = useState<"all" | "ER" | "PG8">("all");
-  const filtered = clients.filter((c) => {
-    if (brand !== "all" && c.brand !== brand) return false;
-    if (!q) return true;
-    return [c.name, c.email, c.phone, c.document].some((f) => f.toLowerCase().includes(q.toLowerCase()));
-  });
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: clients = [], isLoading } = useClients(deferredQ);
+  const importMutation = useImportClients();
+
+  const filtered = clients; // Search is handled by the API now
+
+  const openNewClient = () => {
+    setEditingClient(null);
+    setDrawerOpen(true);
+  };
+
+  const openEditClient = (client: Client) => {
+    setEditingClient(client);
+    setDrawerOpen(true);
+  };
+
+  const handleExportCSV = () => {
+    if (!clients.length) {
+      toast.info("Nenhum cliente para exportar.");
+      return;
+    }
+
+    const dataToExport = clients.map(c => ({
+      Nome: c.name,
+      Tipo: c.entity_class?.toUpperCase() || 'PF',
+      Categoria: c.entity_type || 'cliente',
+      "CPF/CNPJ": c.document || '',
+      "RG/IE": c.state_registration || '',
+      Celular: c.phone || '',
+      "Telefone Fixo": c.landline_phone || '',
+      Email: c.email || '',
+      Instagram: c.instagram || '',
+      "Nome Fantasia": c.company_name || '',
+      "Origem": c.lead_source || '',
+      "Status Crédito": c.credit_status || '',
+      "Primeira Compra": c.is_first_purchase ? 'Sim' : 'Não',
+      "Última Compra": c.last_purchase_date ? new Date(c.last_purchase_date).toLocaleDateString("pt-BR") : '',
+      "CEP": c.zip_code || '',
+      "Endereço": c.street || '',
+      "Número": c.number || '',
+      "Complemento": c.complement || '',
+      "Bairro": c.neighborhood || '',
+      "Cidade": c.city || '',
+      "UF": c.state || '',
+      Observações: c.notes || ''
+    }));
+
+    const csv = Papa.unparse(dataToExport, { header: true });
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `clientes_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        try {
+          const rows = results.data as any[];
+          if (!rows.length) {
+            toast.error("O arquivo CSV está vazio.");
+            return;
+          }
+
+          const parsedClients = rows.map(row => ({
+            name: row.Nome || row.name || "Sem Nome",
+            entity_class: (row.Tipo || row.entity_class || 'pf').toLowerCase(),
+            entity_type: (row.Categoria || row.entity_type || 'cliente').toLowerCase(),
+            document: row["CPF/CNPJ"] || row.document || null,
+            state_registration: row["RG/IE"] || row.state_registration || null,
+            phone: row.Celular || row.phone || null,
+            landline_phone: row["Telefone Fixo"] || row.landline_phone || null,
+            email: row.Email || row.email || null,
+            instagram: row.Instagram || row.instagram || null,
+            company_name: row["Nome Fantasia"] || row.company_name || null,
+            lead_source: row.Origem || row.lead_source || null,
+            credit_status: row["Status Crédito"] || row.credit_status || 'bom',
+            zip_code: row.CEP || row.zip_code || null,
+            street: row["Endereço"] || row.street || null,
+            number: row["Número"] || row.number || null,
+            complement: row.Complemento || row.complement || null,
+            neighborhood: row.Bairro || row.neighborhood || null,
+            city: row.Cidade || row.city || null,
+            state: row.UF || row.state || null,
+            notes: row["Observações"] || row.notes || null,
+            active: true
+          }));
+
+          const res = await importMutation.mutateAsync(parsedClients);
+          toast.success(`Importação concluída: ${res.imported} adicionados, ${res.skipped} ignorados.`);
+        } catch (error: any) {
+          toast.error("Erro na importação: " + error.message);
+        } finally {
+          if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+      },
+      error: (error) => {
+        toast.error("Erro ao ler arquivo: " + error.message);
+      }
+    });
+  };
 
   return (
     <div className="px-6 md:px-10 py-8 max-w-[1400px] mx-auto">
@@ -24,9 +139,25 @@ function CrmPage() {
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">CRM</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">Clientes</h1>
         </div>
-        <button className="h-9 inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90">
-          <Plus className="size-4" /> Novo cliente
-        </button>
+        <div className="flex items-center gap-2">
+          <input 
+            type="file" 
+            accept=".csv" 
+            className="hidden" 
+            ref={fileInputRef} 
+            onChange={handleImportCSV} 
+          />
+          <Button variant="outline" className="h-9 gap-1.5" onClick={() => fileInputRef.current?.click()} disabled={importMutation.isPending}>
+            {importMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />} 
+            Importar
+          </Button>
+          <Button variant="outline" className="h-9 gap-1.5" onClick={handleExportCSV}>
+            <Download className="size-4" /> Exportar
+          </Button>
+          <Button onClick={openNewClient} className="h-9 inline-flex items-center gap-1.5 px-3">
+            <Plus className="size-4" /> Novo cliente
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 mb-4 flex-wrap">
@@ -58,36 +189,64 @@ function CrmPage() {
               <th className="text-left font-medium px-4 py-2.5">Cliente</th>
               <th className="text-left font-medium px-4 py-2.5 hidden md:table-cell">Contato</th>
               <th className="text-left font-medium px-4 py-2.5 hidden lg:table-cell">Origem</th>
-              <th className="text-left font-medium px-4 py-2.5">Marca</th>
+              <th className="text-left font-medium px-4 py-2.5 hidden lg:table-cell">Última Compra</th>
               <th className="text-right font-medium px-4 py-2.5 number">Pedidos</th>
               <th className="text-right font-medium px-4 py-2.5 number">Total</th>
+              <th className="text-right font-medium px-4 py-2.5">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {filtered.map((c) => (
-              <tr key={c.id} className="hover:bg-muted/30 transition-colors">
+            {isLoading && (
+              <tr>
+                <td colSpan={6} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                  <div className="flex justify-center items-center gap-2">
+                    <Loader2 className="size-4 animate-spin" /> Carregando clientes...
+                  </div>
+                </td>
+              </tr>
+            )}
+            {!isLoading && filtered.map((c) => (
+              <tr key={c.id} className="hover:bg-muted/30 transition-colors group">
                 <td className="px-4 py-3">
                   <Link to="/crm/$clientId" params={{ clientId: c.id }} className="font-medium hover:text-primary">{c.name}</Link>
-                  <div className="text-xs text-muted-foreground">{c.document}</div>
+                  <div className="text-xs text-muted-foreground">{c.document || "—"}</div>
                 </td>
                 <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">
-                  <div>{c.phone}</div>
-                  <div className="text-xs">{c.email}</div>
+                  <div>{c.phone || "—"}</div>
+                  <div className="text-xs">{c.email || "—"}</div>
                 </td>
-                <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">{c.origin}</td>
-                <td className="px-4 py-3">
-                  <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium">{c.brand === "ER" ? "e-roupas" : "peagah8"}</span>
+                <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">{c.lead_source || "—"}</td>
+                <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">
+                  <div className="flex flex-col items-start gap-1">
+                    <span>{c.last_purchase_date ? new Date(c.last_purchase_date).toLocaleDateString("pt-BR") : "—"}</span>
+                    {c.is_first_purchase && (
+                      <span className="inline-flex items-center rounded-full bg-gray-400 px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
+                        1ª compra
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-right number">{c.orders}</td>
                 <td className="px-4 py-3 text-right number font-medium">R$ {c.total.toLocaleString("pt-BR")}</td>
+                <td className="px-4 py-3 text-right">
+                  <Button variant="ghost" size="icon" onClick={() => openEditClient(c)} className="h-8 w-8 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Edit2 className="size-4" />
+                  </Button>
+                </td>
               </tr>
             ))}
-            {filtered.length === 0 && (
+            {!isLoading && filtered.length === 0 && (
               <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</td></tr>
             )}
           </tbody>
         </table>
       </div>
+      
+      <ClientFormDrawer 
+        open={drawerOpen} 
+        onOpenChange={setDrawerOpen} 
+        client={editingClient} 
+      />
     </div>
   );
 }

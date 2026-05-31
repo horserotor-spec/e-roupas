@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { useAuth } from "@/lib/auth";
-import { Shirt } from "lucide-react";
+import { Shirt, Eye, EyeOff } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Entrar · e-roupas OS" }] }),
@@ -9,21 +9,30 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const { login } = useAuth();
+  const { login, resetPassword } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("ana@e-roupas.com");
-  const [password, setPassword] = useState("••••••••");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [mode, setMode] = useState<"login" | "reset">("login");
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setLoading(true); setErr(null);
+    setLoading(true); setErr(null); setMsg(null);
     try {
-      await login(email, password);
-      navigate({ to: "/dashboard" });
+      if (mode === "login") {
+        await login(email, password);
+        navigate({ to: "/dashboard" });
+      } else {
+        await resetPassword(email);
+        setMsg("E-mail de redefinição enviado se a conta existir.");
+        setMode("login");
+      }
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "Falha ao entrar");
+      setErr(e instanceof Error ? e.message : "Falha na solicitação");
     } finally { setLoading(false); }
   };
 
@@ -31,47 +40,72 @@ function LoginPage() {
     <div className="min-h-screen grid lg:grid-cols-2 bg-background">
       <div className="flex flex-col justify-center px-8 sm:px-16 py-12">
         <div className="mx-auto w-full max-w-sm">
-          <div className="flex items-center gap-2.5 mb-12">
-            <div className="size-9 rounded-xl bg-primary text-primary-foreground grid place-items-center">
-              <Shirt className="size-4" />
-            </div>
-            <div className="leading-tight">
-              <div className="text-sm font-semibold">e-roupas OS</div>
-              <div className="text-[11px] text-muted-foreground">Operating system têxtil</div>
-            </div>
+          <div className="flex flex-col gap-2 mb-12">
+            <img src="/logo.png" alt="e-roupas logo" style={{ width: '169px', height: '35px' }} className="object-contain" />
+            <div className="text-[11px] text-muted-foreground">Operating system têxtil</div>
           </div>
 
-          <h1 className="text-3xl font-semibold tracking-tight">Bem-vinda de volta.</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Entre para acessar a operação.</p>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            {mode === "login" ? "Bem-vindo de volta." : "Redefinir Senha"}
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {mode === "login" ? "Entre para acessar a operação." : "Enviaremos um link para redefinir sua senha."}
+          </p>
 
           <form onSubmit={onSubmit} className="mt-10 space-y-4">
             <div>
               <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Email</label>
               <input
-                type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
                 className="mt-1.5 h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm outline-none focus:border-primary focus:focus-ring"
               />
             </div>
-            <div>
-              <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Senha</label>
-              <input
-                type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-                className="mt-1.5 h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm outline-none focus:border-primary focus:focus-ring"
-              />
-            </div>
+            
+            {mode === "login" && (
+              <div>
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Senha</label>
+                  <button type="button" onClick={() => setMode("reset")} className="text-[11px] text-primary hover:underline">
+                    Esqueceu a senha?
+                  </button>
+                </div>
+                <div className="relative mt-1.5">
+                  <input
+                    type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required
+                    className="h-10 w-full rounded-lg border border-border bg-surface pl-3 pr-10 text-sm outline-none focus:border-primary focus:focus-ring"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {err && <p className="text-xs text-destructive">{err}</p>}
+            {msg && <p className="text-xs text-primary">{msg}</p>}
 
             <button
               type="submit" disabled={loading}
               className="h-10 w-full rounded-lg bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60 transition-opacity"
             >
-              {loading ? "Entrando…" : "Entrar"}
+              {loading ? "Aguarde…" : mode === "login" ? "Entrar" : "Enviar link"}
             </button>
+            
+            {mode === "reset" && (
+              <p className="text-[11px] text-center pt-2">
+                <button type="button" onClick={() => setMode("login")} className="text-muted-foreground hover:text-foreground">
+                  Voltar para o login
+                </button>
+              </p>
+            )}
 
             <p className="text-[11px] text-muted-foreground text-center pt-2">
-              Sprint 1 · qualquer email cadastrado funciona como login mock.<br />
-              Tente <span className="text-foreground font-medium">ana@e-roupas.com</span> (Diretoria) ou <span className="text-foreground font-medium">diego@e-roupas.com</span> (Produção).
+              Acesso restrito. Utilize suas credenciais corporativas para acessar o sistema.
             </p>
           </form>
         </div>

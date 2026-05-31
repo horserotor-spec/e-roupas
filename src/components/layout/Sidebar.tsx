@@ -1,7 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, Users, ShoppingBag, Factory, Boxes, Wallet,
-  Truck, BarChart3, Sparkles, Settings, Shirt,
+  Truck, BarChart3, Sparkles, Settings, Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +9,7 @@ type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?
 const nav: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/crm", label: "CRM", icon: Users },
+  { to: "/produtos", label: "Produtos", icon: Package },
   { to: "/pedidos", label: "Pedidos", icon: ShoppingBag },
   { to: "/producao", label: "Produção", icon: Factory },
   { to: "/estoque", label: "Estoque", icon: Boxes },
@@ -24,14 +25,8 @@ export function Sidebar() {
 
   return (
     <aside className="hidden md:flex w-60 shrink-0 flex-col hairline-r bg-sidebar text-sidebar-foreground">
-      <div className="h-14 px-5 flex items-center gap-2.5 hairline-b">
-        <div className="size-7 rounded-lg bg-primary text-primary-foreground grid place-items-center">
-          <Shirt className="size-4" />
-        </div>
-        <div className="leading-tight">
-          <div className="text-[13px] font-semibold tracking-tight">e-roupas OS</div>
-          <div className="text-[10px] text-muted-foreground uppercase tracking-wider">v1 · Sprint 1</div>
-        </div>
+      <div className="h-14 px-5 flex items-center justify-center hairline-b">
+        <img src="/logo.png" alt="e-roupas logo" style={{ width: '169px', height: '35px' }} className="object-contain" />
       </div>
 
       <nav className="flex-1 px-2.5 py-3 space-y-0.5 overflow-y-auto">
