@@ -189,3 +189,67 @@ export function useImportProducts() {
     },
   });
 }
+
+export function useCloneProduct() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (productId: string) => {
+      // 1. Fetch the original product with variations
+      const { data: original, error: fetchError } = await supabase
+        .from("products")
+        .select(`*, variations:product_variations(*)`)
+        .eq("id", productId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // 2. Clone main product
+      const { id, created_at, updated_at, variations, ...productData } = original;
+      const clonedProduct = {
+        ...productData,
+        name: `Cópia de ${original.name}`,
+        sku: original.sku ? `${original.sku}-COPIA` : null,
+      };
+
+      const { data: newProduct, error: insertError } = await supabase
+        .from("products")
+        .insert([clonedProduct])
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // 3. Clone variations if they exist
+      if (variations && variations.length > 0) {
+        const clonedVariations = variations.map((v: any) => {
+          const { id: vId, created_at: vCreated, ...vData } = v;
+          return {
+            ...vData,
+            product_id: newProduct.id,
+            sku: v.sku ? `${v.sku}-COPIA` : null,
+          };
+        });
+
+        const { error: varError } = await supabase
+          .from("product_variations")
+          .insert(clonedVariations);
+
+        if (varError) throw varError;
+      }
+
+      // 4. Return the new product (with variations refetched)
+      const { data: finalProduct } = await supabase
+        .from("products")
+        .select(`*, variations:product_variations(*)`)
+        .eq("id", newProduct.id)
+        .single();
+
+      return finalProduct as Product;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+}
+

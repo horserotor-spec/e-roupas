@@ -40,7 +40,7 @@ function NewOrderPage() {
   const [formData, setFormData] = useState<OrderPayload>({
     client_id: "",
     brand_id: "",
-    seller_id: "",
+    salesperson_id: "",
     store: "Matriz",
     business_unit: "",
     delivery_days: 0,
@@ -219,7 +219,12 @@ function NewOrderPage() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Vendedor</Label>
-              <Input className="h-9 bg-white" placeholder="Nome do vendedor" value={formData.seller_id} onChange={e => setFormData({ ...formData, seller_id: e.target.value })} />
+              <Select value={formData.salesperson_id || ""} onValueChange={(v) => setFormData({ ...formData, salesperson_id: v })}>
+                <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="Selecione um vendedor" /></SelectTrigger>
+                <SelectContent>
+                  {clients?.filter(c => c.entity_type === "vendedor").map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Marca (Obrigatório) *</Label>

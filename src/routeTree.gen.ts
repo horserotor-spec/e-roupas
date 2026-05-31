@@ -22,10 +22,13 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated.configuracoes'
 import { Route as AuthenticatedProdutosIndexRouteImport } from './routes/_authenticated.produtos.index'
 import { Route as AuthenticatedPedidosIndexRouteImport } from './routes/_authenticated.pedidos.index'
+import { Route as AuthenticatedOrcamentosIndexRouteImport } from './routes/_authenticated.orcamentos.index'
 import { Route as AuthenticatedCrmIndexRouteImport } from './routes/_authenticated.crm.index'
 import { Route as AuthenticatedPedidosNovoRouteImport } from './routes/_authenticated.pedidos.novo'
 import { Route as AuthenticatedPedidosOrderIdRouteImport } from './routes/_authenticated.pedidos.$orderId'
 import { Route as AuthenticatedPedidosIdRouteImport } from './routes/_authenticated.pedidos.$id'
+import { Route as AuthenticatedOrcamentosNovoRouteImport } from './routes/_authenticated.orcamentos.novo'
+import { Route as AuthenticatedOrcamentosIdRouteImport } from './routes/_authenticated.orcamentos.$id'
 import { Route as AuthenticatedCrmClientIdRouteImport } from './routes/_authenticated.crm.$clientId'
 
 const LoginRoute = LoginRouteImport.update({
@@ -95,6 +98,12 @@ const AuthenticatedPedidosIndexRoute =
     path: '/pedidos/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedOrcamentosIndexRoute =
+  AuthenticatedOrcamentosIndexRouteImport.update({
+    id: '/orcamentos/',
+    path: '/orcamentos/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedCrmIndexRoute = AuthenticatedCrmIndexRouteImport.update({
   id: '/crm/',
   path: '/crm/',
@@ -117,6 +126,18 @@ const AuthenticatedPedidosIdRoute = AuthenticatedPedidosIdRouteImport.update({
   path: '/pedidos/$id',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedOrcamentosNovoRoute =
+  AuthenticatedOrcamentosNovoRouteImport.update({
+    id: '/orcamentos/novo',
+    path: '/orcamentos/novo',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedOrcamentosIdRoute =
+  AuthenticatedOrcamentosIdRouteImport.update({
+    id: '/orcamentos/$id',
+    path: '/orcamentos/$id',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedCrmClientIdRoute =
   AuthenticatedCrmClientIdRouteImport.update({
     id: '/crm/$clientId',
@@ -136,10 +157,13 @@ export interface FileRoutesByFullPath {
   '/producao': typeof AuthenticatedProducaoRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/crm/$clientId': typeof AuthenticatedCrmClientIdRoute
+  '/orcamentos/$id': typeof AuthenticatedOrcamentosIdRoute
+  '/orcamentos/novo': typeof AuthenticatedOrcamentosNovoRoute
   '/pedidos/$id': typeof AuthenticatedPedidosIdRoute
   '/pedidos/$orderId': typeof AuthenticatedPedidosOrderIdRoute
   '/pedidos/novo': typeof AuthenticatedPedidosNovoRoute
   '/crm/': typeof AuthenticatedCrmIndexRoute
+  '/orcamentos/': typeof AuthenticatedOrcamentosIndexRoute
   '/pedidos/': typeof AuthenticatedPedidosIndexRoute
   '/produtos/': typeof AuthenticatedProdutosIndexRoute
 }
@@ -155,10 +179,13 @@ export interface FileRoutesByTo {
   '/producao': typeof AuthenticatedProducaoRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/crm/$clientId': typeof AuthenticatedCrmClientIdRoute
+  '/orcamentos/$id': typeof AuthenticatedOrcamentosIdRoute
+  '/orcamentos/novo': typeof AuthenticatedOrcamentosNovoRoute
   '/pedidos/$id': typeof AuthenticatedPedidosIdRoute
   '/pedidos/$orderId': typeof AuthenticatedPedidosOrderIdRoute
   '/pedidos/novo': typeof AuthenticatedPedidosNovoRoute
   '/crm': typeof AuthenticatedCrmIndexRoute
+  '/orcamentos': typeof AuthenticatedOrcamentosIndexRoute
   '/pedidos': typeof AuthenticatedPedidosIndexRoute
   '/produtos': typeof AuthenticatedProdutosIndexRoute
 }
@@ -176,10 +203,13 @@ export interface FileRoutesById {
   '/_authenticated/producao': typeof AuthenticatedProducaoRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
   '/_authenticated/crm/$clientId': typeof AuthenticatedCrmClientIdRoute
+  '/_authenticated/orcamentos/$id': typeof AuthenticatedOrcamentosIdRoute
+  '/_authenticated/orcamentos/novo': typeof AuthenticatedOrcamentosNovoRoute
   '/_authenticated/pedidos/$id': typeof AuthenticatedPedidosIdRoute
   '/_authenticated/pedidos/$orderId': typeof AuthenticatedPedidosOrderIdRoute
   '/_authenticated/pedidos/novo': typeof AuthenticatedPedidosNovoRoute
   '/_authenticated/crm/': typeof AuthenticatedCrmIndexRoute
+  '/_authenticated/orcamentos/': typeof AuthenticatedOrcamentosIndexRoute
   '/_authenticated/pedidos/': typeof AuthenticatedPedidosIndexRoute
   '/_authenticated/produtos/': typeof AuthenticatedProdutosIndexRoute
 }
@@ -197,10 +227,13 @@ export interface FileRouteTypes {
     | '/producao'
     | '/relatorios'
     | '/crm/$clientId'
+    | '/orcamentos/$id'
+    | '/orcamentos/novo'
     | '/pedidos/$id'
     | '/pedidos/$orderId'
     | '/pedidos/novo'
     | '/crm/'
+    | '/orcamentos/'
     | '/pedidos/'
     | '/produtos/'
   fileRoutesByTo: FileRoutesByTo
@@ -216,10 +249,13 @@ export interface FileRouteTypes {
     | '/producao'
     | '/relatorios'
     | '/crm/$clientId'
+    | '/orcamentos/$id'
+    | '/orcamentos/novo'
     | '/pedidos/$id'
     | '/pedidos/$orderId'
     | '/pedidos/novo'
     | '/crm'
+    | '/orcamentos'
     | '/pedidos'
     | '/produtos'
   id:
@@ -236,10 +272,13 @@ export interface FileRouteTypes {
     | '/_authenticated/producao'
     | '/_authenticated/relatorios'
     | '/_authenticated/crm/$clientId'
+    | '/_authenticated/orcamentos/$id'
+    | '/_authenticated/orcamentos/novo'
     | '/_authenticated/pedidos/$id'
     | '/_authenticated/pedidos/$orderId'
     | '/_authenticated/pedidos/novo'
     | '/_authenticated/crm/'
+    | '/_authenticated/orcamentos/'
     | '/_authenticated/pedidos/'
     | '/_authenticated/produtos/'
   fileRoutesById: FileRoutesById
@@ -343,6 +382,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPedidosIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/orcamentos/': {
+      id: '/_authenticated/orcamentos/'
+      path: '/orcamentos'
+      fullPath: '/orcamentos/'
+      preLoaderRoute: typeof AuthenticatedOrcamentosIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/crm/': {
       id: '/_authenticated/crm/'
       path: '/crm'
@@ -371,6 +417,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPedidosIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/orcamentos/novo': {
+      id: '/_authenticated/orcamentos/novo'
+      path: '/orcamentos/novo'
+      fullPath: '/orcamentos/novo'
+      preLoaderRoute: typeof AuthenticatedOrcamentosNovoRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/orcamentos/$id': {
+      id: '/_authenticated/orcamentos/$id'
+      path: '/orcamentos/$id'
+      fullPath: '/orcamentos/$id'
+      preLoaderRoute: typeof AuthenticatedOrcamentosIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/crm/$clientId': {
       id: '/_authenticated/crm/$clientId'
       path: '/crm/$clientId'
@@ -391,10 +451,13 @@ interface AuthenticatedRouteChildren {
   AuthenticatedProducaoRoute: typeof AuthenticatedProducaoRoute
   AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
   AuthenticatedCrmClientIdRoute: typeof AuthenticatedCrmClientIdRoute
+  AuthenticatedOrcamentosIdRoute: typeof AuthenticatedOrcamentosIdRoute
+  AuthenticatedOrcamentosNovoRoute: typeof AuthenticatedOrcamentosNovoRoute
   AuthenticatedPedidosIdRoute: typeof AuthenticatedPedidosIdRoute
   AuthenticatedPedidosOrderIdRoute: typeof AuthenticatedPedidosOrderIdRoute
   AuthenticatedPedidosNovoRoute: typeof AuthenticatedPedidosNovoRoute
   AuthenticatedCrmIndexRoute: typeof AuthenticatedCrmIndexRoute
+  AuthenticatedOrcamentosIndexRoute: typeof AuthenticatedOrcamentosIndexRoute
   AuthenticatedPedidosIndexRoute: typeof AuthenticatedPedidosIndexRoute
   AuthenticatedProdutosIndexRoute: typeof AuthenticatedProdutosIndexRoute
 }
@@ -409,10 +472,13 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedProducaoRoute: AuthenticatedProducaoRoute,
   AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
   AuthenticatedCrmClientIdRoute: AuthenticatedCrmClientIdRoute,
+  AuthenticatedOrcamentosIdRoute: AuthenticatedOrcamentosIdRoute,
+  AuthenticatedOrcamentosNovoRoute: AuthenticatedOrcamentosNovoRoute,
   AuthenticatedPedidosIdRoute: AuthenticatedPedidosIdRoute,
   AuthenticatedPedidosOrderIdRoute: AuthenticatedPedidosOrderIdRoute,
   AuthenticatedPedidosNovoRoute: AuthenticatedPedidosNovoRoute,
   AuthenticatedCrmIndexRoute: AuthenticatedCrmIndexRoute,
+  AuthenticatedOrcamentosIndexRoute: AuthenticatedOrcamentosIndexRoute,
   AuthenticatedPedidosIndexRoute: AuthenticatedPedidosIndexRoute,
   AuthenticatedProdutosIndexRoute: AuthenticatedProdutosIndexRoute,
 }

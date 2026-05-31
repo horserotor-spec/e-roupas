@@ -81,7 +81,8 @@ function OrderPage() {
           </h1>
           <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1"><Calendar className="size-3.5" /> Prazo {order.deadline ? new Date(order.deadline).toLocaleDateString("pt-BR") : '—'}</span>
-            <span className="inline-flex items-center gap-1"><User className="size-3.5" /> {order.owner_name}</span>
+            <span className="inline-flex items-center gap-1" title="Responsável"><User className="size-3.5" /> {order.owner_name}</span>
+            {order.salesperson_name && <span className="inline-flex items-center gap-1 text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full" title="Vendedor"><User className="size-3.5" /> {order.salesperson_name}</span>}
             <span className="inline-flex items-center gap-1"><Package className="size-3.5" /> {order.brand_code}</span>
           </div>
         </div>
@@ -102,6 +103,9 @@ function OrderPage() {
           <div className="text-right ml-2">
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</div>
             <div className="text-xl font-semibold number">R$ {order.final_total.toLocaleString("pt-BR")}</div>
+            {order.commissions_total > 0 && (
+              <div className="text-[10px] text-muted-foreground mt-1">Comissão: R$ {Number(order.commissions_total).toLocaleString("pt-BR")}</div>
+            )}
           </div>
         </div>
       </div>

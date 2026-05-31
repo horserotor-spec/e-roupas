@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useProducts, Product, useImportProducts } from "@/lib/api/products";
+import { useProducts, Product, useImportProducts, useCloneProduct } from "@/lib/api/products";
 import { useState, useDeferredValue, useRef } from "react";
-import { Search, Plus, Loader2, Edit2, Box, Download, Upload } from "lucide-react";
+import { Search, Plus, Loader2, Edit2, Box, Download, Upload, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductFormDrawer } from "@/components/products/ProductFormDrawer";
 import { toast } from "sonner";
@@ -21,6 +21,7 @@ function ProductsPage() {
 
   const { data: products = [], isLoading } = useProducts(deferredQ);
   const importMutation = useImportProducts();
+  const cloneMutation = useCloneProduct();
 
   const openNewProduct = () => {
     setEditingProduct(null);
@@ -208,9 +209,18 @@ function ProductsPage() {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <Button variant="ghost" size="icon" onClick={() => openEditProduct(p)} className="h-8 w-8 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Edit2 className="size-4" />
-                  </Button>
+                  <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button variant="ghost" size="icon" onClick={() => {
+                      cloneMutation.mutateAsync(p.id).then((cloned) => {
+                        if (cloned) { setEditingProduct(cloned); setDrawerOpen(true); toast.success("Produto clonado! Edite e salve."); }
+                      }).catch((e: any) => toast.error("Erro ao clonar: " + e.message));
+                    }} disabled={cloneMutation.isPending} className="h-8 w-8 text-muted-foreground hover:text-purple-600" title="Clonar Produto">
+                      <Copy className="size-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => openEditProduct(p)} className="h-8 w-8 text-muted-foreground hover:text-primary" title="Editar">
+                      <Edit2 className="size-4" />
+                    </Button>
+                  </div>
                 </td>
               </tr>
             )})}

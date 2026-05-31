@@ -43,3 +43,30 @@ export const processLabel: Record<ProcessType, string> = {
   dtf: "Impressão DTF", silk: "Silk", sublimacao: "Sublimação", prensa: "Prensa",
   qualidade: "Manuseio e qualidade", expedicao: "Expedição"
 };
+
+// ---------- QUOTES (Orçamentos) ----------
+
+export type QuoteStatus =
+  | "rascunho" | "enviado" | "negociacao"
+  | "aprovado" | "rejeitado"
+  | "convertido_pedido" | "convertido_producao";
+
+export const quoteStatusLabel: Record<QuoteStatus, string> = {
+  rascunho: "Rascunho",
+  enviado: "Enviado",
+  negociacao: "Em negociação",
+  aprovado: "Aprovado",
+  rejeitado: "Rejeitado",
+  convertido_pedido: "Convertido em Pedido",
+  convertido_producao: "Convertido em Produção",
+};
+
+export const quoteStatusTone: Record<QuoteStatus, "neutral" | "info" | "warning" | "success" | "primary"> = {
+  rascunho: "neutral",
+  enviado: "info",
+  negociacao: "warning",
+  aprovado: "success",
+  rejeitado: "neutral",
+  convertido_pedido: "primary",
+  convertido_producao: "primary",
+};

@@ -72,11 +72,10 @@ export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawe
     zip_code: "",
     street: "",
     number: "",
-    complement: "",
-    neighborhood: "",
     city: "",
     state: "",
     active: true,
+    commission_percent: 0,
   });
 
   const [isLoadingCep, setIsLoadingCep] = useState(false);
@@ -104,10 +103,10 @@ export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawe
           street: client.street || "",
           number: client.number || "",
           complement: client.complement || "",
-          neighborhood: client.neighborhood || "",
           city: client.city || "",
           state: client.state || "",
           active: client.active ?? true,
+          commission_percent: client.commission_percent || 0,
         });
       } else {
         setFormData({
@@ -130,10 +129,10 @@ export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawe
           street: "",
           number: "",
           complement: "",
-          neighborhood: "",
           city: "",
           state: "",
           active: true,
+          commission_percent: 0,
         });
       }
     }
@@ -207,7 +206,7 @@ export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawe
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-md overflow-y-auto w-full">
+      <SheetContent className="sm:max-w-2xl overflow-y-auto w-full">
         <form onSubmit={handleSubmit} className="flex flex-col h-full">
           <SheetHeader>
             <div className="flex items-center justify-between">
@@ -232,7 +231,7 @@ export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawe
             {/* DADOS PRINCIPAIS */}
             <div className="space-y-4">
               <h3 className="text-sm font-semibold uppercase text-muted-foreground">Dados Principais</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Tipo de Pessoa</Label>
                   <Select value={formData.entity_class} onValueChange={handleEntityClassChange}>
@@ -247,7 +246,7 @@ export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawe
                 </div>
                 <div className="space-y-2">
                   <Label>Categoria</Label>
-                  <Select value={formData.entity_type} onValueChange={(v: "cliente"|"fornecedor"|"colaborador") => setFormData({ ...formData, entity_type: v })}>
+                  <Select value={formData.entity_type} onValueChange={(v: "cliente"|"fornecedor"|"colaborador"|"vendedor"|"socio") => setFormData({ ...formData, entity_type: v })}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
@@ -255,9 +254,25 @@ export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawe
                       <SelectItem value="cliente">Cliente</SelectItem>
                       <SelectItem value="fornecedor">Fornecedor</SelectItem>
                       <SelectItem value="colaborador">Colaborador</SelectItem>
+                      <SelectItem value="vendedor">Vendedor</SelectItem>
+                      <SelectItem value="socio">Sócio</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                
+                {formData.entity_type === "vendedor" && (
+                  <div className="space-y-2">
+                    <Label>Comissão (%)</Label>
+                    <Input 
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.commission_percent || ""} 
+                      onChange={e => setFormData({ ...formData, commission_percent: parseFloat(e.target.value) || 0 })}
+                      placeholder="Ex: 10"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -461,19 +476,21 @@ export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawe
                 </div>
               </div>
 
-              <div className="rounded-lg border border-border p-4 bg-muted/30 space-y-4">
-                <h3 className="text-sm font-medium">Histórico de Compras</h3>
-                <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="first_purchase" 
-                    checked={formData.is_first_purchase} 
-                    onCheckedChange={(checked) => setFormData({ ...formData, is_first_purchase: !!checked })}
-                  />
-                  <Label htmlFor="first_purchase" className="text-sm font-normal cursor-pointer">
-                    É a primeira compra deste cliente
-                  </Label>
+              {formData.entity_type === "cliente" && (
+                <div className="rounded-lg border border-border p-4 bg-muted/30 space-y-4">
+                  <h3 className="text-sm font-medium">Histórico de Compras</h3>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="first_purchase" 
+                      checked={formData.is_first_purchase} 
+                      onCheckedChange={(checked) => setFormData({ ...formData, is_first_purchase: !!checked })}
+                    />
+                    <Label htmlFor="first_purchase" className="text-sm font-normal cursor-pointer">
+                      É a primeira compra deste cliente
+                    </Label>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="space-y-2">
                 <Label>Observações</Label>

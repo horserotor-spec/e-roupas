@@ -5,7 +5,7 @@ export interface Client {
   id: string;
   name: string;
   entity_class: "pf" | "pj";
-  entity_type: "cliente" | "fornecedor" | "colaborador";
+  entity_type: "cliente" | "fornecedor" | "colaborador" | "vendedor" | "socio";
   document: string | null;
   state_registration: string | null;
   phone: string | null;
@@ -27,6 +27,7 @@ export interface Client {
   state: string | null;
   active: boolean;
   responsible_id: string | null;
+  commission_percent: number;
   orders: number;
   total: number;
 }

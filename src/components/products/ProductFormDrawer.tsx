@@ -207,6 +207,7 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                         <SelectContent>
                           <SelectItem value="Simples">Simples</SelectItem>
                           <SelectItem value="Com Variação">Com Variação</SelectItem>
+                          <SelectItem value="Composição">Composição</SelectItem>
                           <SelectItem value="Serviço">Serviço</SelectItem>
                         </SelectContent>
                       </Select>

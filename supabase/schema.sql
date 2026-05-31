@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS public.clients (
   city TEXT,
   state TEXT,
   active BOOLEAN DEFAULT true,
+  commission_percent NUMERIC DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -105,6 +106,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
   client_id UUID NOT NULL REFERENCES public.clients(id) ON DELETE RESTRICT,
   brand_id UUID REFERENCES public.brands(id) ON DELETE SET NULL,
   seller_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
+  salesperson_id UUID REFERENCES public.clients(id) ON DELETE SET NULL,
   store TEXT,
   business_unit TEXT,
   price_list_id UUID, -- For future implementation
@@ -583,3 +585,124 @@ CREATE POLICY "Allow authenticated users to perform all operations on inventory_
 
 DROP POLICY IF EXISTS "Allow authenticated users to perform all operations on stock_reservations" ON public.stock_reservations;
 CREATE POLICY "Allow authenticated users to perform all operations on stock_reservations" ON public.stock_reservations FOR ALL USING (auth.role() = 'authenticated');
+
+-- ==========================================
+-- SPRINT 3.0 - ORÇAMENTO INTELIGENTE
+-- ==========================================
+
+-- QUOTES (Orçamentos)
+CREATE TABLE IF NOT EXISTS public.quotes (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  code TEXT UNIQUE NOT NULL,
+  client_id UUID NOT NULL REFERENCES public.clients(id) ON DELETE RESTRICT,
+  brand_id UUID REFERENCES public.brands(id) ON DELETE SET NULL,
+  seller_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
+  status TEXT NOT NULL DEFAULT 'rascunho',
+    -- rascunho, enviado, negociacao, aprovado, rejeitado, convertido_pedido, convertido_producao
+
+  -- Financial
+  estimated_total NUMERIC DEFAULT 0,
+  total_cost NUMERIC DEFAULT 0,
+  discount NUMERIC DEFAULT 0,
+  other_expenses NUMERIC DEFAULT 0,
+  freight_cost NUMERIC DEFAULT 0,
+  final_total NUMERIC DEFAULT 0,
+  gross_margin_pct NUMERIC DEFAULT 0,
+
+  -- Conversion traceability
+  converted_order_id UUID REFERENCES public.orders(id),
+  converted_at TIMESTAMPTZ,
+
+  -- Metadata
+  validity_days INTEGER DEFAULT 15,
+  notes TEXT,
+  internal_notes TEXT,
+  payment_condition TEXT,
+  payment_method TEXT,
+
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- QUOTE_ITEMS (Itens do Orçamento)
+CREATE TABLE IF NOT EXISTS public.quote_items (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  quote_id UUID NOT NULL REFERENCES public.quotes(id) ON DELETE CASCADE,
+  product_id UUID REFERENCES public.products(id) ON DELETE SET NULL,
+  product_name TEXT NOT NULL,
+  sku TEXT,
+  quantity NUMERIC NOT NULL,
+  unit_cost NUMERIC DEFAULT 0,
+  list_price NUMERIC DEFAULT 0,
+  discount_percent NUMERIC DEFAULT 0,
+  unit_price NUMERIC DEFAULT 0,
+  customizations JSONB DEFAULT '[]'::jsonb,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Enable RLS
+ALTER TABLE public.quotes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.quote_items ENABLE ROW LEVEL SECURITY;
+
+-- Policies
+DROP POLICY IF EXISTS "Allow authenticated users to perform all operations on quotes" ON public.quotes;
+CREATE POLICY "Allow authenticated users to perform all operations on quotes" ON public.quotes FOR ALL USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Allow authenticated users to perform all operations on quote_items" ON public.quote_items;
+CREATE POLICY "Allow authenticated users to perform all operations on quote_items" ON public.quote_items FOR ALL USING (auth.role() = 'authenticated');
+
+-- ==========================================
+-- SPRINT 4.0: FINANCEIRO BÁSICO E COMISSIONAMENTO
+-- ==========================================
+
+-- 1. Colunas adicionais necessárias
+ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS commission_percent NUMERIC DEFAULT 0;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS salesperson_id UUID REFERENCES public.clients(id) ON DELETE SET NULL;
+
+-- 2. Novas tabelas
+CREATE TABLE IF NOT EXISTS public.cost_centers (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  code TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT,
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.chart_of_accounts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  code TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL, -- 'receita', 'despesa', 'custo'
+  parent_id UUID REFERENCES public.chart_of_accounts(id) ON DELETE CASCADE,
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.accounts_payable (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  description TEXT NOT NULL,
+  amount NUMERIC NOT NULL,
+  due_date TIMESTAMPTZ NOT NULL,
+  status TEXT DEFAULT 'pendente', -- 'pendente', 'pago', 'cancelado'
+  supplier_id UUID REFERENCES public.clients(id) ON DELETE SET NULL,
+  order_id UUID REFERENCES public.orders(id) ON DELETE CASCADE,
+  cost_center_id UUID REFERENCES public.cost_centers(id) ON DELETE SET NULL,
+  account_id UUID REFERENCES public.chart_of_accounts(id) ON DELETE SET NULL,
+  payment_date TIMESTAMPTZ,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Enable RLS
+ALTER TABLE public.cost_centers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chart_of_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.accounts_payable ENABLE ROW LEVEL SECURITY;
+
+-- Policies
+CREATE POLICY "Allow authenticated users to perform all operations on cost_centers" ON public.cost_centers FOR ALL USING (auth.role() = 'authenticated');
+CREATE POLICY "Allow authenticated users to perform all operations on chart_of_accounts" ON public.chart_of_accounts FOR ALL USING (auth.role() = 'authenticated');
+CREATE POLICY "Allow authenticated users to perform all operations on accounts_payable" ON public.accounts_payable FOR ALL USING (auth.role() = 'authenticated');

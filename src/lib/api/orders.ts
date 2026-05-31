@@ -41,6 +41,7 @@ export interface Order {
   client_id: string;
   brand_id: string;
   seller_id: string | null;
+  salesperson_id: string | null;
   store: string | null;
   business_unit: string | null;
   sale_date: string | null;
@@ -64,6 +65,7 @@ export interface Order {
   logistics_integration: string | null;
   notes: string | null;
   internal_notes: string | null;
+  salesperson_name?: string;
 }
 
 export type OrderPayload = Partial<Order> & { client_id: string; brand_id: string; items?: OrderItem[] };
@@ -79,6 +81,7 @@ export function useOrders(search?: string) {
           clients!inner(id, name, phone),
           brands!inner(id, code),
           users:responsible_user_id(id, name),
+          salesperson:salesperson_id(id, name),
           order_items(*)
         `)
         .eq("active", true)
@@ -99,6 +102,7 @@ export function useOrders(search?: string) {
         brand_code: o.brands?.code || "GEN",
         client_name: o.clients?.name || "Sem Cliente",
         owner_name: o.users?.name || "Sem Responsável",
+        salesperson_name: o.salesperson?.name || null,
         items: o.order_items || [],
       })) as Order[];
     },
@@ -117,7 +121,18 @@ export function useCreateOrder() {
       delete (orderData as any).brands;
       delete (orderData as any).users;
       if (orderData.seller_id === "") orderData.seller_id = null;
+      if (orderData.salesperson_id === "") orderData.salesperson_id = null;
       if (orderData.responsible_user_id === "") orderData.responsible_user_id = null;
+      
+      // Handle Commission calculation
+      let commissionValue = 0;
+      if (orderData.salesperson_id) {
+        const { data: seller } = await supabase.from("clients").select("commission_percent").eq("id", orderData.salesperson_id).single();
+        if (seller && seller.commission_percent) {
+          commissionValue = (Number(orderData.final_total || 0) * Number(seller.commission_percent)) / 100;
+          orderData.commissions_total = commissionValue;
+        }
+      }
       
       // Fetch brand code for the order code prefix
       const { data: brand } = await supabase.from("brands").select("code").eq("id", orderData.brand_id).single();
@@ -169,6 +184,22 @@ export function useCreateOrder() {
         if (itemsError) throw itemsError;
       }
 
+      // Generate Accounts Payable for Commission
+      if (orderData.salesperson_id && commissionValue > 0) {
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 30); // Default to 30 days
+        
+        await supabase.from("accounts_payable").insert([{
+          description: `Comissão de Venda - Pedido ${finalCode}`,
+          amount: commissionValue,
+          due_date: dueDate.toISOString(),
+          status: 'pendente',
+          supplier_id: orderData.salesperson_id,
+          order_id: newOrder.id,
+          notes: 'Gerado automaticamente na criação do pedido.'
+        }]);
+      }
+
       return newOrder;
     },
     onSuccess: () => {
@@ -189,7 +220,18 @@ export function useUpdateOrder() {
       delete (orderData as any).brands;
       delete (orderData as any).users;
       if (orderData.seller_id === "") orderData.seller_id = null;
+      if (orderData.salesperson_id === "") orderData.salesperson_id = null;
       if (orderData.responsible_user_id === "") orderData.responsible_user_id = null;
+
+      // Handle Commission calculation
+      let commissionValue = 0;
+      if (orderData.salesperson_id) {
+        const { data: seller } = await supabase.from("clients").select("commission_percent").eq("id", orderData.salesperson_id).single();
+        if (seller && seller.commission_percent) {
+          commissionValue = (Number(orderData.final_total || 0) * Number(seller.commission_percent)) / 100;
+          orderData.commissions_total = commissionValue;
+        }
+      }
 
       const { data, error } = await supabase
         .from("orders")
@@ -220,6 +262,27 @@ export function useUpdateOrder() {
             .from("order_items")
             .insert(itemsToInsert);
           if (itemsError) throw itemsError;
+        }
+      }
+
+      // Handle Accounts Payable update/creation
+      if (orderData.salesperson_id) {
+        // Delete existing payable for this order if any
+        await supabase.from("accounts_payable").delete().eq("order_id", id);
+        
+        if (commissionValue > 0) {
+          const dueDate = new Date();
+          dueDate.setDate(dueDate.getDate() + 30); // Default 30 days
+          
+          await supabase.from("accounts_payable").insert([{
+            description: `Comissão de Venda - Pedido atualizado`,
+            amount: commissionValue,
+            due_date: dueDate.toISOString(),
+            status: 'pendente',
+            supplier_id: orderData.salesperson_id,
+            order_id: id,
+            notes: 'Recalculado automaticamente na atualização do pedido.'
+          }]);
         }
       }
 

@@ -1,7 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, Users, ShoppingBag, Factory, Boxes, Wallet,
-  Truck, BarChart3, Sparkles, Settings, Package,
+  Truck, BarChart3, Sparkles, Settings, Package, FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,7 @@ const nav: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/crm", label: "CRM", icon: Users },
   { to: "/produtos", label: "Produtos", icon: Package },
+  { to: "/orcamentos", label: "Orçamentos", icon: FileText },
   { to: "/pedidos", label: "Pedidos", icon: ShoppingBag },
   { to: "/producao", label: "Produção", icon: Factory },
   { to: "/estoque", label: "Estoque", icon: Boxes },
