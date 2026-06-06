@@ -276,8 +276,10 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                         <button type="button" onClick={() => setQaCategoria(true)} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5 font-medium">
                           <Plus className="h-3 w-3" /> Nova
                         </button>
-                        {formData.category && formData.category !== "none_category" && (
-                          <button type="button" onClick={async () => {
+                        <button 
+                          type="button" 
+                          disabled={!formData.category || formData.category === "none_category"}
+                          onClick={async () => {
                             if(confirm('Excluir esta categoria?')) {
                               try { 
                                 const cat = categories.find(c => c.name === formData.category);
@@ -285,10 +287,11 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                                 setFormData({...formData, category: null});
                               } catch(e:any) { toast.error(e.message); }
                             }
-                          }} className="text-xs text-red-500 hover:text-red-700">
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        )}
+                          }} 
+                          className="text-xs text-red-500 hover:text-red-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
                       </div>
                     </div>
                     <Select value={formData.category || "none_category"} onValueChange={(v) => setFormData({ ...formData, category: v === "none_category" ? null : v })}>
@@ -310,21 +313,7 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                   </div>
                 </div>
 
-                {formData.format === "MP" && (
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-slate-500">Grade Aplicável</Label>
-                    <Select value={formData.size_grid || "Adulto"} onValueChange={(v) => setFormData({ ...formData, size_grid: v })}>
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Grade" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Adulto">Adulto (P, M, G, GG, XG)</SelectItem>
-                        <SelectItem value="Infantil">Infantil (02, 04, 06, 08, 10, 12, 14)</SelectItem>
-                        <SelectItem value="Customizada">Customizada</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+
               </div>
             </div>
 
@@ -341,13 +330,18 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                           <button type="button" onClick={() => setQaModelagem(true)} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5 font-medium">
                             <Plus className="h-3 w-3" /> Nova
                           </button>
-                          {formData.model_id && (
-                            <button type="button" onClick={async () => {
+                          <button 
+                            type="button" 
+                            disabled={!formData.model_id || formData.model_id === "none_model"}
+                            onClick={async () => {
                               if(confirm('Excluir modelagem?')) {
                                 try { await delModel.mutateAsync(formData.model_id!); setFormData({...formData, model_id: null}); } catch(e:any) { toast.error(e.message); }
                               }
-                            }} className="text-xs text-red-500 hover:text-red-700"><Trash2 className="h-3 w-3" /></button>
-                          )}
+                            }} 
+                            className="text-xs text-red-500 hover:text-red-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
                         </div>
                       </div>
                       <Select value={formData.model_id || "none_model"} onValueChange={(v) => setFormData({ ...formData, model_id: v === "none_model" ? null : v })}>
@@ -366,13 +360,18 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                           <button type="button" onClick={() => setQaTecido(true)} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5 font-medium">
                             <Plus className="h-3 w-3" /> Novo
                           </button>
-                          {formData.fabric_id && (
-                            <button type="button" onClick={async () => {
+                          <button 
+                            type="button" 
+                            disabled={!formData.fabric_id || formData.fabric_id === "none_fabric"}
+                            onClick={async () => {
                               if(confirm('Excluir tecido?')) {
                                 try { await delFabric.mutateAsync(formData.fabric_id!); setFormData({...formData, fabric_id: null}); } catch(e:any) { toast.error(e.message); }
                               }
-                            }} className="text-xs text-red-500 hover:text-red-700"><Trash2 className="h-3 w-3" /></button>
-                          )}
+                            }} 
+                            className="text-xs text-red-500 hover:text-red-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
                         </div>
                       </div>
                       <Select
@@ -420,8 +419,10 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                           <button type="button" onClick={() => setQaGrade(true)} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5 font-medium">
                             <Plus className="h-3 w-3" /> Nova
                           </button>
-                          {formData.size_grid && formData.size_grid !== "none_grid" && (
-                            <button type="button" onClick={async () => {
+                          <button 
+                            type="button" 
+                            disabled={!formData.size_grid || formData.size_grid === "none_grid"}
+                            onClick={async () => {
                               if(confirm('Excluir grade?')) {
                                 try { 
                                   const grid = sizeGrids.find(g => g.name === formData.size_grid);
@@ -429,8 +430,11 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                                   setFormData({...formData, size_grid: ""});
                                 } catch(e:any) { toast.error(e.message); }
                               }
-                            }} className="text-xs text-red-500 hover:text-red-700"><Trash2 className="h-3 w-3" /></button>
-                          )}
+                            }} 
+                            className="text-xs text-red-500 hover:text-red-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
                         </div>
                       </div>
                       <Select value={formData.size_grid || "none_grid"} onValueChange={(v) => setFormData({ ...formData, size_grid: v === "none_grid" ? "" : v })}>
@@ -462,13 +466,18 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                         <button type="button" onClick={() => setQaCor(true)} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5 font-medium">
                           <Plus className="h-3 w-3" /> Nova
                         </button>
-                        {formData.color_id && (
-                          <button type="button" onClick={async () => {
+                        <button 
+                          type="button" 
+                          disabled={!formData.color_id || formData.color_id === "none_color"}
+                          onClick={async () => {
                             if(confirm('Excluir cor?')) {
                               try { await delColor.mutateAsync(formData.color_id!); setFormData({...formData, color_id: null}); } catch(e:any) { toast.error(e.message); }
                             }
-                          }} className="text-xs text-red-500 hover:text-red-700"><Trash2 className="h-3 w-3" /></button>
-                        )}
+                          }} 
+                          className="text-xs text-red-500 hover:text-red-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
                       </div>
                     </div>
                     <Select value={formData.color_id || "none_color"} onValueChange={(v) => setFormData({ ...formData, color_id: v === "none_color" ? null : v })}>
