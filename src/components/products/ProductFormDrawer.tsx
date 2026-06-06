@@ -9,8 +9,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Product, ProductVariation, useCreateProduct, useUpdateProduct } from "@/lib/api/products";
 import { useModels, useFabrics, useColors, useSuppliersCRM, useSizeGrids, useCategories, useDeleteModel, useDeleteFabric, useDeleteColor, useDeleteSizeGrid, useDeleteCategory } from "@/lib/api/inventory";
 import { QuickAddModelagem, QuickAddTecido, QuickAddCor, QuickAddGrade, QuickAddCategoria } from "./QuickAddDialogs";
+import { useSkuRules } from "@/lib/api/skuRules";
+import { generateSku, generateTechnicalName } from "@/lib/skuGenerator";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Wand2, Edit3 } from "lucide-react";
 
 interface ProductFormDrawerProps {
   open: boolean;
@@ -41,6 +43,9 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
   const [qaCor, setQaCor] = useState(false);
   const [qaGrade, setQaGrade] = useState(false);
   const [qaCategoria, setQaCategoria] = useState(false);
+
+  const { data: skuRules = [] } = useSkuRules();
+  const [customSkuMode, setCustomSkuMode] = useState(false);
 
   const [formData, setFormData] = useState<Partial<Product>>({
     name: "",
@@ -78,10 +83,11 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
     pis_percent: 0,
     cofins_cst: "07",
     cofins_percent: 0,
-    ipi_cst: "99",
     ipi_percent: 0,
     cfop: "5102",
     active: true,
+    technical_name: "",
+    mix_allowed: false,
   });
 
   const [variations, setVariations] = useState<Partial<ProductVariation>[]>([]);
@@ -171,10 +177,53 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
           ipi_percent: 0,
           cfop: "5102",
           active: true,
+          technical_name: "",
+          mix_allowed: false,
         });
+        setCustomSkuMode(false);
       }
     }
   }, [open, product]);
+
+  // Efeito para auto-gerar SKU e Nome Técnico
+  useEffect(() => {
+    if (!open) return;
+    
+    // Nome Técnico (se MP ou PA)
+    const tName = generateTechnicalName({
+      format: formData.format || "",
+      modelName: models.find(m => m.id === formData.model_id)?.name,
+      fabricName: fabrics.find(f => f.id === formData.fabric_id)?.name,
+      colorName: colors.find(c => c.id === formData.color_id)?.name,
+    });
+    
+    // Atualiza Nome Técnico se estiver vazio ou formos alterar
+    if (tName && formData.technical_name !== tName) {
+      setFormData(prev => ({ ...prev, technical_name: tName }));
+    }
+
+    // Gerar SKU Automático
+    if (!customSkuMode) {
+      const generated = generateSku({
+        format: formData.format || "",
+        modelName: models.find(m => m.id === formData.model_id)?.name,
+        fabricName: fabrics.find(f => f.id === formData.fabric_id)?.name,
+        colorName: colors.find(c => c.id === formData.color_id)?.name,
+      }, skuRules);
+
+      if (generated && formData.sku !== generated) {
+        setFormData(prev => ({ ...prev, sku: generated }));
+      }
+    }
+  }, [
+    open, 
+    formData.format, 
+    formData.model_id, 
+    formData.fabric_id, 
+    formData.color_id, 
+    customSkuMode, 
+    skuRules
+  ]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -244,15 +293,6 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-slate-500">Código (SKU)</Label>
-                    <Input 
-                      value={formData.sku || ""} 
-                      onChange={e => setFormData({ ...formData, sku: e.target.value })}
-                      placeholder="Ex: CAM-BAS-01"
-                      className="h-9"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
                     <Label className="text-xs text-slate-500">Formato / Tipo *</Label>
                     <Select value={formData.format} onValueChange={(v) => setFormData({ ...formData, format: v })}>
                       <SelectTrigger className="h-9">
@@ -265,6 +305,15 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                         <SelectItem value="Insumo">Insumo</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-500">Unidade de Medida</Label>
+                    <Input 
+                      value={formData.unit || "UN"} 
+                      onChange={e => setFormData({ ...formData, unit: e.target.value })}
+                      placeholder="UN, PC, KG"
+                      className="h-9"
+                    />
                   </div>
                 </div>
 
@@ -302,18 +351,111 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {formData.format === "MP" && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs text-slate-500">Grade Aplicável</Label>
+                        <div className="flex items-center gap-2">
+                          <button type="button" onClick={() => setQaGrade(true)} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5 font-medium">
+                            <Plus className="h-3 w-3" /> Nova
+                          </button>
+                          <button 
+                            type="button" 
+                            disabled={!formData.size_grid || formData.size_grid === "none_grid"}
+                            onClick={async () => {
+                              if(confirm('Excluir grade?')) {
+                                try { 
+                                  const grid = sizeGrids.find(g => g.name === formData.size_grid);
+                                  if(grid) await delGrid.mutateAsync(grid.id);
+                                  setFormData({...formData, size_grid: ""});
+                                } catch(e:any) { toast.error(e.message); }
+                              }
+                            }} 
+                            className="text-xs text-red-500 hover:text-red-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                      <Select value={formData.size_grid || "none_grid"} onValueChange={(v) => setFormData({ ...formData, size_grid: v === "none_grid" ? "" : v })}>
+                        <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione a grade..." /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none_grid">Nenhuma</SelectItem>
+                          {sizeGrids.map(g => (
+                            <SelectItem key={g.id} value={g.name}>
+                              {g.name} ({g.sizes.join(", ")})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-slate-800 tracking-tight">SKU Automático</h3>
+                <button
+                  type="button"
+                  onClick={() => setCustomSkuMode(!customSkuMode)}
+                  className="text-xs text-slate-500 hover:text-blue-600 flex items-center gap-1"
+                >
+                  {customSkuMode ? "Voltar ao Automático" : "Personalizar SKU"}
+                  {customSkuMode ? <Wand2 className="h-3 w-3" /> : <Edit3 className="h-3 w-3" />}
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-slate-500">Unidade de Medida</Label>
+                    <Label className="text-xs text-slate-500">SKU Gerado</Label>
                     <Input 
-                      value={formData.unit || "UN"} 
-                      onChange={e => setFormData({ ...formData, unit: e.target.value })}
-                      placeholder="UN, PC, KG"
-                      className="h-9"
+                      value={formData.sku || ""} 
+                      onChange={e => setFormData({ ...formData, sku: e.target.value })}
+                      placeholder="Ex: MP-REG-PEL-PTO"
+                      className={`h-9 font-mono text-sm ${!customSkuMode ? 'bg-slate-50 text-slate-600' : ''}`}
+                      readOnly={!customSkuMode}
+                    />
+                    {!customSkuMode && formData.format !== 'Serviço' && formData.format !== 'Insumo' && (
+                      <p className="text-[10px] text-slate-400">Gerado a partir do formato, modelagem, malha e cor.</p>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-500">Nome Técnico (Interno)</Label>
+                    <Input 
+                      value={formData.technical_name || ""} 
+                      readOnly
+                      placeholder="Ex: Camiseta Regular Poliamida Preto"
+                      className="h-9 bg-slate-50 text-slate-600 text-xs"
                     />
                   </div>
                 </div>
-
-
+                
+                {/* Visual Chips */}
+                {!customSkuMode && (formData.format === 'MP' || formData.format === 'PA') && (
+                  <div className="flex flex-wrap gap-1.5">
+                    <span className="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-[10px] font-medium text-slate-600 border border-slate-200">
+                      TIPO: {formData.format}
+                    </span>
+                    {formData.model_id && (
+                      <span className="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-[10px] font-medium text-slate-600 border border-slate-200">
+                        MOD: {models.find(m => m.id === formData.model_id)?.name}
+                      </span>
+                    )}
+                    {formData.fabric_id && (
+                      <span className="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-[10px] font-medium text-slate-600 border border-slate-200">
+                        TEC: {fabrics.find(f => f.id === formData.fabric_id)?.name}
+                      </span>
+                    )}
+                    {formData.color_id && (
+                      <span className="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-[10px] font-medium text-slate-600 border border-slate-200">
+                        COR: {colors.find(c => c.id === formData.color_id)?.name}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -394,62 +536,18 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                     </div>
                   </div>
 
-                  {(formData.format === "MP" || formData.format === "PA") && (
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-slate-500">Composição</Label>
-                      <Input 
-                        value={formData.fabric_family || ""} 
-                        onChange={e => setFormData({ ...formData, fabric_family: e.target.value })}
-                        placeholder="Ex: 100% Algodão Fio 30.1 Penteado"
-                        className="h-9 bg-slate-50"
-                      />
-                      {formData.fabric_id && fabrics.find(f => f.id === formData.fabric_id)?.composition && (
-                        <p className="text-xs text-slate-400">
-                          Auto-preenchido da malha. Edite se necessário.
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {formData.format === "MP" && (
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-xs text-slate-500">Grade de Tamanho</Label>
-                        <div className="flex items-center gap-2">
-                          <button type="button" onClick={() => setQaGrade(true)} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5 font-medium">
-                            <Plus className="h-3 w-3" /> Nova
-                          </button>
-                          <button 
-                            type="button" 
-                            disabled={!formData.size_grid || formData.size_grid === "none_grid"}
-                            onClick={async () => {
-                              if(confirm('Excluir grade?')) {
-                                try { 
-                                  const grid = sizeGrids.find(g => g.name === formData.size_grid);
-                                  if(grid) await delGrid.mutateAsync(grid.id);
-                                  setFormData({...formData, size_grid: ""});
-                                } catch(e:any) { toast.error(e.message); }
-                              }
-                            }} 
-                            className="text-xs text-red-500 hover:text-red-700 disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        </div>
+                      <Label className="text-xs text-slate-500">Mistura Permitida</Label>
+                      <div className="h-9 flex items-center justify-between px-3 border border-slate-200 rounded-lg bg-white">
+                        <span className="text-xs text-slate-700">Cliente aceita mistura de malhas</span>
+                        <Switch 
+                          checked={formData.mix_allowed}
+                          onCheckedChange={(v) => setFormData({ ...formData, mix_allowed: v })}
+                        />
                       </div>
-                      <Select value={formData.size_grid || "none_grid"} onValueChange={(v) => setFormData({ ...formData, size_grid: v === "none_grid" ? "" : v })}>
-                        <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione a grade..." /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none_grid">Nenhuma</SelectItem>
-                          {sizeGrids.map(g => (
-                            <SelectItem key={g.id} value={g.name}>
-                              {g.name} ({g.sizes.join(", ")})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
             )}

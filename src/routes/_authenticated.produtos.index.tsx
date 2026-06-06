@@ -233,15 +233,18 @@ function ProductsPage() {
               </tr>
             )}
             {!isLoading && products.map((p) => {
-              const totalStock = p.format === "Variação" && p.variations 
+              const totalStock = p.format === "MP" && p.variations 
                 ? p.variations.reduce((acc, v) => acc + (v.stock || 0), 0)
-                : 0;
+                : p.stock || 0;
 
               return (
               <tr key={p.id} className="hover:bg-muted/30 transition-colors group">
                 <td className="px-4 py-3">
-                  <div className="font-medium text-foreground">{p.name}</div>
-                  <div className="text-xs text-muted-foreground">{p.sku || "Sem SKU"}</div>
+                  <div className="flex flex-col">
+                    <span className="font-medium text-slate-900">{p.name}</span>
+                    {p.sku && <span className="text-[10px] font-mono text-slate-500 mt-0.5">{p.sku}</span>}
+                    {p.technical_name && <span className="text-[10px] text-slate-400 mt-0.5">{p.technical_name}</span>}
+                  </div>
                 </td>
                 {columns.category && (
                   <td className="px-4 py-3 text-muted-foreground">
@@ -264,7 +267,7 @@ function ProductsPage() {
                 )}
                 {columns.stock && (
                   <td className="px-4 py-3 text-right number">
-                    {p.format === "Variação" ? `${totalStock} (Variações)` : "—"}
+                    {p.format === "MP" ? `${totalStock} (Acesso Variantes)` : (p.format === "PA" ? "-" : totalStock)}
                   </td>
                 )}
                 {columns.status && (

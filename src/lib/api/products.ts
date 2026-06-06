@@ -55,6 +55,8 @@ export interface Product {
   supports_sublimation?: boolean;
   lead_time_minutes?: number;
   production_sla_days?: number;
+  technical_name?: string | null;
+  mix_allowed?: boolean;
   created_at: string;
   updated_at: string;
   variations?: ProductVariation[];
