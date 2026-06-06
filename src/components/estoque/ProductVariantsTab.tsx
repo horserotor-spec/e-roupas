@@ -168,7 +168,7 @@ function VariantFormDrawer({ open, onOpenChange, variant }: { open: boolean, onO
             </div>
 
             <div className="space-y-2">
-              <Label>Cor Canônica *</Label>
+              <Label>Cor Padrão *</Label>
               <Select value={formData.color_id || ""} onValueChange={(v) => setFormData({ ...formData, color_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                 <SelectContent>
@@ -190,7 +190,7 @@ function VariantFormDrawer({ open, onOpenChange, variant }: { open: boolean, onO
                 <Select value={formData.size || ""} onValueChange={(v) => setFormData({ ...formData, size: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {["PP", "P", "M", "G", "GG", "XG", "G1", "G2", "G3"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    {["2", "4", "6", "8", "10", "12", "14", "16", "PP", "P", "M", "G", "GG", "XG", "G1", "G2", "G3", "G4"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

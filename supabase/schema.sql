@@ -203,6 +203,7 @@ CREATE TABLE IF NOT EXISTS public.order_item_processes (
   finished_at TIMESTAMPTZ,
   assigned_user_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
   notes TEXT,
+  rework_count INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -257,7 +258,7 @@ CREATE TABLE IF NOT EXISTS public.products (
   sku TEXT,
   price NUMERIC DEFAULT 0,
   cost_price NUMERIC DEFAULT 0,
-  format TEXT DEFAULT 'Simples', -- Simples, Com Variação, Serviço
+  format TEXT DEFAULT 'MP', -- MP, PA, Serviço, Composição, Variação
   unit TEXT DEFAULT 'UN',
   brand TEXT,
   category TEXT,
@@ -269,7 +270,29 @@ CREATE TABLE IF NOT EXISTS public.products (
   cest TEXT,
   min_stock NUMERIC DEFAULT 0,
   max_stock NUMERIC DEFAULT 0,
+  model_id UUID REFERENCES public.product_models(id) ON DELETE SET NULL,
+  fabric_id UUID REFERENCES public.fabrics(id) ON DELETE SET NULL,
+  color_id UUID REFERENCES public.canonical_colors(id) ON DELETE SET NULL,
+  origin INTEGER DEFAULT 0,
+  icms_cst TEXT DEFAULT '102',
+  icms_percent NUMERIC DEFAULT 0,
+  pis_cst TEXT DEFAULT '07',
+  pis_percent NUMERIC DEFAULT 0,
+  cofins_cst TEXT DEFAULT '07',
+  cofins_percent NUMERIC DEFAULT 0,
+  ipi_cst TEXT DEFAULT '99',
+  ipi_percent NUMERIC DEFAULT 0,
+  cfop TEXT DEFAULT '5102',
   customizations JSONB DEFAULT '[]'::jsonb,
+  fabric_family TEXT,
+  size_grid TEXT,
+  supplier_id UUID REFERENCES public.suppliers(id) ON DELETE SET NULL,
+  supports_dtf BOOLEAN DEFAULT true,
+  supports_embroidery BOOLEAN DEFAULT true,
+  supports_silk BOOLEAN DEFAULT true,
+  supports_sublimation BOOLEAN DEFAULT false,
+  lead_time_minutes INTEGER DEFAULT 0,
+  production_sla_days INTEGER DEFAULT 0,
   active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
@@ -438,6 +461,7 @@ END $$;
 CREATE TABLE IF NOT EXISTS public.product_models (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
+  code TEXT,
   active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -454,6 +478,7 @@ CREATE TABLE IF NOT EXISTS public.product_lines (
 CREATE TABLE IF NOT EXISTS public.fabrics (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
+  code TEXT,
   grammage TEXT,
   composition TEXT,
   supplier_default TEXT,
@@ -470,6 +495,7 @@ CREATE TABLE IF NOT EXISTS public.fabrics (
 CREATE TABLE IF NOT EXISTS public.canonical_colors (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
+  code TEXT UNIQUE,
   hex TEXT,
   active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT now()
@@ -494,14 +520,21 @@ CREATE TABLE IF NOT EXISTS public.suppliers (
 -- 6. Product Variants (Variantes de Produto - Novo Cadastro Mestre)
 CREATE TABLE IF NOT EXISTS public.product_variants (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  model_id UUID NOT NULL REFERENCES public.product_models(id),
+  product_id UUID REFERENCES public.products(id) ON DELETE CASCADE,
+  model_id UUID REFERENCES public.product_models(id),
   line_id UUID REFERENCES public.product_lines(id),
-  fabric_id UUID NOT NULL REFERENCES public.fabrics(id),
-  color_id UUID NOT NULL REFERENCES public.canonical_colors(id),
+  fabric_id UUID REFERENCES public.fabrics(id),
+  color_id UUID REFERENCES public.canonical_colors(id),
   size TEXT NOT NULL,
   gender TEXT NOT NULL,
   brand_id UUID REFERENCES public.brands(id),
   sku_internal TEXT,
+  barcode TEXT,
+  qr_code TEXT,
+  crossdocking BOOLEAN DEFAULT false,
+  lead_time_medio INTEGER DEFAULT 0,
+  cost_price NUMERIC DEFAULT 0,
+  average_cost NUMERIC DEFAULT 0,
   active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT now()
 );

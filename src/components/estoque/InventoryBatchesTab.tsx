@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { useInventoryBatches, useCreateInventoryBatch, InventoryBatch, useProductVariants, useSuppliers } from "@/lib/api/inventory";
+import { useInventoryBatches, useCreateInventoryEntryGrid, InventoryBatch, useProductVariants, useSuppliers } from "@/lib/api/inventory";
+import { useProducts } from "@/lib/api/products";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -95,37 +96,65 @@ export function InventoryBatchesTab() {
 }
 
 function BatchFormDrawer({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
-  const saveMutation = useCreateInventoryBatch();
-  const [formData, setFormData] = useState<Partial<InventoryBatch>>({
-    quantity_total: 0,
-    average_cost: 0,
-    batch_code: `LT-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`
-  });
-
-  const { data: variants = [] } = useProductVariants();
+  const saveMutation = useCreateInventoryEntryGrid();
+  const { data: products = [] } = useProducts();
   const { data: suppliers = [] } = useSuppliers();
 
+  const [productId, setProductId] = useState<string>("");
+  const [supplierId, setSupplierId] = useState<string>("");
+  const [batchCode, setBatchCode] = useState<string>("");
+  const [averageCost, setAverageCost] = useState<number>(0);
+  const [qualityNotes, setQualityNotes] = useState<string>("");
+  const [grid, setGrid] = useState<Record<string, number>>({
+    P: 0,
+    M: 0,
+    G: 0,
+    GG: 0,
+    XG: 0
+  });
 
   useEffect(() => {
     if (open) {
-      setFormData({
-        quantity_total: 0,
-        average_cost: 0,
-        batch_code: `LT-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`
+      setProductId("");
+      setSupplierId("");
+      setBatchCode(`LT-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`);
+      setAverageCost(0);
+      setQualityNotes("");
+      setGrid({
+        P: 0,
+        M: 0,
+        G: 0,
+        GG: 0,
+        XG: 0
       });
     }
   }, [open]);
 
+  const mpProducts = products.filter(p => p.format === "MP");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.product_variant_id || !formData.supplier_id || !formData.batch_code || !formData.quantity_total) {
-      toast.error("Preencha Variante, Fornecedor, Código do Lote e Quantidade.");
+    if (!productId || !supplierId || !batchCode) {
+      toast.error("Preencha Produto Pai, Fornecedor e Código do Lote.");
+      return;
+    }
+
+    const hasQty = Object.values(grid).some(qty => qty > 0);
+    if (!hasQty) {
+      toast.error("Informe a quantidade para pelo menos um tamanho na grade.");
       return;
     }
     
     try {
-      await saveMutation.mutateAsync(formData);
-      toast.success("Lote registrado com sucesso!");
+      await saveMutation.mutateAsync({
+        product_id: productId,
+        supplier_id: supplierId,
+        batch_code: batchCode,
+        average_cost: averageCost,
+        quality_notes: qualityNotes,
+        grid
+      });
+      toast.success("Entrada de estoque por grade realizada com sucesso!");
       onOpenChange(false);
     } catch (err: any) {
       toast.error("Erro: " + err.message);
@@ -139,78 +168,64 @@ function BatchFormDrawer({ open, onOpenChange }: { open: boolean, onOpenChange: 
       <SheetContent className="sm:max-w-md overflow-y-auto">
         <form onSubmit={handleSubmit} className="flex flex-col h-full">
           <SheetHeader>
-            <SheetTitle className="flex items-center gap-2"><FileBox className="size-5 text-indigo-600" /> Nova Entrada de Estoque (Lote)</SheetTitle>
-            <SheetDescription>Registrar a entrada física de material atrelada a um fornecedor.</SheetDescription>
+            <SheetTitle className="flex items-center gap-2"><FileBox className="size-5 text-indigo-600" /> Nova Entrada por Grade (MP)</SheetTitle>
+            <SheetDescription>Registrar entrada de lote físico gerando variantes automáticas.</SheetDescription>
           </SheetHeader>
 
           <div className="flex-1 py-6 space-y-5">
-            <div className="space-y-2 flex flex-col">
-              <Label>Variante Mestre (Produto) *</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" role="combobox" className={cn("justify-between w-full font-normal", !formData.product_variant_id && "text-muted-foreground")}>
-                    {formData.product_variant_id
-                      ? (() => {
-                          const v = variants.find(v => v.id === formData.product_variant_id);
-                          return v ? `${v.sku_internal} - ${v.models?.name}` : "Selecionado";
-                        })()
-                      : "Buscar variante por SKU, modelo..."}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="p-0 sm:max-w-md w-[350px]" align="start">
-                  <Command>
-                    <CommandInput placeholder="Digite para buscar..." />
-                    <CommandList>
-                      <CommandEmpty>Nenhuma variante encontrada.</CommandEmpty>
-                      <CommandGroup>
-                        {variants.map((v) => (
-                          <CommandItem
-                            key={v.id}
-                            value={`${v.sku_internal} ${v.models?.name} ${v.fabrics?.name} ${v.canonical_colors?.name}`}
-                            onSelect={() => setFormData({ ...formData, product_variant_id: v.id })}
-                          >
-                            <Check className={cn("mr-2 h-4 w-4", formData.product_variant_id === v.id ? "opacity-100" : "opacity-0")} />
-                            <div className="flex flex-col">
-                              <span className="font-medium">{v.sku_internal} - {v.models?.name}</span>
-                              <span className="text-xs text-muted-foreground">{v.fabrics?.name} · {v.canonical_colors?.name} · {v.size}</span>
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+            <div className="space-y-2">
+              <Label>Produto Pai MP *</Label>
+              <Select value={productId} onValueChange={setProductId}>
+                <SelectTrigger><SelectValue placeholder="Selecione o produto MP..." /></SelectTrigger>
+                <SelectContent>
+                  {mpProducts.map(p => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name} {p.sku ? `[${p.sku}]` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
               <Label>Fornecedor de Origem *</Label>
-              <Select value={formData.supplier_id || ""} onValueChange={(v) => setFormData({ ...formData, supplier_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+              <Select value={supplierId} onValueChange={setSupplierId}>
+                <SelectTrigger><SelectValue placeholder="Selecione o fornecedor..." /></SelectTrigger>
                 <SelectContent>{suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
               <Label>Código do Lote *</Label>
-              <Input value={formData.batch_code || ""} onChange={e => setFormData({ ...formData, batch_code: e.target.value })} />
+              <Input value={batchCode} onChange={e => setBatchCode(e.target.value)} />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Quantidade *</Label>
-                <Input type="number" value={formData.quantity_total || ""} onChange={e => setFormData({ ...formData, quantity_total: parseInt(e.target.value) || 0 })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Custo Médio (Un) R$</Label>
-                <Input type="number" step="0.01" value={formData.average_cost || ""} onChange={e => setFormData({ ...formData, average_cost: parseFloat(e.target.value) || 0 })} />
+            <div className="space-y-2">
+              <Label>Custo Médio Unitário (R$)</Label>
+              <Input type="number" step="0.01" value={averageCost || ""} onChange={e => setAverageCost(parseFloat(e.target.value) || 0)} />
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-xs font-semibold text-slate-700">Grade de Entrada (Quantidades)</Label>
+              <div className="grid grid-cols-5 gap-2 border p-3 rounded-lg bg-slate-50/50">
+                {Object.keys(grid).map((size) => (
+                  <div key={size} className="flex flex-col items-center space-y-1">
+                    <Label className="text-[10px] font-bold text-slate-500">{size}</Label>
+                    <Input 
+                      type="number" 
+                      min="0"
+                      value={grid[size] || ""}
+                      onChange={(e) => setGrid({ ...grid, [size]: parseInt(e.target.value) || 0 })}
+                      className="h-8 text-center text-xs p-1 bg-white"
+                    />
+                  </div>
+                ))}
               </div>
             </div>
 
             <div className="space-y-2">
               <Label>Observações de Qualidade</Label>
-              <Textarea placeholder="Ex: Tecido com pequeno desvio de tonalidade..." value={formData.quality_notes || ""} onChange={e => setFormData({ ...formData, quality_notes: e.target.value })} />
+              <Textarea placeholder="Ex: Tecido com brilho conforme padrão..." value={qualityNotes} onChange={e => setQualityNotes(e.target.value)} />
             </div>
           </div>
 
@@ -218,7 +233,7 @@ function BatchFormDrawer({ open, onOpenChange }: { open: boolean, onOpenChange: 
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white">
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Registrar Lote
+              Salvar Entrada
             </Button>
           </SheetFooter>
         </form>

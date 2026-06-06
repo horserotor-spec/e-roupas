@@ -44,10 +44,10 @@ export function ConfigTab() {
         </ul>
       </div>
 
-      {/* Cores Canônicas */}
+      {/* Cores Padrão */}
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
         <div className="px-4 py-3 bg-muted/40 border-b flex items-center justify-between">
-          <h3 className="font-semibold">Cores Canônicas</h3>
+          <h3 className="font-semibold">Cores Padrão</h3>
         </div>
         <ul className="divide-y text-sm max-h-64 overflow-y-auto">
           {colors.map(m => (

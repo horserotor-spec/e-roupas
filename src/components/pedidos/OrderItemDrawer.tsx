@@ -4,7 +4,9 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { OrderItem, useCreateOrderItem, useUpdateOrderItem } from "@/lib/api/order_items";
+import { useModels, useFabrics, useColors } from "@/lib/api/inventory";
 import { logTimelineEvent } from "@/lib/api/timeline";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -20,6 +22,10 @@ export function OrderItemDrawer({ open, onOpenChange, orderId, item }: OrderItem
   const isEditing = !!item;
   const createMutation = useCreateOrderItem();
   const updateMutation = useUpdateOrderItem();
+
+  const { data: models = [] } = useModels();
+  const { data: fabrics = [] } = useFabrics();
+  const { data: colors = [] } = useColors();
 
   const [formData, setFormData] = useState<Partial<OrderItem>>({
     product_name: "",
@@ -114,33 +120,103 @@ export function OrderItemDrawer({ open, onOpenChange, orderId, item }: OrderItem
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Modelo</Label>
-                <Input value={formData.model || ""} onChange={e => setFormData({ ...formData, model: e.target.value })} />
+                <Select
+                  value={formData.model || ""}
+                  onValueChange={(v) => setFormData({ ...formData, model: v })}
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue placeholder="Selecione o modelo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {models.map((m) => (
+                      <SelectItem key={m.id} value={m.name}>
+                        {m.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Linha</Label>
-                <Input value={formData.line || ""} onChange={e => setFormData({ ...formData, line: e.target.value })} />
+                <Input value={formData.line || ""} onChange={e => setFormData({ ...formData, line: e.target.value })} placeholder="Ex: Premium" />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Malha / Tecido</Label>
-                <Input value={formData.fabric || ""} onChange={e => setFormData({ ...formData, fabric: e.target.value })} />
+                <Select
+                  value={formData.fabric || ""}
+                  onValueChange={(v) => setFormData({ ...formData, fabric: v })}
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue placeholder="Selecione a malha" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {fabrics.map((f) => (
+                      <SelectItem key={f.id} value={f.name}>
+                        {f.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Cor</Label>
-                <Input value={formData.color || ""} onChange={e => setFormData({ ...formData, color: e.target.value })} />
+                <Select
+                  value={formData.color || ""}
+                  onValueChange={(v) => setFormData({ ...formData, color: v })}
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue placeholder="Selecione a cor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {colors.map((c) => (
+                      <SelectItem key={c.id} value={c.name}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Tamanho</Label>
-                <Input value={formData.size || ""} onChange={e => setFormData({ ...formData, size: e.target.value })} />
+                <Select
+                  value={formData.size || ""}
+                  onValueChange={(v) => setFormData({ ...formData, size: v })}
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue placeholder="Tamanho" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {["2", "4", "6", "8", "10", "12", "14", "16", "PP", "P", "M", "G", "GG", "XG", "G1", "G2", "G3", "G4"].map((sz) => (
+                      <SelectItem key={sz} value={sz}>
+                        {sz}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Gênero</Label>
-                <Input value={formData.gender || ""} onChange={e => setFormData({ ...formData, gender: e.target.value })} />
+                <Select
+                  value={formData.gender || ""}
+                  onValueChange={(v) => setFormData({ ...formData, gender: v })}
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue placeholder="Gênero" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["Masculino", "Feminino", "Unissex", "Infantil"].map((g) => (
+                      <SelectItem key={g} value={g}>
+                        {g}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Quantidade *</Label>

@@ -44,7 +44,7 @@ function ProductsPage() {
       SKU: p.sku || '',
       Preço: p.price || 0,
       "Preço Custo": p.cost_price || 0,
-      Formato: p.format || 'Simples',
+      Formato: p.format || 'MP',
       Unidade: p.unit || 'UN',
       Marca: p.brand || '',
       Categoria: p.category || '',
@@ -52,6 +52,16 @@ function ProductsPage() {
       "EAN": p.gtin_ean || '',
       NCM: p.ncm || '',
       CEST: p.cest || '',
+      Origem: p.origin ?? 0,
+      "CST ICMS": p.icms_cst || '102',
+      "Alíquota ICMS": p.icms_percent ?? 0,
+      "CST PIS": p.pis_cst || '07',
+      "Alíquota PIS": p.pis_percent ?? 0,
+      "CST COFINS": p.cofins_cst || '07',
+      "Alíquota COFINS": p.cofins_percent ?? 0,
+      "CST IPI": p.ipi_cst || '99',
+      "Alíquota IPI": p.ipi_percent ?? 0,
+      CFOP: p.cfop || '5102',
       Ativo: p.active ? 'Sim' : 'Não'
     }));
 
@@ -87,7 +97,7 @@ function ProductsPage() {
             sku: row.SKU || row.sku || null,
             price: parseFloat(row.Preço || row.price || 0),
             cost_price: parseFloat(row["Preço Custo"] || row.cost_price || 0),
-            format: row.Formato || row.format || 'Simples',
+            format: row.Formato || row.format || 'MP',
             unit: row.Unidade || row.unit || 'UN',
             brand: row.Marca || row.brand || null,
             category: row.Categoria || row.category || null,
@@ -95,6 +105,16 @@ function ProductsPage() {
             gtin_ean: row.EAN || row.gtin_ean || null,
             ncm: row.NCM || row.ncm || null,
             cest: row.CEST || row.cest || null,
+            origin: parseInt(row.Origem || row.origin || 0),
+            icms_cst: row["CST ICMS"] || row.icms_cst || "102",
+            icms_percent: parseFloat(row["Alíquota ICMS"] || row.icms_percent || 0),
+            pis_cst: row["CST PIS"] || row.pis_cst || "07",
+            pis_percent: parseFloat(row["Alíquota PIS"] || row.pis_percent || 0),
+            cofins_cst: row["CST COFINS"] || row.cofins_cst || "07",
+            cofins_percent: parseFloat(row["Alíquota COFINS"] || row.cofins_percent || 0),
+            ipi_cst: row["CST IPI"] || row.ipi_cst || "99",
+            ipi_percent: parseFloat(row["Alíquota IPI"] || row.ipi_percent || 0),
+            cfop: row.CFOP || row.cfop || "5102",
             active: true
           }));
 
@@ -175,7 +195,7 @@ function ProductsPage() {
               </tr>
             )}
             {!isLoading && products.map((p) => {
-              const totalStock = p.format === "Com Variação" && p.variations 
+              const totalStock = p.format === "Variação" && p.variations 
                 ? p.variations.reduce((acc, v) => acc + (v.stock || 0), 0)
                 : 0;
 
@@ -199,7 +219,7 @@ function ProductsPage() {
                   {p.price.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                 </td>
                 <td className="px-4 py-3 text-right number">
-                  {p.format === "Com Variação" ? `${totalStock} (Variações)` : "—"}
+                  {p.format === "Variação" ? `${totalStock} (Variações)` : "—"}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${

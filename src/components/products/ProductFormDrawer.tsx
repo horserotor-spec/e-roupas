@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Switch } from "../ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Product, ProductVariation, useCreateProduct, useUpdateProduct } from "@/lib/api/products";
+import { useModels, useFabrics, useColors, useSuppliersCRM, useSizeGrids, useCategories, useDeleteModel, useDeleteFabric, useDeleteColor, useDeleteSizeGrid, useDeleteCategory } from "@/lib/api/inventory";
+import { QuickAddModelagem, QuickAddTecido, QuickAddCor, QuickAddGrade, QuickAddCategoria } from "./QuickAddDialogs";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 
@@ -21,12 +23,31 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct();
 
+  const { data: models = [] } = useModels();
+  const { data: fabrics = [] } = useFabrics();
+  const { data: colors = [] } = useColors();
+  const { data: suppliers = [] } = useSuppliersCRM();
+  const { data: sizeGrids = [] } = useSizeGrids();
+  const { data: categories = [] } = useCategories();
+
+  const delModel = useDeleteModel();
+  const delFabric = useDeleteFabric();
+  const delColor = useDeleteColor();
+  const delGrid = useDeleteSizeGrid();
+  const delCategory = useDeleteCategory();
+
+  const [qaModelagem, setQaModelagem] = useState(false);
+  const [qaTecido, setQaTecido] = useState(false);
+  const [qaCor, setQaCor] = useState(false);
+  const [qaGrade, setQaGrade] = useState(false);
+  const [qaCategoria, setQaCategoria] = useState(false);
+
   const [formData, setFormData] = useState<Partial<Product>>({
     name: "",
     sku: "",
     price: 0,
     cost_price: 0,
-    format: "Simples",
+    format: "MP",
     unit: "UN",
     brand: "",
     category: "",
@@ -38,6 +59,28 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
     cest: "",
     min_stock: 0,
     max_stock: 0,
+    model_id: null,
+    fabric_id: null,
+    color_id: null,
+    fabric_family: "",
+    size_grid: "Adulto",
+    supplier_id: null,
+    supports_dtf: true,
+    supports_embroidery: true,
+    supports_silk: true,
+    supports_sublimation: false,
+    lead_time_minutes: 0,
+    production_sla_days: 0,
+    origin: 0,
+    icms_cst: "102",
+    icms_percent: 0,
+    pis_cst: "07",
+    pis_percent: 0,
+    cofins_cst: "07",
+    cofins_percent: 0,
+    ipi_cst: "99",
+    ipi_percent: 0,
+    cfop: "5102",
     active: true,
   });
 
@@ -51,7 +94,7 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
           sku: product.sku || "",
           price: product.price || 0,
           cost_price: product.cost_price || 0,
-          format: product.format || "Simples",
+          format: product.format || "MP",
           unit: product.unit || "UN",
           brand: product.brand || "",
           category: product.category || "",
@@ -63,16 +106,37 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
           cest: product.cest || "",
           min_stock: product.min_stock || 0,
           max_stock: product.max_stock || 0,
+          model_id: product.model_id || null,
+          fabric_id: product.fabric_id || null,
+          color_id: product.color_id || null,
+          fabric_family: product.fabric_family || "",
+          size_grid: product.size_grid || "Adulto",
+          supplier_id: product.supplier_id || null,
+          supports_dtf: product.supports_dtf ?? true,
+          supports_embroidery: product.supports_embroidery ?? true,
+          supports_silk: product.supports_silk ?? true,
+          supports_sublimation: product.supports_sublimation ?? false,
+          lead_time_minutes: product.lead_time_minutes ?? 0,
+          production_sla_days: product.production_sla_days ?? 0,
+          origin: product.origin ?? 0,
+          icms_cst: product.icms_cst || "102",
+          icms_percent: product.icms_percent ?? 0,
+          pis_cst: product.pis_cst || "07",
+          pis_percent: product.pis_percent ?? 0,
+          cofins_cst: product.cofins_cst || "07",
+          cofins_percent: product.cofins_percent ?? 0,
+          ipi_cst: product.ipi_cst || "99",
+          ipi_percent: product.ipi_percent ?? 0,
+          cfop: product.cfop || "5102",
           active: product.active ?? true,
         });
-        setVariations(product.variations || []);
       } else {
         setFormData({
           name: "",
           sku: "",
           price: 0,
           cost_price: 0,
-          format: "Simples",
+          format: "MP",
           unit: "UN",
           brand: "",
           category: "",
@@ -84,9 +148,30 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
           cest: "",
           min_stock: 0,
           max_stock: 0,
+          model_id: null,
+          fabric_id: null,
+          color_id: null,
+          fabric_family: "",
+          size_grid: "Adulto",
+          supplier_id: null,
+          supports_dtf: true,
+          supports_embroidery: true,
+          supports_silk: true,
+          supports_sublimation: false,
+          lead_time_minutes: 0,
+          production_sla_days: 0,
+          origin: 0,
+          icms_cst: "102",
+          icms_percent: 0,
+          pis_cst: "07",
+          pis_percent: 0,
+          cofins_cst: "07",
+          cofins_percent: 0,
+          ipi_cst: "99",
+          ipi_percent: 0,
+          cfop: "5102",
           active: true,
         });
-        setVariations([]);
       }
     }
   }, [open, product]);
@@ -96,7 +181,7 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
     try {
       const dataToSave = { 
         ...formData,
-        variations: formData.format === "Com Variação" ? variations as ProductVariation[] : [] 
+        variations: [] 
       };
 
       if (isEditing) {
@@ -114,43 +199,22 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
-  const addVariation = () => {
-    let baseSku = formData.sku;
-    if (!baseSku && formData.name) {
-      baseSku = formData.name.substring(0, 3).toUpperCase();
-    }
-    const newSku = baseSku ? `${baseSku}-VAR${variations.length + 1}` : "";
-
-    setVariations([
-      ...variations,
-      { name: "", sku: newSku, price: null, stock: 0 }
-    ]);
-  };
-
-  const removeVariation = (index: number) => {
-    setVariations(variations.filter((_, i) => i !== index));
-  };
-
-  const updateVariation = (index: number, field: keyof ProductVariation, value: any) => {
-    const newVars = [...variations];
-    newVars[index] = { ...newVars[index], [field]: value };
-    setVariations(newVars);
-  };
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-xl overflow-y-auto w-full p-0">
+      <SheetContent className="sm:max-w-xl overflow-y-auto w-full p-0 bg-slate-50/50">
         <form onSubmit={handleSubmit} className="flex flex-col h-full">
-          <SheetHeader className="p-6 pb-2 border-b">
+          <SheetHeader className="p-6 pb-4 border-b bg-white">
             <div className="flex items-center justify-between">
               <div>
-                <SheetTitle>{isEditing ? "Editar Produto" : "Novo Produto"}</SheetTitle>
-                <SheetDescription>
-                  Configure as informações do produto, preços e estoque.
+                <SheetTitle className="text-xl font-semibold tracking-tight text-slate-900">
+                  {isEditing ? "Editar Produto" : "Novo Produto"}
+                </SheetTitle>
+                <SheetDescription className="text-xs text-slate-500 mt-1">
+                  Configure as informações do produto seguindo a engenharia industrial.
                 </SheetDescription>
               </div>
               <div className="flex items-center space-x-2">
-                <Label htmlFor="active" className="text-xs text-muted-foreground">
+                <Label htmlFor="active" className="text-xs font-medium text-slate-500">
                   {formData.active ? "Ativo" : "Inativo"}
                 </Label>
                 <Switch 
@@ -162,285 +226,660 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
             </div>
           </SheetHeader>
 
-          <Tabs defaultValue="basico" className="flex-1 flex flex-col">
-            <div className="px-6 pt-4 border-b bg-muted/20">
-              <TabsList className="w-full justify-start h-auto p-0 bg-transparent gap-6 rounded-none">
-                <TabsTrigger value="basico" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent px-0 pb-3">Dados Básicos</TabsTrigger>
-                <TabsTrigger value="caract" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent px-0 pb-3">Características</TabsTrigger>
-                <TabsTrigger value="trib" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent px-0 pb-3">Tributação</TabsTrigger>
-                <TabsTrigger value="estoque" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent px-0 pb-3">Estoque</TabsTrigger>
-                {formData.format === "Com Variação" && (
-                  <TabsTrigger value="var" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent px-0 pb-3 text-primary">Variações</TabsTrigger>
-                )}
-              </TabsList>
-            </div>
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
+              <h3 className="text-sm font-semibold text-slate-800 tracking-tight">Dados Gerais</h3>
+              
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-slate-500">Nome do Produto *</Label>
+                  <Input 
+                    required 
+                    value={formData.name} 
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Ex: Camiseta Básica Algodão"
+                    className="h-9"
+                  />
+                </div>
 
-            <div className="flex-1 overflow-y-auto p-6">
-              {/* DADOS BÁSICOS */}
-              <TabsContent value="basico" className="m-0 space-y-6">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Nome do Produto *</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-500">Código (SKU)</Label>
                     <Input 
-                      required 
-                      value={formData.name} 
-                      onChange={e => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="Ex: Camiseta Básica Algodão"
+                      value={formData.sku || ""} 
+                      onChange={e => setFormData({ ...formData, sku: e.target.value })}
+                      placeholder="Ex: CAM-BAS-01"
+                      className="h-9"
                     />
                   </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Código (SKU)</Label>
-                      <Input 
-                        value={formData.sku || ""} 
-                        onChange={e => setFormData({ ...formData, sku: e.target.value })}
-                        placeholder="CAM-BAS-01"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Formato</Label>
-                      <Select value={formData.format} onValueChange={(v) => setFormData({ ...formData, format: v })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Simples">Simples</SelectItem>
-                          <SelectItem value="Com Variação">Com Variação</SelectItem>
-                          <SelectItem value="Composição">Composição</SelectItem>
-                          <SelectItem value="Serviço">Serviço</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label>Preço de Venda (R$)</Label>
-                      <Input 
-                        type="number" step="0.01" min="0"
-                        value={formData.price?.toString() || (formData.price === 0 ? "0" : "")} 
-                        onChange={e => setFormData({ ...formData, price: parseFloat(e.target.value.replace(',', '.')) || 0 })}
-                        placeholder="0,00"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Preço de Custo (R$)</Label>
-                      <Input 
-                        type="number" step="0.01" min="0"
-                        value={formData.cost_price?.toString() || (formData.cost_price === 0 ? "0" : "")} 
-                        onChange={e => setFormData({ ...formData, cost_price: parseFloat(e.target.value.replace(',', '.')) || 0 })}
-                        placeholder="0,00"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Unidade</Label>
-                      <Select value={formData.unit} onValueChange={(v) => setFormData({ ...formData, unit: v })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="UN" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="UN">Unidade (UN)</SelectItem>
-                          <SelectItem value="PC">Peça (PC)</SelectItem>
-                          <SelectItem value="CX">Caixa (CX)</SelectItem>
-                          <SelectItem value="KG">Quilograma (KG)</SelectItem>
-                          <SelectItem value="PR">Par (PR)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-500">Formato / Tipo *</Label>
+                    <Select value={formData.format} onValueChange={(v) => setFormData({ ...formData, format: v })}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="MP">MP (Matéria-Prima)</SelectItem>
+                        <SelectItem value="PA">PA (Produto Acabável)</SelectItem>
+                        <SelectItem value="Serviço">Serviço</SelectItem>
+                        <SelectItem value="Insumo">Insumo</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-              </TabsContent>
 
-              {/* CARACTERÍSTICAS */}
-              <TabsContent value="caract" className="m-0 space-y-6">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Marca</Label>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs text-slate-500">Família / Categoria</Label>
+                      <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => setQaCategoria(true)} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5 font-medium">
+                          <Plus className="h-3 w-3" /> Nova
+                        </button>
+                        {formData.category && formData.category !== "none_category" && (
+                          <button type="button" onClick={async () => {
+                            if(confirm('Excluir esta categoria?')) {
+                              try { 
+                                const cat = categories.find(c => c.name === formData.category);
+                                if(cat) await delCategory.mutateAsync(cat.id);
+                                setFormData({...formData, category: null});
+                              } catch(e:any) { toast.error(e.message); }
+                            }
+                          }} className="text-xs text-red-500 hover:text-red-700">
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <Select value={formData.category || "none_category"} onValueChange={(v) => setFormData({ ...formData, category: v === "none_category" ? null : v })}>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none_category">Nenhuma</SelectItem>
+                        {categories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-500">Unidade de Medida</Label>
                     <Input 
-                      value={formData.brand || ""} 
-                      onChange={e => setFormData({ ...formData, brand: e.target.value })}
-                      placeholder="Marca do produto"
+                      value={formData.unit || "UN"} 
+                      onChange={e => setFormData({ ...formData, unit: e.target.value })}
+                      placeholder="UN, PC, KG"
+                      className="h-9"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Categoria</Label>
+                </div>
+
+                {formData.format === "MP" && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-500">Grade Aplicável</Label>
+                    <Select value={formData.size_grid || "Adulto"} onValueChange={(v) => setFormData({ ...formData, size_grid: v })}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Grade" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Adulto">Adulto (P, M, G, GG, XG)</SelectItem>
+                        <SelectItem value="Infantil">Infantil (02, 04, 06, 08, 10, 12, 14)</SelectItem>
+                        <SelectItem value="Customizada">Customizada</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {(formData.format === "MP" || formData.format === "PA") && (
+              <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
+                <h3 className="text-sm font-semibold text-slate-800 tracking-tight">Engenharia Têxtil</h3>
+                
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs text-slate-500">Modelagem</Label>
+                        <div className="flex items-center gap-2">
+                          <button type="button" onClick={() => setQaModelagem(true)} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5 font-medium">
+                            <Plus className="h-3 w-3" /> Nova
+                          </button>
+                          {formData.model_id && (
+                            <button type="button" onClick={async () => {
+                              if(confirm('Excluir modelagem?')) {
+                                try { await delModel.mutateAsync(formData.model_id!); setFormData({...formData, model_id: null}); } catch(e:any) { toast.error(e.message); }
+                              }
+                            }} className="text-xs text-red-500 hover:text-red-700"><Trash2 className="h-3 w-3" /></button>
+                          )}
+                        </div>
+                      </div>
+                      <Select value={formData.model_id || "none_model"} onValueChange={(v) => setFormData({ ...formData, model_id: v === "none_model" ? null : v })}>
+                        <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none_model">Nenhum</SelectItem>
+                          {models.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs text-slate-500">Tecido / Malha</Label>
+                        <div className="flex items-center gap-2">
+                          <button type="button" onClick={() => setQaTecido(true)} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5 font-medium">
+                            <Plus className="h-3 w-3" /> Novo
+                          </button>
+                          {formData.fabric_id && (
+                            <button type="button" onClick={async () => {
+                              if(confirm('Excluir tecido?')) {
+                                try { await delFabric.mutateAsync(formData.fabric_id!); setFormData({...formData, fabric_id: null}); } catch(e:any) { toast.error(e.message); }
+                              }
+                            }} className="text-xs text-red-500 hover:text-red-700"><Trash2 className="h-3 w-3" /></button>
+                          )}
+                        </div>
+                      </div>
+                      <Select
+                        value={formData.fabric_id || "none_fabric"}
+                        onValueChange={(v) => {
+                          const selected = fabrics.find(f => f.id === v);
+                          setFormData({
+                            ...formData,
+                            fabric_id: v === "none_fabric" ? null : v,
+                            fabric_family: selected?.composition || formData.fabric_family || "",
+                          });
+                        }}
+                      >
+                        <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none_fabric">Nenhum</SelectItem>
+                          {fabrics.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {(formData.format === "MP" || formData.format === "PA") && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-slate-500">Composição</Label>
+                      <Input 
+                        value={formData.fabric_family || ""} 
+                        onChange={e => setFormData({ ...formData, fabric_family: e.target.value })}
+                        placeholder="Ex: 100% Algodão Fio 30.1 Penteado"
+                        className="h-9 bg-slate-50"
+                      />
+                      {formData.fabric_id && fabrics.find(f => f.id === formData.fabric_id)?.composition && (
+                        <p className="text-xs text-slate-400">
+                          Auto-preenchido da malha. Edite se necessário.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {formData.format === "MP" && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs text-slate-500">Grade de Tamanho</Label>
+                        <div className="flex items-center gap-2">
+                          <button type="button" onClick={() => setQaGrade(true)} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5 font-medium">
+                            <Plus className="h-3 w-3" /> Nova
+                          </button>
+                          {formData.size_grid && formData.size_grid !== "none_grid" && (
+                            <button type="button" onClick={async () => {
+                              if(confirm('Excluir grade?')) {
+                                try { 
+                                  const grid = sizeGrids.find(g => g.name === formData.size_grid);
+                                  if(grid) await delGrid.mutateAsync(grid.id);
+                                  setFormData({...formData, size_grid: ""});
+                                } catch(e:any) { toast.error(e.message); }
+                              }
+                            }} className="text-xs text-red-500 hover:text-red-700"><Trash2 className="h-3 w-3" /></button>
+                          )}
+                        </div>
+                      </div>
+                      <Select value={formData.size_grid || "none_grid"} onValueChange={(v) => setFormData({ ...formData, size_grid: v === "none_grid" ? "" : v })}>
+                        <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione a grade..." /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none_grid">Nenhuma</SelectItem>
+                          {sizeGrids.map(g => (
+                            <SelectItem key={g.id} value={g.name}>
+                              {g.name} ({g.sizes.join(", ")})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {formData.format === "MP" && (
+              <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
+                <h3 className="text-sm font-semibold text-slate-800 tracking-tight">Cor Oficial & Fornecedor</h3>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs text-slate-500">Cor Oficial</Label>
+                      <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => setQaCor(true)} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5 font-medium">
+                          <Plus className="h-3 w-3" /> Nova
+                        </button>
+                        {formData.color_id && (
+                          <button type="button" onClick={async () => {
+                            if(confirm('Excluir cor?')) {
+                              try { await delColor.mutateAsync(formData.color_id!); setFormData({...formData, color_id: null}); } catch(e:any) { toast.error(e.message); }
+                            }
+                          }} className="text-xs text-red-500 hover:text-red-700"><Trash2 className="h-3 w-3" /></button>
+                        )}
+                      </div>
+                    </div>
+                    <Select value={formData.color_id || "none_color"} onValueChange={(v) => setFormData({ ...formData, color_id: v === "none_color" ? null : v })}>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none_color">Nenhuma</SelectItem>
+                        {colors.map(c => (
+                          <SelectItem key={c.id} value={c.id}>
+                            <div className="flex items-center gap-1.5">
+                              <div className="size-2.5 rounded-full border" style={{ backgroundColor: c.hex || '#ccc' }}></div>
+                              <span>{c.name}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs text-slate-500">Fornecedor (CRM)</Label>
+                      <span className="text-xs text-slate-400">Tipo: fornecedor</span>
+                    </div>
+                    <Select value={formData.supplier_id || "none_supplier"} onValueChange={(v) => setFormData({ ...formData, supplier_id: v === "none_supplier" ? null : v })}>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none_supplier">Nenhum</SelectItem>
+                        {suppliers.length === 0 && (
+                          <SelectItem value="_empty" disabled>Nenhum fornecedor no CRM</SelectItem>
+                        )}
+                        {suppliers.map(s => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.company_name || s.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {formData.format === "MP" && (
+              <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
+                <h3 className="text-sm font-semibold text-slate-800 tracking-tight">Compatibilidade de Personalizações</h3>
+                
+                <div className="grid grid-cols-2 gap-4 pt-1">
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <Label className="text-xs text-slate-600">Compatível com DTF</Label>
+                    <Switch 
+                      checked={formData.supports_dtf ?? true} 
+                      onCheckedChange={(v) => setFormData({ ...formData, supports_dtf: v })}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <Label className="text-xs text-slate-600">Compatível com Bordado</Label>
+                    <Switch 
+                      checked={formData.supports_embroidery ?? true} 
+                      onCheckedChange={(v) => setFormData({ ...formData, supports_embroidery: v })}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between pt-1">
+                    <Label className="text-xs text-slate-600">Compatível com Silk</Label>
+                    <Switch 
+                      checked={formData.supports_silk ?? true} 
+                      onCheckedChange={(v) => setFormData({ ...formData, supports_silk: v })}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between pt-1">
+                    <Label className="text-xs text-slate-600">Compatível com Sublimação</Label>
+                    <Switch 
+                      checked={formData.supports_sublimation ?? false} 
+                      onCheckedChange={(v) => setFormData({ ...formData, supports_sublimation: v })}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {formData.format === "Serviço" && (
+              <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
+                <h3 className="text-sm font-semibold text-slate-800 tracking-tight">Operações de Serviço</h3>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-500">Tempo Médio (Minutos)</Label>
                     <Input 
-                      value={formData.category || ""} 
-                      onChange={e => setFormData({ ...formData, category: e.target.value })}
-                      placeholder="Ex: Camisetas"
+                      type="number" min="0"
+                      value={formData.lead_time_minutes || ""} 
+                      onChange={e => setFormData({ ...formData, lead_time_minutes: parseInt(e.target.value) || 0 })}
+                      placeholder="Ex: 15"
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-500">SLA de Produção (Dias)</Label>
+                    <Input 
+                      type="number" min="0"
+                      value={formData.production_sla_days || ""} 
+                      onChange={e => setFormData({ ...formData, production_sla_days: parseInt(e.target.value) || 0 })}
+                      placeholder="Ex: 2"
+                      className="h-9"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {formData.format !== "Serviço" && (
+              <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
+                <h3 className="text-sm font-semibold text-slate-800 tracking-tight">Preços & Controle de Estoque</h3>
+                
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-slate-500">Preço de Venda (R$)</Label>
+                      <Input 
+                        type="number" step="0.01" min="0"
+                        value={formData.price || ""} 
+                        onChange={e => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                        placeholder="0,00"
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-slate-500">Preço de Custo (R$)</Label>
+                      <Input 
+                        type="number" step="0.01" min="0"
+                        value={formData.cost_price || ""} 
+                        onChange={e => setFormData({ ...formData, cost_price: parseFloat(e.target.value) || 0 })}
+                        placeholder="0,00"
+                        className="h-9"
+                      />
+                    </div>
+                  </div>
+
+                  {(formData.format === "MP" || formData.format === "Insumo") && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-slate-500">Estoque Mínimo</Label>
+                        <Input 
+                          type="number" min="0"
+                          value={formData.min_stock?.toString() || (formData.min_stock === 0 ? "0" : "")} 
+                          onChange={e => setFormData({ ...formData, min_stock: parseInt(e.target.value) || 0 })}
+                          placeholder="Ex: 50"
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-slate-500">Estoque Máximo</Label>
+                        <Input 
+                          type="number" min="0"
+                          value={formData.max_stock?.toString() || (formData.max_stock === 0 ? "0" : "")} 
+                          onChange={e => setFormData({ ...formData, max_stock: parseInt(e.target.value) || 0 })}
+                          placeholder="Ex: 500"
+                          className="h-9"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <details className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4 group">
+              <summary className="text-sm font-semibold text-slate-800 cursor-pointer list-none flex items-center justify-between">
+                <span>Tributação & Detalhes Fiscais (NFe)</span>
+                <span className="text-xs text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+              </summary>
+              <div className="pt-4 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-500">Código NCM</Label>
+                    <Input 
+                      value={formData.ncm || ""} 
+                      onChange={e => setFormData({ ...formData, ncm: e.target.value })}
+                      placeholder="Ex: 6109.10.00"
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-500">Código CEST</Label>
+                    <Input 
+                      value={formData.cest || ""} 
+                      onChange={e => setFormData({ ...formData, cest: e.target.value })}
+                      placeholder="Ex: 28.038.00"
+                      className="h-9"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-slate-500">Origem da Mercadoria</Label>
+                  <Select 
+                    value={formData.origin?.toString() ?? "0"} 
+                    onValueChange={(v) => setFormData({ ...formData, origin: parseInt(v) })}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Selecione a Origem" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[200px]">
+                      <SelectItem value="0">0 - Nacional</SelectItem>
+                      <SelectItem value="1">1 - Estrangeira - Importação direta</SelectItem>
+                      <SelectItem value="2">2 - Estrangeira - Adquirida no mercado interno</SelectItem>
+                      <SelectItem value="3">3 - Nacional - Conteúdo de Importação &gt; 40%</SelectItem>
+                      <SelectItem value="4">4 - Nacional - Produção conf. processos básicos</SelectItem>
+                      <SelectItem value="5">5 - Nacional - Conteúdo de Importação &lt;= 40%</SelectItem>
+                      <SelectItem value="6">6 - Estrangeira - Importação direta, sem similar nac.</SelectItem>
+                      <SelectItem value="7">7 - Estrangeira - Adq. mercado interno, sem similar nac.</SelectItem>
+                      <SelectItem value="8">8 - Nacional - Conteúdo de Importação &gt; 70%</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-1.5 col-span-2">
+                    <Label className="text-xs text-slate-500">CST/CSOSN do ICMS</Label>
+                    <Select 
+                      value={formData.icms_cst || "102"} 
+                      onValueChange={(v) => setFormData({ ...formData, icms_cst: v })}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Selecione o CST/CSOSN" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[200px]">
+                        <SelectItem value="101">101 - Simples Nac. com permissão de crédito</SelectItem>
+                        <SelectItem value="102">102 - Simples Nac. sem permissão de crédito</SelectItem>
+                        <SelectItem value="103">103 - Simples Nac. (Isenção por faixa)</SelectItem>
+                        <SelectItem value="201">201 - Simples Nac. perm. crédito e ICMS ST</SelectItem>
+                        <SelectItem value="202">202 - Simples Nac. sem perm. crédito e ICMS ST</SelectItem>
+                        <SelectItem value="300">300 - Simples Nac. (Imune)</SelectItem>
+                        <SelectItem value="400">400 - Simples Nac. (Não tributada)</SelectItem>
+                        <SelectItem value="500">500 - Simples Nac. (ICMS ST cobrado antes)</SelectItem>
+                        <SelectItem value="900">900 - Simples Nac. (Outros)</SelectItem>
+                        <SelectItem value="00">00 - Normal (Tributada integralmente)</SelectItem>
+                        <SelectItem value="10">10 - Normal (Tributada e com ICMS ST)</SelectItem>
+                        <SelectItem value="20">20 - Normal (Com redução de BC)</SelectItem>
+                        <SelectItem value="30">30 - Normal (Isenta/Não trib. e com ICMS ST)</SelectItem>
+                        <SelectItem value="40">40 - Normal (Isenta)</SelectItem>
+                        <SelectItem value="41">41 - Normal (Não tributada)</SelectItem>
+                        <SelectItem value="50">50 - Normal (Suspensão)</SelectItem>
+                        <SelectItem value="51">51 - Normal (Diferimento)</SelectItem>
+                        <SelectItem value="60">60 - Normal (ICMS ST cobrado antes)</SelectItem>
+                        <SelectItem value="70">70 - Normal (Redução BC e ICMS ST)</SelectItem>
+                        <SelectItem value="90">90 - Normal (Outras)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-500">ICMS (%)</Label>
+                    <Input 
+                      type="number" step="0.01" min="0"
+                      value={formData.icms_percent?.toString() ?? "0"} 
+                      onChange={e => setFormData({ ...formData, icms_percent: parseFloat(e.target.value.replace(',', '.')) || 0 })}
+                      className="h-9"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label>Condição</Label>
-                    <Select value={formData.condition} onValueChange={(v) => setFormData({ ...formData, condition: v })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Novo" />
+                  <div className="space-y-1.5 col-span-2">
+                    <Label className="text-xs text-slate-500">CST do PIS</Label>
+                    <Select 
+                      value={formData.pis_cst || "07"} 
+                      onValueChange={(v) => setFormData({ ...formData, pis_cst: v })}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Selecione o CST" />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Novo">Novo</SelectItem>
-                        <SelectItem value="Usado">Usado</SelectItem>
-                        <SelectItem value="Recondicionado">Recondicionado</SelectItem>
+                      <SelectContent className="max-h-[200px]">
+                        <SelectItem value="01">01 - Tributável (Básica)</SelectItem>
+                        <SelectItem value="02">02 - Tributável (Diferenciada)</SelectItem>
+                        <SelectItem value="03">03 - Tributável (por Unidade)</SelectItem>
+                        <SelectItem value="04">04 - Tributável Monofásica</SelectItem>
+                        <SelectItem value="05">05 - Tributável ICMS ST</SelectItem>
+                        <SelectItem value="06">06 - Tributável (Alíquota Zero)</SelectItem>
+                        <SelectItem value="07">07 - Operação Isenta</SelectItem>
+                        <SelectItem value="08">08 - Sem Incidência</SelectItem>
+                        <SelectItem value="09">09 - Com Suspensão</SelectItem>
+                        <SelectItem value="49">49 - Outras Saídas</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Peso Líquido (kg)</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-500">PIS (%)</Label>
                     <Input 
-                      type="number" step="0.001" min="0"
-                      value={formData.net_weight?.toString() || (formData.net_weight === 0 ? "0" : "")} 
-                      onChange={e => setFormData({ ...formData, net_weight: parseFloat(e.target.value.replace(',', '.')) || 0 })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Peso Bruto (kg)</Label>
-                    <Input 
-                      type="number" step="0.001" min="0"
-                      value={formData.gross_weight?.toString() || (formData.gross_weight === 0 ? "0" : "")} 
-                      onChange={e => setFormData({ ...formData, gross_weight: parseFloat(e.target.value.replace(',', '.')) || 0 })}
+                      type="number" step="0.01" min="0"
+                      value={formData.pis_percent?.toString() ?? "0"} 
+                      onChange={e => setFormData({ ...formData, pis_percent: parseFloat(e.target.value.replace(',', '.')) || 0 })}
+                      className="h-9"
                     />
                   </div>
                 </div>
-              </TabsContent>
 
-              {/* TRIBUTAÇÃO */}
-              <TabsContent value="trib" className="m-0 space-y-6">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>GTIN/EAN (Código de Barras)</Label>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-1.5 col-span-2">
+                    <Label className="text-xs text-slate-500">CST do COFINS</Label>
+                    <Select 
+                      value={formData.cofins_cst || "07"} 
+                      onValueChange={(v) => setFormData({ ...formData, cofins_cst: v })}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Selecione o CST" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[200px]">
+                        <SelectItem value="01">01 - Tributável (Básica)</SelectItem>
+                        <SelectItem value="02">02 - Tributável (Diferenciada)</SelectItem>
+                        <SelectItem value="03">03 - Tributável (por Unidade)</SelectItem>
+                        <SelectItem value="04">04 - Tributável Monofásica</SelectItem>
+                        <SelectItem value="05">05 - Tributável ICMS ST</SelectItem>
+                        <SelectItem value="06">06 - Tributável (Alíquota Zero)</SelectItem>
+                        <SelectItem value="07">07 - Operação Isenta</SelectItem>
+                        <SelectItem value="08">08 - Sem Incidência</SelectItem>
+                        <SelectItem value="09">09 - Com Suspensão</SelectItem>
+                        <SelectItem value="49">49 - Outras Saídas</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-500">COFINS (%)</Label>
                     <Input 
-                      value={formData.gtin_ean || ""} 
-                      onChange={e => setFormData({ ...formData, gtin_ean: e.target.value })}
-                      placeholder="Sem GTIN"
+                      type="number" step="0.01" min="0"
+                      value={formData.cofins_percent?.toString() ?? "0"} 
+                      onChange={e => setFormData({ ...formData, cofins_percent: parseFloat(e.target.value.replace(',', '.')) || 0 })}
+                      className="h-9"
                     />
                   </div>
+                </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>NCM</Label>
-                      <Input 
-                        value={formData.ncm || ""} 
-                        onChange={e => setFormData({ ...formData, ncm: e.target.value })}
-                        placeholder="0000.00.00"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>CEST</Label>
-                      <Input 
-                        value={formData.cest || ""} 
-                        onChange={e => setFormData({ ...formData, cest: e.target.value })}
-                        placeholder="00.000.00"
-                      />
-                    </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-1.5 col-span-2">
+                    <Label className="text-xs text-slate-500">CST do IPI</Label>
+                    <Select 
+                      value={formData.ipi_cst || "99"} 
+                      onValueChange={(v) => setFormData({ ...formData, ipi_cst: v })}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Selecione o CST" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[200px]">
+                        <SelectItem value="50">50 - Saída Tributada</SelectItem>
+                        <SelectItem value="51">51 - Saída (Alíquota Zero)</SelectItem>
+                        <SelectItem value="52">52 - Saída Isenta</SelectItem>
+                        <SelectItem value="53">53 - Saída Não-Tributada</SelectItem>
+                        <SelectItem value="54">54 - Saída Imune</SelectItem>
+                        <SelectItem value="55">55 - Saída com Suspensão</SelectItem>
+                        <SelectItem value="99">99 - Outras Saídas</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-500">IPI (%)</Label>
+                    <Input 
+                      type="number" step="0.01" min="0"
+                      value={formData.ipi_percent?.toString() ?? "0"} 
+                      onChange={e => setFormData({ ...formData, ipi_percent: parseFloat(e.target.value.replace(',', '.')) || 0 })}
+                      className="h-9"
+                    />
                   </div>
                 </div>
-              </TabsContent>
 
-              {/* ESTOQUE */}
-              <TabsContent value="estoque" className="m-0 space-y-6">
-                {formData.format === "Com Variação" ? (
-                  <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-600 rounded-lg text-sm">
-                    O estoque de produtos com variação é controlado individualmente na aba "Variações".
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Estoque Mínimo</Label>
-                      <Input 
-                        type="number" min="0"
-                        value={formData.min_stock?.toString() || (formData.min_stock === 0 ? "0" : "")} 
-                        onChange={e => setFormData({ ...formData, min_stock: parseInt(e.target.value) || 0 })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Estoque Máximo</Label>
-                      <Input 
-                        type="number" min="0"
-                        value={formData.max_stock?.toString() || (formData.max_stock === 0 ? "0" : "")} 
-                        onChange={e => setFormData({ ...formData, max_stock: parseInt(e.target.value) || 0 })}
-                      />
-                    </div>
-                  </div>
-                )}
-              </TabsContent>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-slate-500">CFOP Padrão</Label>
+                  <Input 
+                    value={formData.cfop || "5102"} 
+                    onChange={e => setFormData({ ...formData, cfop: e.target.value })}
+                    placeholder="Ex: 5102"
+                    className="h-9"
+                  />
+                </div>
+              </div>
+            </details>
+          </div>
 
-              {/* VARIAÇÕES */}
-              {formData.format === "Com Variação" && (
-                <TabsContent value="var" className="m-0 space-y-6">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-medium">Grade do Produto</h3>
-                    <Button type="button" variant="outline" size="sm" onClick={addVariation}>
-                      <Plus className="size-4 mr-2" /> Adicionar Variação
-                    </Button>
-                  </div>
-
-                  {variations.length === 0 ? (
-                    <div className="text-center py-8 text-sm text-muted-foreground border border-dashed rounded-lg">
-                      Nenhuma variação adicionada ainda.<br/>
-                      Ex: Tamanho: M, Cor: Azul
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {variations.map((v, idx) => (
-                        <div key={idx} className="flex items-start gap-3 p-4 bg-muted/30 border border-border rounded-lg relative group">
-                          <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <div className="space-y-1.5 md:col-span-2">
-                              <Label className="text-[10px] uppercase text-muted-foreground">Nome (Ex: Cor:Preto;Tamanho:P)</Label>
-                              <Input 
-                                value={v.name || ""} 
-                                onChange={e => updateVariation(idx, "name", e.target.value)} 
-                                className="h-8"
-                              />
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-[10px] uppercase text-muted-foreground">Estoque</Label>
-                              <Input 
-                                type="number" min="0"
-                                value={v.stock?.toString() || (v.stock === 0 ? "0" : "")} 
-                                onChange={e => updateVariation(idx, "stock", parseInt(e.target.value) || 0)} 
-                                className="h-8"
-                              />
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-[10px] uppercase text-muted-foreground">SKU (Opcional)</Label>
-                              <Input 
-                                value={v.sku || ""} 
-                                onChange={e => updateVariation(idx, "sku", e.target.value)} 
-                                className="h-8"
-                              />
-                            </div>
-                          </div>
-                          <Button 
-                            type="button" 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-muted-foreground hover:text-red-500 absolute top-2 right-2 md:relative md:top-auto md:right-auto md:mt-5" 
-                            onClick={() => removeVariation(idx)}
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </TabsContent>
-              )}
-            </div>
-          </Tabs>
-
-          <SheetFooter className="p-6 pt-2 border-t mt-auto">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <SheetFooter className="p-6 border-t mt-auto bg-white">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="h-9 text-xs">
               Cancelar
             </Button>
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" disabled={isPending} className="h-9 text-xs bg-slate-900 hover:bg-slate-800 text-white font-medium">
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isEditing ? "Salvar Alterações" : "Salvar Produto"}
             </Button>
           </SheetFooter>
         </form>
+
+        {/* Modais de Cadastro Rápido */}
+        <QuickAddModelagem
+          open={qaModelagem}
+          onOpenChange={setQaModelagem}
+          onCreated={(id) => setFormData(prev => ({ ...prev, model_id: id }))}
+        />
+        <QuickAddTecido
+          open={qaTecido}
+          onOpenChange={setQaTecido}
+          onCreated={(id) => setFormData(prev => ({ ...prev, fabric_id: id }))}
+        />
+        <QuickAddCor
+          open={qaCor}
+          onOpenChange={setQaCor}
+          onCreated={(id) => setFormData(prev => ({ ...prev, color_id: id }))}
+        />
+        <QuickAddGrade
+          open={qaGrade}
+          onOpenChange={setQaGrade}
+          onCreated={(_id, name) => setFormData(prev => ({ ...prev, size_grid: name }))}
+        />
+        <QuickAddCategoria
+          open={qaCategoria}
+          onOpenChange={setQaCategoria}
+          onCreated={(_id, name) => setFormData(prev => ({ ...prev, category: name }))}
+        />
       </SheetContent>
     </Sheet>
   );

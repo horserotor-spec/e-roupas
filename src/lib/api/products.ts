@@ -28,8 +28,33 @@ export interface Product {
   cest: string | null;
   min_stock: number;
   max_stock: number;
+  model_id?: string | null;
+  fabric_id?: string | null;
+  color_id?: string | null;
+  models?: any;
+  fabrics?: any;
+  canonical_colors?: any;
+  origin?: number;
+  icms_cst?: string | null;
+  icms_percent?: number;
+  pis_cst?: string | null;
+  pis_percent?: number;
+  cofins_cst?: string | null;
+  cofins_percent?: number;
+  ipi_cst?: string | null;
+  ipi_percent?: number;
+  cfop?: string | null;
   active: boolean;
   customizations?: any[];
+  fabric_family?: string | null;
+  size_grid?: string | null;
+  supplier_id?: string | null;
+  supports_dtf?: boolean;
+  supports_embroidery?: boolean;
+  supports_silk?: boolean;
+  supports_sublimation?: boolean;
+  lead_time_minutes?: number;
+  production_sla_days?: number;
   created_at: string;
   updated_at: string;
   variations?: ProductVariation[];
@@ -47,7 +72,7 @@ export function useCreateProductFromBOM() {
           price: payload.price,
           cost_price: payload.cost_price,
           customizations: payload.customizations,
-          format: 'Simples',
+          format: 'MP',
         }])
         .select()
         .single();
@@ -68,7 +93,10 @@ export function useProducts(search?: string) {
         .from("products")
         .select(`
           *,
-          variations:product_variations(*)
+          variations:product_variations(*),
+          models:product_models(*),
+          fabrics(*),
+          canonical_colors(*)
         `)
         .order("created_at", { ascending: false });
 
@@ -253,3 +281,32 @@ export function useCloneProduct() {
   });
 }
 
+// Suggest product names and SKUs based on existing entries
+export interface ProductSuggestion {
+  name: string;
+  sku: string | null;
+}
+
+/**
+ * Hook to fetch product name/SKU suggestions for autocomplete.
+ * If `search` is provided, filters by name or SKU containing the term.
+ */
+export function useProductSuggestions(search?: string) {
+  return useQuery({
+    queryKey: ["productSuggestions", search],
+    queryFn: async () => {
+      let query = supabase
+        .from("products")
+        .select(`name, sku`)
+        .order("name", { ascending: true });
+
+      if (search) {
+        query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%`);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data as ProductSuggestion[];
+    },
+  });
+}

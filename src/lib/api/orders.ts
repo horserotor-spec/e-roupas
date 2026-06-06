@@ -70,6 +70,281 @@ export interface Order {
 
 export type OrderPayload = Partial<Order> & { client_id: string; brand_id: string; items?: OrderItem[] };
 
+export async function allocateStockAndCreateProcesses(orderId: string) {
+  const { data: orderItems, error: itemsError } = await supabase
+    .from("order_items")
+    .select(`
+      id,
+      product_id,
+      product_name,
+      sku,
+      size,
+      gender,
+      quantity,
+      customizations,
+      products:product_id (
+        model_id,
+        fabric_id,
+        color_id
+      )
+    `)
+    .eq("order_id", orderId);
+
+  if (itemsError || !orderItems || orderItems.length === 0) return;
+
+  const { data: allProcesses } = await supabase
+    .from("production_processes")
+    .select("*")
+    .order("order_index", { ascending: true });
+
+  if (allProcesses && allProcesses.length > 0) {
+    for (const item of orderItems) {
+      const { data: existing } = await supabase
+        .from("order_item_processes")
+        .select("id")
+        .eq("order_item_id", item.id);
+
+      if (!existing || existing.length === 0) {
+        const processNames = ["Separação", "Manuseio e qualidade", "Expedição"];
+
+        const hasDtf = (item.customizations || []).some((c: any) => 
+          c.name?.toLowerCase().includes("dtf") || c.details?.toLowerCase().includes("dtf")
+        );
+        const hasBordado = (item.customizations || []).some((c: any) => 
+          c.name?.toLowerCase().includes("bordado") || c.details?.toLowerCase().includes("bordado")
+        );
+        const hasSilk = (item.customizations || []).some((c: any) => 
+          c.name?.toLowerCase().includes("silk") || c.details?.toLowerCase().includes("silk")
+        );
+        const hasSublimacao = (item.customizations || []).some((c: any) => 
+          c.name?.toLowerCase().includes("sublima") || c.details?.toLowerCase().includes("sublima")
+        );
+
+        if (hasDtf) {
+          processNames.push("Impressão DTF");
+          processNames.push("Prensa");
+        }
+        if (hasBordado) {
+          processNames.push("Bordado");
+        }
+        if (hasSilk) {
+          processNames.push("Silk");
+        }
+        if (hasSublimacao) {
+          processNames.push("Sublimação");
+        }
+
+        const prod = (item.products as any);
+        if (prod && prod.model_id && prod.fabric_id) {
+          processNames.push("Corte");
+          processNames.push("Costura");
+        }
+
+        const toInsert = allProcesses
+          .filter((p: any) => processNames.includes(p.name))
+          .map((p: any) => ({
+            order_item_id: item.id,
+            process_id: p.id,
+            status: p.name === "Separação" ? "em_andamento" : "pendente"
+          }));
+
+        if (toInsert.length > 0) {
+          await supabase.from("order_item_processes").insert(toInsert);
+        }
+      }
+    }
+  }
+
+  // 1. Obter informações de mix_fabrics_allowed do pedido
+  const { data: orderData } = await supabase
+    .from("orders")
+    .select("mix_fabrics_allowed")
+    .eq("id", orderId)
+    .single();
+  const mixFabricsAllowed = orderData?.mix_fabrics_allowed || false;
+
+  const { data: existingReservations } = await supabase
+    .from("stock_reservations")
+    .select("id")
+    .eq("order_id", orderId);
+
+  if (!existingReservations || existingReservations.length === 0) {
+    for (const item of orderItems) {
+      const prod = (item.products as any);
+      if (!prod) continue;
+
+      let variant = null;
+      let usedAlternative = false;
+      let actualFabricId = prod.fabric_id;
+
+      // Se for PA (Produto Acabável) ou se o produto pai tiver modelagem, tecido e cor definidos
+      if (prod.model_id && prod.fabric_id && prod.color_id) {
+        
+        // 2. Tenta encontrar a variante física da MP principal
+        // Primeiro precisamos achar o produto MP correspondente
+        const { data: mainMp } = await supabase
+          .from("products")
+          .select("id")
+          .eq("format", "MP")
+          .eq("model_id", prod.model_id)
+          .eq("fabric_id", prod.fabric_id)
+          .eq("color_id", prod.color_id)
+          .eq("active", true)
+          .maybeSingle();
+
+        if (mainMp) {
+          const { data: v } = await supabase
+            .from("product_variants")
+            .select("id")
+            .eq("product_id", mainMp.id)
+            .eq("size", item.size)
+            .eq("active", true)
+            .maybeSingle();
+          variant = v;
+        }
+
+        // 3. Se não achou variante ou se o estoque disponível da variante principal for insuficiente, 
+        // e se o cliente aceita mistura de tecidos, busca outra MP alternativa
+        if (mixFabricsAllowed) {
+          let hasSufficientStock = false;
+          if (variant) {
+            const { data: sumStock } = await supabase
+              .from("inventory_batches")
+              .select("quantity_available")
+              .eq("product_variant_id", variant.id)
+              .eq("active", true);
+            const available = sumStock?.reduce((acc, b) => acc + Number(b.quantity_available || 0), 0) || 0;
+            hasSufficientStock = available >= Number(item.quantity);
+          }
+
+          if (!variant || !hasSufficientStock) {
+            // Buscar outros produtos MP que tenham o mesmo modelo e cor mas malha/tecido diferente
+            const { data: alternativeMps } = await supabase
+              .from("products")
+              .select("id, fabric_id")
+              .eq("format", "MP")
+              .eq("model_id", prod.model_id)
+              .eq("color_id", prod.color_id)
+              .neq("fabric_id", prod.fabric_id) // Tecidos diferentes
+              .eq("active", true);
+
+            if (alternativeMps && alternativeMps.length > 0) {
+              for (const altMp of alternativeMps) {
+                const { data: altV } = await supabase
+                  .from("product_variants")
+                  .select("id")
+                  .eq("product_id", altMp.id)
+                  .eq("size", item.size)
+                  .eq("active", true)
+                  .maybeSingle();
+
+                if (altV) {
+                  const { data: sumStock } = await supabase
+                    .from("inventory_batches")
+                    .select("quantity_available")
+                    .eq("product_variant_id", altV.id)
+                    .eq("active", true);
+                  const available = sumStock?.reduce((acc, b) => acc + Number(b.quantity_available || 0), 0) || 0;
+                  if (available >= Number(item.quantity)) {
+                    variant = altV;
+                    actualFabricId = altMp.fabric_id;
+                    usedAlternative = true;
+                    break; // Encontrou um tecido compatível com estoque suficiente!
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (variant) {
+        const { data: batches } = await supabase
+          .from("inventory_batches")
+          .select("*")
+          .eq("product_variant_id", variant.id)
+          .eq("active", true)
+          .gt("quantity_available", 0)
+          .order("entry_date", { ascending: true });
+
+        let qtyNeeded = Number(item.quantity);
+        if (batches && batches.length > 0) {
+          for (const batch of batches) {
+            if (qtyNeeded <= 0) break;
+
+            const qtyToReserve = Math.min(qtyNeeded, Number(batch.quantity_available));
+            qtyNeeded -= qtyToReserve;
+
+            await supabase
+              .from("inventory_batches")
+              .update({
+                quantity_available: Number(batch.quantity_available) - qtyToReserve,
+                quantity_reserved: Number(batch.quantity_reserved || 0) + qtyToReserve
+              })
+              .eq("id", batch.id);
+
+            await supabase
+              .from("stock_reservations")
+              .insert([{
+                order_id: orderId,
+                order_item_id: item.id,
+                batch_id: batch.id,
+                quantity: qtyToReserve
+              }]);
+
+            await supabase
+              .from("inventory_movements")
+              .insert([{
+                batch_id: batch.id,
+                movement_type: "produção",
+                quantity: -qtyToReserve,
+                reference_type: "pedido",
+                reference_id: orderId,
+                notes: usedAlternative 
+                  ? `Reserva FIFO automática com MISTURA AUTORIZADA para o item ${item.product_name} (${item.size})`
+                  : `Reserva FIFO automática para o item ${item.product_name} (${item.size})`
+              }]);
+          }
+        }
+
+        if (usedAlternative) {
+          // Logar substituição na timeline do pedido
+          const { data: altFabric } = await supabase.from("fabrics").select("name").eq("id", actualFabricId).single();
+          await supabase
+            .from("order_timeline")
+            .insert([{
+              order_id: orderId,
+              user_id: null,
+              event_type: "info",
+              description: `Substituição inteligente: item ${item.product_name} (${item.size}) foi alocado com o tecido alternativo "${altFabric?.name}" por falta do tecido original.`
+            }]);
+        }
+
+        if (qtyNeeded > 0) {
+          await supabase
+            .from("order_timeline")
+            .insert([{
+              order_id: orderId,
+              user_id: null,
+              event_type: "alerta",
+              description: `Estoque de MP insuficiente para ${item.product_name} (${item.size}). Faltaram ${qtyNeeded} un. no FIFO.`
+            }]);
+        }
+      } else {
+        // Se nem a variante principal nem a alternativa foram encontradas
+        await supabase
+          .from("order_timeline")
+          .insert([{
+            order_id: orderId,
+            user_id: null,
+            event_type: "alerta",
+            description: `Variante ou Matéria-Prima não encontrada para ${item.product_name} (${item.size}).`
+          }]);
+      }
+    }
+  }
+}
+
 export function useOrders(search?: string) {
   return useQuery({
     queryKey: ["orders", search],
@@ -106,6 +381,38 @@ export function useOrders(search?: string) {
         items: o.order_items || [],
       })) as Order[];
     },
+  });
+}
+
+export function useOrder(id: string) {
+  return useQuery({
+    queryKey: ["orders", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orders")
+        .select(`
+          *,
+          clients(id, name, company_name),
+          brands(id, code),
+          users:responsible_user_id(id, name),
+          salesperson:salesperson_id(id, name)
+        `)
+        .eq("id", id)
+        .single();
+
+      if (error) throw error;
+
+      return {
+        ...data,
+        status: data.status as OrderStatus,
+        urgent: data.priority === "alta",
+        brand_code: data.brands?.code || "GEN",
+        client_name: data.clients?.name || "Sem Cliente",
+        owner_name: data.users?.name || "Sem Responsável",
+        salesperson_name: data.salesperson?.name || null,
+      } as Order;
+    },
+    enabled: !!id,
   });
 }
 
@@ -200,6 +507,10 @@ export function useCreateOrder() {
         }]);
       }
 
+      if (orderData.status === "em_producao" || orderData.status === "confirmado") {
+        await allocateStockAndCreateProcesses(newOrder.id);
+      }
+
       return newOrder;
     },
     onSuccess: () => {
@@ -286,6 +597,10 @@ export function useUpdateOrder() {
         }
       }
 
+      if (orderData.status === "em_producao" || orderData.status === "confirmado") {
+        await allocateStockAndCreateProcesses(id);
+      }
+
       return data;
     },
     onSuccess: () => {
@@ -310,5 +625,99 @@ export function useUpdateOrderItemStatus() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
     },
+  });
+}
+
+export function useOverrideStockBatch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { reservationId: string; newBatchId: string }) => {
+      const { data: reservation, error: resError } = await supabase
+        .from("stock_reservations")
+        .select("*, inventory_batches(*)")
+        .eq("id", payload.reservationId)
+        .single();
+
+      if (resError || !reservation) throw new Error("Reserva não encontrada");
+      if (reservation.batch_id === payload.newBatchId) return { success: true };
+
+      const { data: newBatch, error: batchError } = await supabase
+        .from("inventory_batches")
+        .select("*")
+        .eq("id", payload.newBatchId)
+        .single();
+
+      if (batchError || !newBatch) throw new Error("Novo lote não encontrado");
+
+      const qty = Number(reservation.quantity);
+      if (Number(newBatch.quantity_available) < qty) {
+        throw new Error(`Estoque insuficiente no novo lote. Disponível: ${newBatch.quantity_available}`);
+      }
+
+      const oldBatch = reservation.inventory_batches;
+      
+      // Devolver antigo
+      await supabase
+        .from("inventory_batches")
+        .update({
+          quantity_available: Number(oldBatch.quantity_available) + qty,
+          quantity_reserved: Math.max(0, Number(oldBatch.quantity_reserved) - qty)
+        })
+        .eq("id", oldBatch.id);
+
+      // Reservar novo
+      await supabase
+        .from("inventory_batches")
+        .update({
+          quantity_available: Number(newBatch.quantity_available) - qty,
+          quantity_reserved: Number(newBatch.quantity_reserved || 0) + qty
+        })
+        .eq("id", newBatch.id);
+
+      // Atualizar reserva
+      const { error: updateResError } = await supabase
+        .from("stock_reservations")
+        .update({ batch_id: payload.newBatchId })
+        .eq("id", payload.reservationId);
+
+      if (updateResError) throw updateResError;
+
+      // Movimentos
+      await supabase
+        .from("inventory_movements")
+        .insert([
+          {
+            batch_id: oldBatch.id,
+            movement_type: "ajuste",
+            quantity: qty,
+            reference_type: "pedido",
+            reference_id: reservation.order_id,
+            notes: `Devolução por override manual no pedido ID ${reservation.order_id}`
+          },
+          {
+            batch_id: newBatch.id,
+            movement_type: "produção",
+            quantity: -qty,
+            reference_type: "pedido",
+            reference_id: reservation.order_id,
+            notes: `Consumo por override manual no pedido ID ${reservation.order_id}`
+          }
+        ]);
+
+      // Timeline
+      await supabase
+        .from("order_timeline")
+        .insert([{
+          order_id: reservation.order_id,
+          action: "override_lote",
+          description: `Alocação manual de estoque alterada do lote ${oldBatch.batch_code} para ${newBatch.batch_code}.`
+        }]);
+
+      return { success: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["stock_reservations"] });
+    }
   });
 }

@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useClients } from "@/lib/api/clients";
+import { Switch } from "@/components/ui/switch";
 import { useProducts, Product } from "@/lib/api/products";
 import { useUpdateOrder, OrderItem, OrderPayload } from "@/lib/api/orders";
 import { supabase } from "@/lib/supabase";
@@ -16,6 +17,9 @@ import { useCreateProductFromBOM } from "@/lib/api/products";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+
+const ADULTO_SIZES = ["PP", "P", "M", "G", "GG", "XG", "G1", "G2", "G3", "G4"];
+const INFANTIL_SIZES = ["2", "4", "6", "8", "10", "12", "14", "16"];
 
 export const Route = createFileRoute("/_authenticated/pedidos/$id")({
   head: () => ({ meta: [{ title: "Editar Pedido · e-roupas OS" }] }),
@@ -62,6 +66,7 @@ function EditOrderPage() {
     logistics_integration: "",
     notes: "",
     internal_notes: "",
+    mix_fabrics_allowed: false,
     items: [],
   });
 
@@ -80,28 +85,102 @@ function EditOrderPage() {
           sale_date: data.sale_date ? data.sale_date.substring(0, 10) : "",
           departure_date: data.departure_date ? data.departure_date.substring(0, 10) : "",
           expected_date: data.expected_date ? data.expected_date.substring(0, 10) : "",
+          mix_fabrics_allowed: data.mix_fabrics_allowed || false,
         });
-        if (data.order_items) setItems(data.order_items);
+        if (data.order_items) {
+          const grouped: any[] = [];
+          data.order_items.forEach((item: any) => {
+            const existing = grouped.find(g => 
+              g.product_id === item.product_id && 
+              g.gender === item.gender && 
+              JSON.stringify(g.customizations) === JSON.stringify(item.customizations) &&
+              g.unit_price === item.unit_price &&
+              g.list_price === item.list_price
+            );
+            
+            if (existing) {
+              if (item.size) {
+                existing.sizes[item.size] = (existing.sizes[item.size] || 0) + (item.quantity || 0);
+                if (INFANTIL_SIZES.includes(item.size)) {
+                  existing.grid_type = "infantil";
+                }
+              }
+            } else {
+              const sizes = {
+                "2": 0, "4": 0, "6": 0, "8": 0, "10": 0, "12": 0, "14": 0, "16": 0,
+                PP: 0, P: 0, M: 0, G: 0, GG: 0, XG: 0, G1: 0, G2: 0, G3: 0, G4: 0
+              };
+              let grid_type = "adulto";
+              if (item.size) {
+                (sizes as any)[item.size] = item.quantity || 0;
+                if (INFANTIL_SIZES.includes(item.size)) {
+                  grid_type = "infantil";
+                }
+              }
+              let baseSku = item.sku || "";
+              const parts = baseSku.split("-");
+              if (parts.length >= 4 && parts[0] === "PF") {
+                baseSku = parts.slice(0, -2).join("-");
+                baseSku = baseSku.replace("PF-", "PA-");
+              }
+              grouped.push({
+                product_id: item.product_id,
+                product_name: item.product_name,
+                sku: baseSku,
+                gender: item.gender || "Unissex",
+                grid_type,
+                list_price: item.list_price || 0,
+                discount_percent: item.discount_percent || 0,
+                unit_price: item.unit_price || 0,
+                customizations: item.customizations || [],
+                sizes
+              });
+            }
+          });
+          setItems(grouped);
+        }
       }
       setLoadingOrder(false);
     });
   }, [id]);
 
+  const emptySizes = {
+    "2": 0, "4": 0, "6": 0, "8": 0, "10": 0, "12": 0, "14": 0, "16": 0,
+    PP: 0, P: 0, M: 0, G: 0, GG: 0, XG: 0, G1: 0, G2: 0, G3: 0, G4: 0
+  };
+
   const addItem = () => {
     setItems([...items, {
+      product_id: "",
       product_name: "",
       sku: "",
-      quantity: 1,
+      gender: "Unissex",
+      grid_type: "adulto",
       list_price: 0,
       discount_percent: 0,
       unit_price: 0,
-      customizations: []
+      customizations: [],
+      sizes: { ...emptySizes }
     }]);
   };
 
   const updateItem = (index: number, field: string, value: any) => {
     const newItems = [...items];
-    const item = { ...newItems[index], [field]: value };
+    const item = { ...newItems[index] };
+
+    if (field.startsWith("size_")) {
+      const sz = field.substring(5);
+      item.sizes = {
+        ...item.sizes,
+        [sz]: parseFloat(value) || 0
+      };
+    } else if (field === "grid_type") {
+      item.grid_type = value;
+      // Limpa os tamanhos ao trocar de grade para evitar misturar quantidades
+      item.sizes = { ...emptySizes };
+    } else {
+      (item as any)[field] = value;
+    }
 
     // Auto-fill from product selection
     if (field === "product_id" && products) {
@@ -141,11 +220,16 @@ function EditOrderPage() {
     setItems(items.filter((_, i) => i !== index));
   };
 
+  const getItemQuantity = (item: any) => {
+    if (!item.sizes) return 0;
+    return Object.values(item.sizes).reduce((acc: number, q: any) => acc + (Number(q) || 0), 0);
+  };
+
   // Calculations
   const numItems = items.length;
-  const sumQuantities = items.reduce((acc, item) => acc + Number(item.quantity || 0), 0);
-  const itemsTotalList = items.reduce((acc, item) => acc + (Number(item.list_price || 0) * Number(item.quantity || 0)), 0);
-  const itemsTotalNet = items.reduce((acc, item) => acc + (Number(item.unit_price || 0) * Number(item.quantity || 0)), 0);
+  const sumQuantities = items.reduce((acc, item) => acc + getItemQuantity(item), 0);
+  const itemsTotalList = items.reduce((acc, item) => acc + (Number(item.list_price || 0) * getItemQuantity(item)), 0);
+  const itemsTotalNet = items.reduce((acc, item) => acc + (Number(item.unit_price || 0) * getItemQuantity(item)), 0);
   const itemsDiscountTotal = itemsTotalList - itemsTotalNet;
   
   const saleDiscount = Number(formData.discount || 0);
@@ -158,6 +242,52 @@ function EditOrderPage() {
       toast.error("Cliente e Marca são obrigatórios.");
       return;
     }
+
+    const explodedItems: any[] = [];
+    items.forEach((item) => {
+      if (item.sizes) {
+        const activeSizes = item.grid_type === "infantil" ? INFANTIL_SIZES : ADULTO_SIZES;
+        activeSizes.forEach((size) => {
+          const qty = item.sizes[size];
+          const quantity = Number(qty);
+          if (quantity > 0) {
+            let itemSku = item.sku || "";
+            if (itemSku.startsWith("PA-")) {
+              itemSku = itemSku.replace("PA-", "PF-");
+            } else if (!itemSku.startsWith("PF-")) {
+              itemSku = `PF-${itemSku}`;
+            }
+            const brandObj = brands.find(b => b.id === formData.brand_id);
+            const brandCode = brandObj?.code || "CLI";
+            const finalSku = `${itemSku}-${size}-${brandCode}`.toUpperCase();
+
+            const p = products?.find(prod => prod.id === item.product_id);
+
+            explodedItems.push({
+              product_id: item.product_id,
+              product_name: item.product_name,
+              sku: finalSku,
+              model: p?.models?.name || p?.model || "",
+              fabric: p?.fabrics?.name || p?.fabric || "",
+              color: p?.canonical_colors?.name || p?.color || "",
+              size,
+              gender: item.gender,
+              quantity,
+              list_price: item.list_price,
+              discount_percent: item.discount_percent,
+              unit_price: item.unit_price,
+              customizations: item.customizations || [],
+              notes: item.notes || ""
+            });
+          }
+        });
+      }
+    });
+
+    if (explodedItems.length === 0) {
+      toast.error("O pedido deve conter pelo menos um item com quantidade na grade.");
+      return;
+    }
     
     try {
       await updateMutation.mutateAsync({
@@ -166,7 +296,7 @@ function EditOrderPage() {
         items_discount: itemsDiscountTotal,
         estimated_total: itemsTotalList,
         final_total: finalTotal,
-        items: items as OrderItem[]
+        items: explodedItems
       });
       toast.success("Pedido atualizado com sucesso!");
       navigate({ to: "/pedidos" });
@@ -247,7 +377,7 @@ function EditOrderPage() {
         {/* DADOS DO CLIENTE */}
         <section>
           <h2 className="text-sm font-semibold text-slate-700 mb-4">Dados do cliente</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
             <div className="space-y-1.5 md:col-span-2">
               <Label className="text-xs text-muted-foreground">Cliente *</Label>
               <Select value={formData.client_id} onValueChange={(v) => setFormData({ ...formData, client_id: v })}>
@@ -270,6 +400,14 @@ function EditOrderPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="flex items-center gap-2 pt-6">
+              <Switch 
+                id="mix_fabrics"
+                checked={formData.mix_fabrics_allowed || false}
+                onCheckedChange={(v) => setFormData({ ...formData, mix_fabrics_allowed: v })}
+              />
+              <Label htmlFor="mix_fabrics" className="text-xs text-slate-700 cursor-pointer font-medium">Permitir misturar tecidos</Label>
+            </div>
           </div>
         </section>
 
@@ -281,55 +419,98 @@ function EditOrderPage() {
           
           <div className="bg-white border rounded-lg overflow-hidden mb-3">
             <table className="w-full text-sm text-left">
-              <thead className="bg-slate-50 border-b text-xs text-slate-500">
+              <thead className="bg-slate-50 border-b text-[10px] text-slate-500 uppercase tracking-wider">
                 <tr>
-                  <th className="px-4 py-3 font-medium w-8">#</th>
-                  <th className="px-4 py-3 font-medium">Descrição</th>
-                  <th className="px-4 py-3 font-medium w-32">Código</th>
-                  <th className="px-4 py-3 font-medium w-32 text-center">Personalizações</th>
-                  <th className="px-4 py-3 font-medium w-24">Quantidade</th>
-                  <th className="px-4 py-3 font-medium w-28">Preço lista</th>
-                  <th className="px-4 py-3 font-medium w-20">Desc (%)</th>
-                  <th className="px-4 py-3 font-medium w-28">Preço un</th>
-                  <th className="px-4 py-3 font-medium w-28">Preço total</th>
-                  <th className="px-4 py-3 font-medium w-12"></th>
+                  <th className="px-2 py-3 font-medium w-8 text-center">#</th>
+                  <th className="px-2 py-3 font-medium min-w-[150px]">Descrição</th>
+                  <th className="px-2 py-3 font-medium w-28">Código</th>
+                  <th className="px-2 py-3 font-medium w-24">Gênero</th>
+                  <th className="px-2 py-3 font-medium w-20 text-center">Pers.</th>
+                  <th className="px-2 py-3 font-medium w-24">Grade</th>
+                  <th className="px-2 py-3 font-medium min-w-[280px]">Quantidades por Tamanho</th>
+                  <th className="px-2 py-3 font-medium w-14 text-center bg-slate-100/30">Qtd</th>
+                  <th className="px-2 py-3 font-medium w-24 text-right">Lista</th>
+                  <th className="px-2 py-3 font-medium w-16 text-right">Desc%</th>
+                  <th className="px-2 py-3 font-medium w-24 text-right font-semibold">Unit</th>
+                  <th className="px-2 py-3 font-medium w-24 text-right font-bold">Total</th>
+                  <th className="px-2 py-3 font-medium w-8 text-center"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
-                {items.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50/50">
-                    <td className="px-4 py-2 text-slate-400 bg-slate-100/50 text-center">{idx + 1}</td>
-                    <td className="px-4 py-2">
-                      <Select value={item.product_id || ""} onValueChange={(v) => updateItem(idx, "product_id", v)}>
-                        <SelectTrigger className="h-8 border-transparent hover:border-input bg-transparent shadow-none"><SelectValue placeholder="Selecione um produto..." /></SelectTrigger>
-                        <SelectContent>
-                          {products?.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td className="px-4 py-2"><Input className="h-8" value={item.sku || ""} onChange={e => updateItem(idx, "sku", e.target.value)} /></td>
-                    <td className="px-4 py-2 text-center">
-                      <div className="flex flex-col gap-1 items-center justify-center">
-                        <Button variant="outline" size="sm" onClick={() => setActiveCustomizationIndex(idx)} className="h-8 text-xs border-dashed text-blue-600 hover:text-blue-700 hover:bg-blue-50 w-full">
-                          <Wand2 className="size-3 mr-1" /> {(item.customizations || []).length} process.
-                        </Button>
-                        {(item.customizations || []).length > 0 && (
-                          <Button variant="ghost" size="sm" onClick={() => handleSaveSku(idx)} disabled={createProductMutation.isPending} className="h-6 text-[10px] text-green-600 hover:bg-green-50 w-full px-1">
-                            <Save className="size-3 mr-1" /> Salvar SKU
+              <tbody className="divide-y text-xs">
+                {items.map((item, idx) => {
+                  const qtyTotal = getItemQuantity(item);
+                  return (
+                    <tr key={idx} className="hover:bg-slate-50/50">
+                      <td className="px-2 py-2 text-slate-400 bg-slate-100/50 text-center">{idx + 1}</td>
+                      <td className="px-2 py-2">
+                        <Select value={item.product_id || ""} onValueChange={(v) => updateItem(idx, "product_id", v)}>
+                          <SelectTrigger className="h-8 border-transparent hover:border-input bg-transparent shadow-none p-1 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                          <SelectContent>
+                            {products?.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className="px-2 py-2"><Input className="h-8 text-xs font-mono" value={item.sku || ""} onChange={e => updateItem(idx, "sku", e.target.value)} /></td>
+                      <td className="px-2 py-2">
+                        <Select value={item.gender || "Unissex"} onValueChange={(v) => updateItem(idx, "gender", v)}>
+                          <SelectTrigger className="h-8 border-transparent hover:border-input bg-transparent shadow-none p-1 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Masculino">Masculino</SelectItem>
+                            <SelectItem value="Feminino">Feminino</SelectItem>
+                            <SelectItem value="Unissex">Unissex</SelectItem>
+                            <SelectItem value="Infantil">Infantil</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className="px-2 py-2 text-center">
+                        <div className="flex flex-col gap-1 items-center justify-center">
+                          <Button variant="outline" size="sm" onClick={() => setActiveCustomizationIndex(idx)} className="h-7 text-[10px] border-dashed text-blue-600 hover:text-blue-700 hover:bg-blue-50 w-full px-1">
+                            <Wand2 className="size-3 mr-1" /> {(item.customizations || []).length} pr.
                           </Button>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-2"><Input type="number" className="h-8 text-right" value={item.quantity || ""} onChange={e => updateItem(idx, "quantity", parseFloat(e.target.value))} /></td>
-                    <td className="px-4 py-2"><Input type="number" step="0.01" className="h-8 text-right" value={item.list_price || ""} onChange={e => updateItem(idx, "list_price", parseFloat(e.target.value))} /></td>
-                    <td className="px-4 py-2"><Input type="number" step="0.01" className="h-8 text-right" value={item.discount_percent || ""} onChange={e => updateItem(idx, "discount_percent", parseFloat(e.target.value))} /></td>
-                    <td className="px-4 py-2"><Input type="number" step="0.01" className="h-8 text-right" value={item.unit_price || ""} onChange={e => updateItem(idx, "unit_price", parseFloat(e.target.value))} /></td>
-                    <td className="px-4 py-2 text-right font-medium">{(Number(item.quantity || 0) * Number(item.unit_price || 0)).toFixed(2)}</td>
-                    <td className="px-4 py-2 text-right">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:text-red-600" onClick={() => removeItem(idx)}><Trash2 className="size-4" /></Button>
-                    </td>
-                  </tr>
-                ))}
+                          {(item.customizations || []).length > 0 && (
+                            <Button variant="ghost" size="sm" onClick={() => handleSaveSku(idx)} disabled={createProductMutation.isPending} className="h-5 text-[9px] text-green-600 hover:bg-green-50 w-full px-1">
+                              <Save className="size-2.5 mr-1" /> SKU
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-2 py-2">
+                        <Select value={item.grid_type || "adulto"} onValueChange={(v) => updateItem(idx, "grid_type", v)}>
+                          <SelectTrigger className="h-8 border-transparent hover:border-input bg-transparent shadow-none p-1 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="adulto">Adulto</SelectItem>
+                            <SelectItem value="infantil">Infantil</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className="px-2 py-2">
+                        <div className="flex flex-wrap gap-1">
+                          {(item.grid_type === "infantil" ? INFANTIL_SIZES : ADULTO_SIZES).map((sz) => (
+                            <div key={sz} className="flex flex-col items-center gap-0.5">
+                              <span className="text-[9px] font-bold text-slate-500 uppercase">{sz}</span>
+                              <Input
+                                type="number"
+                                min={0}
+                                className="h-7 px-1 text-center text-xs w-9 bg-white border border-slate-200 rounded"
+                                value={item.sizes?.[sz] === 0 ? "" : (item.sizes?.[sz] || "")}
+                                onChange={e => updateItem(idx, `size_${sz}`, e.target.value)}
+                                placeholder="0"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-2 py-2 text-center font-semibold text-slate-600 bg-slate-50/50">{qtyTotal}</td>
+                      <td className="px-2 py-2"><Input type="number" step="0.01" className="h-8 text-right text-xs bg-white" value={item.list_price || ""} onChange={e => updateItem(idx, "list_price", parseFloat(e.target.value))} /></td>
+                      <td className="px-2 py-2"><Input type="number" step="0.01" className="h-8 text-right text-xs bg-white" value={item.discount_percent || ""} onChange={e => updateItem(idx, "discount_percent", parseFloat(e.target.value))} /></td>
+                      <td className="px-2 py-2"><Input type="number" step="0.01" className="h-8 text-right text-xs font-medium text-slate-700 bg-white" value={item.unit_price || ""} onChange={e => updateItem(idx, "unit_price", parseFloat(e.target.value))} /></td>
+                      <td className="px-2 py-2 text-right font-bold text-slate-900 bg-slate-50/30">{(qtyTotal * Number(item.unit_price || 0)).toFixed(2)}</td>
+                      <td className="px-2 py-2 text-center">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600" onClick={() => removeItem(idx)}><Trash2 className="size-3.5" /></Button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             {items.length === 0 && <div className="text-center py-8 text-sm text-slate-500">Nenhum item adicionado.</div>}

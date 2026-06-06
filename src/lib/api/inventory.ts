@@ -23,6 +23,7 @@ export interface Supplier {
 export interface Fabric {
   id: string;
   name: string;
+  code?: string | null;
   grammage: string | null;
   composition: string | null;
   supplier_default: string | null;
@@ -38,6 +39,7 @@ export interface Fabric {
 export interface ProductModel {
   id: string;
   name: string;
+  code?: string | null;
   active: boolean;
 }
 
@@ -54,22 +56,55 @@ export interface CanonicalColor {
   active: boolean;
 }
 
+export interface SizeGrid {
+  id: string;
+  name: string;
+  sizes: string[];
+  description: string | null;
+  active: boolean;
+  created_at: string;
+}
+
+export interface ProductCategory {
+  id: string;
+  name: string;
+  active: boolean;
+  created_at: string;
+}
+
+export interface CRMSupplier {
+  id: string;
+  name: string;
+  company_name: string | null;
+  phone: string | null;
+  email: string | null;
+  city: string | null;
+}
+
 export interface ProductVariant {
   id: string;
-  model_id: string;
-  line_id: string | null;
-  fabric_id: string;
-  color_id: string;
+  product_id?: string | null;
+  model_id?: string | null;
+  line_id?: string | null;
+  fabric_id?: string | null;
+  color_id?: string | null;
   size: string;
   gender: string;
-  brand_id: string | null;
-  sku_internal: string | null;
+  brand_id?: string | null;
+  sku_internal?: string | null;
+  barcode?: string | null;
+  qr_code?: string | null;
+  crossdocking?: boolean;
+  lead_time_medio?: number;
+  cost_price?: number;
+  average_cost?: number;
   active: boolean;
   // Included relations for UI
   models?: ProductModel;
   lines?: ProductLine;
   fabrics?: Fabric;
   canonical_colors?: CanonicalColor;
+  products?: any;
 }
 
 export interface InventoryBatch {
@@ -97,7 +132,7 @@ export function useSuppliers(search?: string) {
   return useQuery({
     queryKey: ["suppliers", search],
     queryFn: async () => {
-      let query = supabase.from("suppliers").select("*").eq("active", true).order("name");
+      let query = supabase.from("suppliers").select("*").order("name");
       if (search) query = query.ilike("name", `%${search}%`);
       const { data, error } = await query;
       if (error) throw error;
@@ -128,7 +163,7 @@ export function useFabrics() {
   return useQuery({
     queryKey: ["fabrics"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("fabrics").select("*").eq("active", true).order("name");
+      const { data, error } = await supabase.from("fabrics").select("*").order("name");
       if (error) throw error;
       return data as Fabric[];
     },
@@ -139,10 +174,93 @@ export function useModels() {
   return useQuery({
     queryKey: ["product_models"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("product_models").select("*").eq("active", true).order("name");
+      const { data, error } = await supabase.from("product_models").select("*").order("name");
       if (error) throw error;
       return data as ProductModel[];
     },
+  });
+}
+
+export function useDeleteModel() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("product_models").delete().eq("id", id);
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["product_models"] }),
+  });
+}
+
+export function useDeleteFabric() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("fabrics").delete().eq("id", id);
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["fabrics"] }),
+  });
+}
+
+export function useDeleteColor() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("canonical_colors").delete().eq("id", id);
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["canonical_colors"] }),
+  });
+}
+
+export function useDeleteSizeGrid() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("size_grids").delete().eq("id", id);
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["size_grids"] }),
+  });
+}
+
+export function useCategories() {
+  return useQuery({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("product_categories").select("*").order("name");
+      if (error) throw error;
+      return data as ProductCategory[];
+    },
+  });
+}
+
+export function useCreateCategory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: Partial<ProductCategory>) => {
+      const { data, error } = await supabase.from("product_categories").insert([payload]).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["categories"] }),
+  });
+}
+
+export function useDeleteCategory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("product_categories").delete().eq("id", id);
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["categories"] }),
   });
 }
 
@@ -150,7 +268,7 @@ export function useColors() {
   return useQuery({
     queryKey: ["canonical_colors"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("canonical_colors").select("*").eq("active", true).order("name");
+      const { data, error } = await supabase.from("canonical_colors").select("*").order("name");
       if (error) throw error;
       return data as CanonicalColor[];
     },
@@ -165,6 +283,98 @@ export function useLines() {
       if (error) throw error;
       return data as ProductLine[];
     },
+  });
+}
+
+export function useSizeGrids() {
+  return useQuery({
+    queryKey: ["size_grids"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("size_grids").select("*").eq("active", true).order("name");
+      if (error) throw error;
+      return data as SizeGrid[];
+    },
+  });
+}
+
+/** Fornecedores vindos do CRM (clients com entity_type = 'fornecedor') */
+export function useSuppliersCRM() {
+  return useQuery({
+    queryKey: ["suppliers_crm"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("clients")
+        .select("id, name, company_name, phone, email, city")
+        .eq("entity_type", "fornecedor")
+        .eq("active", true)
+        .order("name");
+      if (error) throw error;
+      return data as CRMSupplier[];
+    },
+  });
+}
+
+export function useCreateModel() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { name: string }) => {
+      const { data, error } = await supabase
+        .from("product_models")
+        .insert([{ name: payload.name.toUpperCase().trim(), active: true }])
+        .select()
+        .single();
+      if (error) throw error;
+      return data as ProductModel;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["product_models"] }),
+  });
+}
+
+export function useCreateFabric() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: Partial<Fabric>) => {
+      const { data, error } = await supabase
+        .from("fabrics")
+        .insert([{ ...payload, active: true }])
+        .select()
+        .single();
+      if (error) throw error;
+      return data as Fabric;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["fabrics"] }),
+  });
+}
+
+export function useCreateColor() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { name: string; hex?: string }) => {
+      const { data, error } = await supabase
+        .from("canonical_colors")
+        .insert([{ name: payload.name.trim(), hex: payload.hex || null, active: true }])
+        .select()
+        .single();
+      if (error) throw error;
+      return data as CanonicalColor;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["canonical_colors"] }),
+  });
+}
+
+export function useCreateSizeGrid() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { name: string; sizes: string[]; description?: string }) => {
+      const { data, error } = await supabase
+        .from("size_grids")
+        .insert([{ name: payload.name.trim(), sizes: payload.sizes, description: payload.description || null, active: true }])
+        .select()
+        .single();
+      if (error) throw error;
+      return data as SizeGrid;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["size_grids"] }),
   });
 }
 
@@ -415,4 +625,116 @@ export async function reserveStock(
   }
 
   return true;
+}
+
+export function useCreateInventoryEntryGrid() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: {
+      product_id: string;
+      supplier_id: string;
+      batch_code: string;
+      average_cost: number;
+      quality_notes: string;
+      grid: Record<string, number>;
+    }) => {
+      // 1. Buscar produto pai com os relacionamentos de engenharia
+      const { data: prod, error: prodErr } = await supabase
+        .from("products")
+        .select(`
+          id, 
+          model_id, 
+          fabric_id, 
+          color_id,
+          model:product_models(code, name),
+          fabric:fabrics(code, name),
+          color:canonical_colors(code, name)
+        `)
+        .eq("id", payload.product_id)
+        .single();
+
+      if (prodErr || !prod) {
+        throw new Error("Produto pai (MP) não encontrado: " + (prodErr?.message || ""));
+      }
+
+      const modelCode = (prod.model as any)?.code || (prod.model as any)?.name?.substring(0, 3).toUpperCase() || "XXX";
+      const fabricCode = (prod.fabric as any)?.code || (prod.fabric as any)?.name?.substring(0, 3).toUpperCase() || "XXX";
+      const colorCode = (prod.color as any)?.code || (prod.color as any)?.name?.substring(0, 3).toUpperCase() || "XXX";
+
+      const entries = Object.entries(payload.grid);
+      const results = [];
+
+      for (const [size, qty] of entries) {
+        if (qty <= 0) continue;
+
+        // Gerar SKU dinâmico: MP-REG-PEL-PTO-P
+        const sku = `MP-${modelCode}-${fabricCode}-${colorCode}-${size.toUpperCase()}`;
+
+        // 2. Verificar ou criar variante física (product_variants)
+        let { data: variant, error: varFindErr } = await supabase
+          .from("product_variants")
+          .select("*")
+          .eq("product_id", prod.id)
+          .eq("size", size)
+          .maybeSingle();
+
+        if (!variant) {
+          const { data: newVar, error: varCreateErr } = await supabase
+            .from("product_variants")
+            .insert([{
+              product_id: prod.id,
+              model_id: prod.model_id,
+              fabric_id: prod.fabric_id,
+              color_id: prod.color_id,
+              size: size,
+              gender: "unissex",
+              sku_internal: sku,
+              active: true
+            }])
+            .select()
+            .single();
+
+          if (varCreateErr) throw varCreateErr;
+          variant = newVar;
+        }
+
+        // 3. Criar lote de estoque (inventory_batches)
+        const { data: batch, error: batchErr } = await supabase
+          .from("inventory_batches")
+          .insert([{
+            product_variant_id: variant.id,
+            supplier_id: payload.supplier_id,
+            batch_code: payload.batch_code,
+            quantity_total: qty,
+            quantity_available: qty,
+            quantity_reserved: 0,
+            average_cost: payload.average_cost,
+            quality_notes: payload.quality_notes
+          }])
+          .select()
+          .single();
+
+        if (batchErr) throw batchErr;
+
+        // 4. Registrar movimento de estoque (inventory_movements)
+        const { error: movErr } = await supabase
+          .from("inventory_movements")
+          .insert([{
+            batch_id: batch.id,
+            movement_type: "compra",
+            quantity: qty,
+            notes: `Entrada por grade no lote ${payload.batch_code}`
+          }]);
+
+        if (movErr) console.error("Error logging movement", movErr);
+        results.push(batch);
+      }
+
+      return results;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inventory_batches"] });
+      queryClient.invalidateQueries({ queryKey: ["product_variants"] });
+    }
+  });
 }
