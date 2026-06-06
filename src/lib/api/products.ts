@@ -98,6 +98,7 @@ export function useProducts(search?: string) {
           fabrics(*),
           canonical_colors(*)
         `)
+        .eq("active", true)
         .order("created_at", { ascending: false });
 
       if (search) {
@@ -184,6 +185,26 @@ export function useUpdateProduct() {
       }
 
       return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+}
+
+export function useDeleteProduct() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      // Soft delete marking active = false
+      const { error } = await supabase
+        .from("products")
+        .update({ active: false })
+        .eq("id", id);
+
+      if (error) throw error;
+      return id;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });

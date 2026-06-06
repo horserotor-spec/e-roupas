@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useProducts, Product, useImportProducts, useCloneProduct } from "@/lib/api/products";
+import { useProducts, Product, useImportProducts, useCloneProduct, useDeleteProduct } from "@/lib/api/products";
 import { useState, useDeferredValue, useRef } from "react";
-import { Search, Plus, Loader2, Edit2, Box, Download, Upload, Copy } from "lucide-react";
+import { Search, Plus, Loader2, Edit2, Box, Download, Upload, Copy, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductFormDrawer } from "@/components/products/ProductFormDrawer";
 import { toast } from "sonner";
@@ -22,6 +22,7 @@ function ProductsPage() {
   const { data: products = [], isLoading } = useProducts(deferredQ);
   const importMutation = useImportProducts();
   const cloneMutation = useCloneProduct();
+  const deleteMutation = useDeleteProduct();
 
   const openNewProduct = () => {
     setEditingProduct(null);
@@ -239,6 +240,15 @@ function ProductsPage() {
                     </Button>
                     <Button variant="ghost" size="icon" onClick={() => openEditProduct(p)} className="h-8 w-8 text-muted-foreground hover:text-primary" title="Editar">
                       <Edit2 className="size-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => {
+                      if(confirm('Tem certeza que deseja excluir este produto?')) {
+                        deleteMutation.mutateAsync(p.id)
+                          .then(() => toast.success("Produto excluído com sucesso!"))
+                          .catch((e:any) => toast.error("Erro ao excluir: " + e.message));
+                      }
+                    }} disabled={deleteMutation.isPending} className="h-8 w-8 text-muted-foreground hover:text-red-600" title="Excluir Produto">
+                      <Trash2 className="size-4" />
                     </Button>
                   </div>
                 </td>
