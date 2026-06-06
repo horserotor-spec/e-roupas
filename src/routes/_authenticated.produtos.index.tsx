@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useProducts, Product, useImportProducts, useCloneProduct, useDeleteProduct } from "@/lib/api/products";
 import { useState, useDeferredValue, useRef } from "react";
-import { Search, Plus, Loader2, Edit2, Box, Download, Upload, Copy, Trash2 } from "lucide-react";
+import { Search, Plus, Loader2, Edit2, Box, Download, Upload, Copy, Trash2, Columns3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ProductFormDrawer } from "@/components/products/ProductFormDrawer";
 import { toast } from "sonner";
 import Papa from "papaparse";
@@ -23,6 +24,14 @@ function ProductsPage() {
   const importMutation = useImportProducts();
   const cloneMutation = useCloneProduct();
   const deleteMutation = useDeleteProduct();
+
+  const [columns, setColumns] = useState({
+    category: true,
+    format: true,
+    price: true,
+    stock: true,
+    status: true
+  });
 
   const openNewProduct = () => {
     setEditingProduct(null);
@@ -164,12 +173,40 @@ function ProductsPage() {
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <div className="relative flex-1 min-w-[240px] max-w-md">
           <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={q} onChange={(e) => setQ(e.target.value)}
-            placeholder="Buscar por nome ou SKU..."
+          <input 
+            type="text" 
+            placeholder="Buscar por nome ou SKU..." 
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
             className="h-9 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm outline-none focus:border-primary"
           />
         </div>
+        
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="h-9 gap-1.5 shrink-0 text-muted-foreground hover:text-foreground">
+              <Columns3 className="size-4" />
+              <span className="hidden sm:inline">Colunas</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuCheckboxItem checked={columns.category} onCheckedChange={v => setColumns({...columns, category: v})}>
+              Categoria / Marca
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem checked={columns.format} onCheckedChange={v => setColumns({...columns, format: v})}>
+              Formato
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem checked={columns.price} onCheckedChange={v => setColumns({...columns, price: v})}>
+              Preço
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem checked={columns.stock} onCheckedChange={v => setColumns({...columns, stock: v})}>
+              Estoque
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem checked={columns.status} onCheckedChange={v => setColumns({...columns, status: v})}>
+              Situação
+            </DropdownMenuCheckboxItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -177,11 +214,11 @@ function ProductsPage() {
           <thead className="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="text-left font-medium px-4 py-2.5">Produto</th>
-              <th className="text-left font-medium px-4 py-2.5 hidden md:table-cell">Categoria / Marca</th>
-              <th className="text-left font-medium px-4 py-2.5 hidden lg:table-cell">Formato</th>
-              <th className="text-right font-medium px-4 py-2.5 number">Preço (R$)</th>
-              <th className="text-right font-medium px-4 py-2.5 number">Estoque</th>
-              <th className="text-right font-medium px-4 py-2.5">Situação</th>
+              {columns.category && <th className="text-left font-medium px-4 py-2.5">Categoria / Marca</th>}
+              {columns.format && <th className="text-left font-medium px-4 py-2.5">Formato</th>}
+              {columns.price && <th className="text-right font-medium px-4 py-2.5 number">Preço (R$)</th>}
+              {columns.stock && <th className="text-right font-medium px-4 py-2.5 number">Estoque</th>}
+              {columns.status && <th className="text-right font-medium px-4 py-2.5">Situação</th>}
               <th className="text-right font-medium px-4 py-2.5">Ações</th>
             </tr>
           </thead>
@@ -206,29 +243,39 @@ function ProductsPage() {
                   <div className="font-medium text-foreground">{p.name}</div>
                   <div className="text-xs text-muted-foreground">{p.sku || "Sem SKU"}</div>
                 </td>
-                <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">
-                  <div>{p.category || "—"}</div>
-                  <div className="text-xs">{p.brand || "—"}</div>
-                </td>
-                <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">
-                  <div className="flex items-center gap-1.5">
-                    <Box className="size-3.5" />
-                    <span>{p.format}</span>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-right number font-medium">
-                  {p.price.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                </td>
-                <td className="px-4 py-3 text-right number">
-                  {p.format === "Variação" ? `${totalStock} (Variações)` : "—"}
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                    p.active ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
-                  }`}>
-                    {p.active ? "Ativo" : "Inativo"}
-                  </span>
-                </td>
+                {columns.category && (
+                  <td className="px-4 py-3 text-muted-foreground">
+                    <div>{p.category || "—"}</div>
+                    <div className="text-xs">{p.brand || "—"}</div>
+                  </td>
+                )}
+                {columns.format && (
+                  <td className="px-4 py-3 text-muted-foreground">
+                    <div className="flex items-center gap-1.5">
+                      <Box className="size-3.5" />
+                      <span>{p.format}</span>
+                    </div>
+                  </td>
+                )}
+                {columns.price && (
+                  <td className="px-4 py-3 text-right number font-medium">
+                    {p.price.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </td>
+                )}
+                {columns.stock && (
+                  <td className="px-4 py-3 text-right number">
+                    {p.format === "Variação" ? `${totalStock} (Variações)` : "—"}
+                  </td>
+                )}
+                {columns.status && (
+                  <td className="px-4 py-3 text-right">
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                      p.active ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
+                    }`}>
+                      {p.active ? "Ativo" : "Inativo"}
+                    </span>
+                  </td>
+                )}
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button variant="ghost" size="icon" onClick={() => {
