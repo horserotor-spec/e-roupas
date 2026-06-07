@@ -1,13 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Boxes, Package, Factory, Truck, Settings, FileBox, AlertTriangle, TrendingDown } from "lucide-react";
+import { Boxes, Package, Factory, Truck, Settings, FileBox, AlertTriangle, TrendingDown, Loader2 } from "lucide-react";
 import { SuppliersTab } from "@/components/estoque/SuppliersTab";
 import { ConfigTab } from "@/components/estoque/ConfigTab";
 import { ProductVariantsTab } from "@/components/estoque/ProductVariantsTab";
 import { InventoryBatchesTab } from "@/components/estoque/InventoryBatchesTab";
+import { RelatorioEstoqueTab } from "@/components/estoque/RelatorioEstoqueTab";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { useStockMovements } from "@/lib/api/inventory";
 
 export const Route = createFileRoute("/_authenticated/estoque")({
   head: () => ({ meta: [{ title: "Estoque Inteligente · e-roupas OS" }] }),
@@ -16,6 +18,8 @@ export const Route = createFileRoute("/_authenticated/estoque")({
 
 const TABS = [
   { id: "dashboard", label: "Dashboard", icon: Boxes },
+  { id: "movimentacoes", label: "Histórico & Auditoria", icon: TrendingDown },
+  { id: "relatorios", label: "Relatórios & Exportação", icon: FileBox },
   { id: "variantes", label: "Variantes (Cadastro)", icon: Package },
   { id: "lotes", label: "Lotes (Entrada)", icon: FileBox },
   { id: "fornecedores", label: "Fornecedores", icon: Truck },
@@ -55,6 +59,8 @@ function EstoquePage() {
 
       <div className="flex-1">
         {activeTab === "dashboard" && <DashboardTab />}
+        {activeTab === "movimentacoes" && <MovementsTab />}
+        {activeTab === "relatorios" && <RelatorioEstoqueTab />}
         {activeTab === "variantes" && <ProductVariantsTab />}
         {activeTab === "lotes" && <InventoryBatchesTab />}
         {activeTab === "fornecedores" && <SuppliersTab />}
@@ -395,4 +401,76 @@ function DashboardTab() {
   );
 }
 
+export function MovementsTab() {
+  const { data: movements = [], isLoading } = useStockMovements();
+
+  if (isLoading) return <div className="p-8 text-center text-slate-500"><Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />Carregando histórico...</div>;
+
+  return (
+    <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
+      <div className="px-6 py-5 border-b bg-slate-50">
+        <h2 className="text-lg font-semibold text-slate-800">Histórico de Movimentações (Auditoria)</h2>
+        <p className="text-slate-500 text-xs mt-1">Registro imutável de todas as entradas, saídas e ajustes no estoque industrial.</p>
+      </div>
+      
+      <div className="p-0">
+        <table className="w-full text-left text-xs">
+          <thead className="bg-slate-50 text-slate-600 border-b">
+            <tr>
+              <th className="font-medium p-4">Data / Hora</th>
+              <th className="font-medium p-4">Tipo</th>
+              <th className="font-medium p-4">Usuário</th>
+              <th className="font-medium p-4">Lote</th>
+              <th className="font-medium p-4">SKU / Tamanho</th>
+              <th className="font-medium p-4 text-right">Qtd Antes</th>
+              <th className="font-medium p-4 text-center">Movimento</th>
+              <th className="font-medium p-4 text-right">Qtd Depois</th>
+              <th className="font-medium p-4">Motivo</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {movements.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="p-8 text-center text-slate-500">Nenhuma movimentação registrada.</td>
+              </tr>
+            ) : (
+              movements.map((mov: any) => {
+                const batch = mov.inventory_batches;
+                const variant = batch?.product_variants;
+                const isPositive = Number(mov.quantity) > 0;
+                
+                return (
+                  <tr key={mov.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="p-4 text-slate-600">
+                      {new Date(mov.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                    </td>
+                    <td className="p-4">
+                      <span className="px-2 py-1 rounded bg-slate-100 text-slate-600 font-medium uppercase text-[10px] tracking-wider">
+                        {mov.movement_type}
+                      </span>
+                    </td>
+                    <td className="p-4 text-slate-700 font-medium">{(mov.users as any)?.name || "Sistema"}</td>
+                    <td className="p-4 text-slate-600 font-mono text-[10px]">{batch?.batch_code || "-"}</td>
+                    <td className="p-4">
+                      <div className="font-medium text-slate-800">{variant?.sku_internal || "-"}</div>
+                      <div className="text-[10px] text-slate-500">Tam: {variant?.size || "-"}</div>
+                    </td>
+                    <td className="p-4 text-right font-medium text-slate-500">{Number(mov.quantity_before || 0)}</td>
+                    <td className="p-4 text-center">
+                      <span className={`font-bold ${isPositive ? 'text-blue-600' : 'text-red-600'}`}>
+                        {isPositive ? '+' : ''}{mov.quantity}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right font-medium text-slate-800">{Number(mov.quantity_after || 0)}</td>
+                    <td className="p-4 text-slate-600 max-w-[200px] truncate" title={mov.notes || "-"}>{mov.notes || "-"}</td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 

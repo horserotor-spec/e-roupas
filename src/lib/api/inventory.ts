@@ -125,18 +125,41 @@ export interface InventoryBatch {
 }
 
 // ----------------------------------------------------------------------
-// 2. Base Configuration Hooks
+// 2. Auxiliary Lookups (Fabrics, Colors, Categories, Suppliers)
 // ----------------------------------------------------------------------
 
-export function useSuppliers(search?: string) {
+export function useSuppliers() {
   return useQuery({
-    queryKey: ["suppliers", search],
+    queryKey: ["suppliers_inventory"],
     queryFn: async () => {
-      let query = supabase.from("suppliers").select("*").order("name");
-      if (search) query = query.ilike("name", `%${search}%`);
-      const { data, error } = await query;
+      const { data, error } = await supabase
+        .from("clients")
+        .select("id, name, company_name, phone, email, city")
+        .eq("active", true)
+        .ilike("entity_type", "%fornecedor%")
+        .order("name");
+
       if (error) throw error;
       return data as Supplier[];
+    },
+  });
+}
+
+export function useCreateSupplier() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: Partial<Supplier>) => {
+      const { data, error } = await supabase
+        .from("clients")
+        .insert([{ ...payload, entity_type: 'fornecedor', entity_class: 'pj' }])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data as Supplier;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["suppliers_inventory"] });
     },
   });
 }
@@ -417,6 +440,23 @@ export function useProductVariants(search?: string) {
   });
 }
 
+export function useProductStockSummary(productId: string) {
+  return useQuery({
+    queryKey: ["stock_summary", productId],
+    queryFn: async () => {
+      if (!productId) return [];
+      const { data, error } = await supabase
+        .from("vw_stock_summary")
+        .select("*")
+        .eq("product_id", productId);
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!productId
+  });
+}
+
 export function useInventoryBatches(variantId?: string) {
   return useQuery({
     queryKey: ["inventory_batches", variantId],
@@ -443,6 +483,43 @@ export function useInventoryBatches(variantId?: string) {
       const { data, error } = await query;
       if (error) throw error;
       return data as InventoryBatch[];
+    },
+  });
+}
+
+export function useStockMovements(filters?: { productId?: string; batchId?: string; limit?: number }) {
+  return useQuery({
+    queryKey: ["stock_movements", filters],
+    queryFn: async () => {
+      let query = supabase
+        .from("inventory_movements")
+        .select(`
+          *,
+          users(name),
+          inventory_batches!inner(
+            batch_code,
+            product_variants!inner(
+              size,
+              sku_internal,
+              product_id
+            )
+          )
+        `)
+        .order("created_at", { ascending: false });
+
+      if (filters?.productId) {
+        query = query.eq("inventory_batches.product_variants.product_id", filters.productId);
+      }
+      if (filters?.batchId) {
+        query = query.eq("batch_id", filters.batchId);
+      }
+      if (filters?.limit) {
+        query = query.limit(filters.limit);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
     },
   });
 }
@@ -496,49 +573,33 @@ export function useCreateInventoryBatch() {
   });
 }
 
+// ----------------------------------------------------------------------
+// 4. Batch Adjustments & Movements
+// ----------------------------------------------------------------------
+
 export function useAdjustInventoryBatch() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: { batch_id: string; quantity: number; notes: string; type: string }) => {
-      // 1. Get the current batch
-      const { data: batch, error: getError } = await supabase
-        .from("inventory_batches")
-        .select("*")
-        .eq("id", payload.batch_id)
+    mutationFn: async (payload: {
+      batch_id: string;
+      adjustment: number;
+      reason: string;
+    }) => {
+      // Registrar movimento de estoque
+      const { data: movData, error: movErr } = await supabase
+        .from("inventory_movements")
+        .insert([{
+          batch_id: payload.batch_id,
+          movement_type: payload.adjustment >= 0 ? "ajuste_entrada" : "ajuste_saida",
+          quantity: payload.adjustment,
+          notes: payload.reason
+        }])
+        .select()
         .single();
-        
-      if (getError) throw getError;
 
-      const adjustAmount = Math.abs(payload.quantity);
-      if (payload.type === 'saída' && batch.quantity_available < adjustAmount) {
-        throw new Error("Quantidade indisponível no lote para esta saída.");
-      }
+      if (movErr) throw movErr;
 
-      const newAvailable = payload.type === 'saída' ? Number(batch.quantity_available) - adjustAmount : Number(batch.quantity_available) + adjustAmount;
-      const newTotal = payload.type === 'saída' ? Number(batch.quantity_total) - adjustAmount : Number(batch.quantity_total) + adjustAmount;
-
-      // 2. Update batch
-      const { error: updateError } = await supabase
-        .from("inventory_batches")
-        .update({
-          quantity_available: newAvailable,
-          quantity_total: newTotal
-        })
-        .eq("id", batch.id);
-
-      if (updateError) throw updateError;
-
-      // 3. Log movement
-      const { error: movError } = await supabase.from("inventory_movements").insert([{
-        batch_id: batch.id,
-        movement_type: payload.type === 'saída' ? 'ajuste_saida' : 'ajuste_entrada',
-        quantity: payload.type === 'saída' ? -adjustAmount : adjustAmount,
-        notes: payload.notes
-      }]);
-
-      if (movError) console.error("Error logging adjustment", movError);
-
-      return true;
+      return movData;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventory_batches"] });
@@ -698,15 +759,15 @@ export function useCreateInventoryEntryGrid() {
           variant = newVar;
         }
 
-        // 3. Criar lote de estoque (inventory_batches)
+        // 3. Criar lote de estoque (inventory_batches) com saldo 0
         const { data: batch, error: batchErr } = await supabase
           .from("inventory_batches")
           .insert([{
             product_variant_id: variant.id,
             supplier_id: payload.supplier_id,
             batch_code: payload.batch_code,
-            quantity_total: qty,
-            quantity_available: qty,
+            quantity_total: 0,
+            quantity_available: 0,
             quantity_reserved: 0,
             average_cost: payload.average_cost,
             quality_notes: payload.quality_notes

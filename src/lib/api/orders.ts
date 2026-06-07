@@ -24,6 +24,18 @@ export interface OrderItem {
   notes?: string;
 }
 
+export interface OrderPayment {
+  id?: string;
+  order_id?: string;
+  amount: number;
+  payment_method: string;
+  installments: number;
+  due_date: string;
+  status: "pendente" | "pago" | "cancelado";
+  payment_date?: string | null;
+  notes?: string | null;
+}
+
 export interface Order {
   id: string;
   code: string;
@@ -36,6 +48,7 @@ export interface Order {
   client_name: string;
   owner_name: string;
   items: OrderItem[];
+  payments?: OrderPayment[];
   
   // Full fields
   client_id: string;
@@ -44,6 +57,7 @@ export interface Order {
   salesperson_id: string | null;
   store: string | null;
   business_unit: string | null;
+  origin_channel: string;
   sale_date: string | null;
   departure_date: string | null;
   expected_date: string | null;
@@ -68,7 +82,7 @@ export interface Order {
   salesperson_name?: string;
 }
 
-export type OrderPayload = Partial<Order> & { client_id: string; brand_id: string; items?: OrderItem[] };
+export type OrderPayload = Partial<Order> & { client_id: string; brand_id: string; items?: OrderItem[]; payments?: OrderPayment[] };
 
 export async function allocateStockAndCreateProcesses(orderId: string) {
   const { data: orderItems, error: itemsError } = await supabase
@@ -291,19 +305,6 @@ export async function allocateStockAndCreateProcesses(orderId: string) {
                 batch_id: batch.id,
                 quantity: qtyToReserve
               }]);
-
-            await supabase
-              .from("inventory_movements")
-              .insert([{
-                batch_id: batch.id,
-                movement_type: "produção",
-                quantity: -qtyToReserve,
-                reference_type: "pedido",
-                reference_id: orderId,
-                notes: usedAlternative 
-                  ? `Reserva FIFO automática com MISTURA AUTORIZADA para o item ${item.product_name} (${item.size})`
-                  : `Reserva FIFO automática para o item ${item.product_name} (${item.size})`
-              }]);
           }
         }
 
@@ -345,6 +346,57 @@ export async function allocateStockAndCreateProcesses(orderId: string) {
   }
 }
 
+export async function consumeStockForOrder(orderId: string) {
+  const { data: reservations, error } = await supabase
+    .from("stock_reservations")
+    .select("*")
+    .eq("order_id", orderId);
+
+  if (error || !reservations || reservations.length === 0) return;
+
+  for (const res of reservations) {
+    const qtyToConsume = Number(res.quantity);
+    if (qtyToConsume <= 0) continue;
+
+    // 1. Fetch batch to get current reserved
+    const { data: batch } = await supabase
+      .from("inventory_batches")
+      .select("quantity_available, quantity_reserved")
+      .eq("id", res.batch_id)
+      .single();
+
+    if (!batch) continue;
+
+    // 2. We logically return the reserved quantity to available because the inventory_movements 
+    // trigger will subtract it from available and total. This perfectly simulates consumption of reserved stock.
+    await supabase
+      .from("inventory_batches")
+      .update({
+        quantity_available: Number(batch.quantity_available) + qtyToConsume,
+        quantity_reserved: Math.max(0, Number(batch.quantity_reserved || 0) - qtyToConsume)
+      })
+      .eq("id", res.batch_id);
+
+    // 3. Insert movement (Consumption)
+    await supabase
+      .from("inventory_movements")
+      .insert([{
+        batch_id: res.batch_id,
+        movement_type: "consumo",
+        quantity: -qtyToConsume,
+        reference_type: "pedido",
+        reference_id: orderId,
+        notes: `Consumo FIFO automático após liberação de produção (Reserva ID: ${res.id})`
+      }]);
+
+    // 4. Delete the reservation now that it's consumed
+    await supabase
+      .from("stock_reservations")
+      .delete()
+      .eq("id", res.id);
+  }
+}
+
 export function useOrders(search?: string) {
   return useQuery({
     queryKey: ["orders", search],
@@ -353,11 +405,12 @@ export function useOrders(search?: string) {
         .from("orders")
         .select(`
           *,
-          clients!inner(id, name, phone),
+          clients!orders_client_id_fkey!inner(id, name, phone),
           brands!inner(id, code),
           users:responsible_user_id(id, name),
-          salesperson:salesperson_id(id, name),
-          order_items(*)
+          salesperson:clients!orders_salesperson_id_fkey(id, name),
+          order_items(*),
+          order_payments(*)
         `)
         .eq("active", true)
         .order("created_at", { ascending: false });
@@ -379,6 +432,7 @@ export function useOrders(search?: string) {
         owner_name: o.users?.name || "Sem Responsável",
         salesperson_name: o.salesperson?.name || null,
         items: o.order_items || [],
+        payments: o.order_payments || [],
       })) as Order[];
     },
   });
@@ -392,10 +446,12 @@ export function useOrder(id: string) {
         .from("orders")
         .select(`
           *,
-          clients(id, name, company_name),
+          clients!orders_client_id_fkey(id, name, company_name),
           brands(id, code),
           users:responsible_user_id(id, name),
-          salesperson:salesperson_id(id, name)
+          salesperson:clients!orders_salesperson_id_fkey(id, name),
+          order_items(*),
+          order_payments(*)
         `)
         .eq("id", id)
         .single();
@@ -410,6 +466,8 @@ export function useOrder(id: string) {
         client_name: data.clients?.name || "Sem Cliente",
         owner_name: data.users?.name || "Sem Responsável",
         salesperson_name: data.salesperson?.name || null,
+        items: data.order_items || [],
+        payments: data.order_payments || [],
       } as Order;
     },
     enabled: !!id,
@@ -420,7 +478,7 @@ export function useCreateOrder() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload: OrderPayload) => {
-      const { items, ...orderData } = payload;
+      const { items, payments, ...orderData } = payload;
       
       // Sanitize orderData
       delete (orderData as any).order_items;
@@ -491,6 +549,20 @@ export function useCreateOrder() {
         if (itemsError) throw itemsError;
       }
 
+      // Insert Payments
+      if (paymentsToInsert && paymentsToInsert.length > 0) {
+        const paymentsWithOrderId = paymentsToInsert.map(p => ({
+          ...p,
+          order_id: newOrder.id
+        }));
+        
+        const { error: paymentsError } = await supabase
+          .from("order_payments")
+          .insert(paymentsWithOrderId);
+          
+        if (paymentsError) throw paymentsError;
+      }
+
       // Generate Accounts Payable for Commission
       if (orderData.salesperson_id && commissionValue > 0) {
         const dueDate = new Date();
@@ -523,7 +595,7 @@ export function useUpdateOrder() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload: { id: string } & Partial<OrderPayload>) => {
-      const { items, id, ...orderData } = payload;
+      const { items, payments, id, ...orderData } = payload;
 
       // Sanitize orderData
       delete (orderData as any).order_items;
@@ -573,6 +645,26 @@ export function useUpdateOrder() {
             .from("order_items")
             .insert(itemsToInsert);
           if (itemsError) throw itemsError;
+        }
+      }
+
+      // Handle Payments update
+      if (paymentsToInsert !== undefined) {
+        await supabase.from("order_payments").delete().eq("order_id", id);
+        
+        if (paymentsToInsert.length > 0) {
+          const paymentsWithOrderId = paymentsToInsert.map(p => {
+            const clean = { ...p };
+            delete clean.id; // delete ID if it exists so supabase generates new ones, as we just deleted all
+            return {
+              ...clean,
+              order_id: id
+            };
+          });
+          const { error: paymentsError } = await supabase
+            .from("order_payments")
+            .insert(paymentsWithOrderId);
+          if (paymentsError) throw paymentsError;
         }
       }
 

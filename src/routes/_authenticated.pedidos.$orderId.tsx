@@ -2,7 +2,7 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { statusLabel, statusTone, processLabel, type OrderStatus } from "@/lib/constants";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ArrowLeft, Flame, Calendar, User, Package, MessageSquare, Paperclip, CheckCircle2, CircleDashed, Loader2, Lock, Plus, Activity, Edit, RefreshCw, Check } from "lucide-react";
-import { useOrder, useUpdateOrder, useOverrideStockBatch } from "@/lib/api/orders";
+import { useOrder, useUpdateOrder, useOverrideStockBatch, consumeStockForOrder } from "@/lib/api/orders";
 import { useOrderItems } from "@/lib/api/order_items";
 import { useOrderTimeline, logTimelineEvent } from "@/lib/api/timeline";
 import { Button } from "@/components/ui/button";
@@ -134,6 +134,16 @@ function OrderPage() {
         oldStatus: order.status,
         newStatus: newStatus,
       });
+
+      if (newStatus === "liberado_producao") {
+        try {
+          await consumeStockForOrder(order.id);
+          toast.success("Estoque consumido com sucesso!");
+        } catch (consumeErr: any) {
+          toast.error("Erro ao consumir estoque: " + consumeErr.message);
+        }
+      }
+
       toast.success("Status atualizado!");
     } catch (e: any) {
       toast.error("Erro ao atualizar status.");

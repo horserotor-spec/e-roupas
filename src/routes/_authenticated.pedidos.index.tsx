@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { statusLabel, statusTone, type OrderStatus } from "@/lib/constants";
-import { useOrders, Order } from "@/lib/api/orders";
+import { useOrders, Order, useUpdateOrder } from "@/lib/api/orders";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useState, useDeferredValue } from "react";
 import { Search, Plus, Flame, Loader2, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const Route = createFileRoute("/_authenticated/pedidos/")({
   head: () => ({ meta: [{ title: "Pedidos · e-roupas OS" }] }),
@@ -33,6 +34,7 @@ function PedidosPage() {
   const [f, setF] = useState<(typeof filters)[number]["key"]>("todos");
   
   const { data: orders = [], isLoading } = useOrders(deferredQ);
+  const updateOrderMutation = useUpdateOrder();
 
   const filtered = orders.filter((o) => {
     if (f === "urgentes" && !o.urgent) return false;
@@ -118,9 +120,27 @@ function PedidosPage() {
                     {o.items.map((i) => `${i.quantity}× ${i.product_name}`).join(" · ")}
                   </td>
                   <td className="px-4 py-3">
-                    <StatusBadge tone={statusTone[o.status] || "neutral"}>
-                      {statusLabel[o.status] || o.status}
-                    </StatusBadge>
+                    <Select 
+                      value={o.status} 
+                      onValueChange={(val: any) => updateOrderMutation.mutate({ id: o.id, status: val })}
+                      disabled={updateOrderMutation.isPending}
+                    >
+                      <SelectTrigger className={`h-8 border-none font-medium px-2.5 py-0.5 text-xs inline-flex items-center w-fit gap-1 rounded-full ${
+                          statusTone[o.status] === 'info' ? 'bg-blue-100 text-blue-700' :
+                          statusTone[o.status] === 'warning' ? 'bg-orange-100 text-orange-700' :
+                          statusTone[o.status] === 'success' ? 'bg-green-100 text-green-700' :
+                          statusTone[o.status] === 'critical' ? 'bg-red-100 text-red-700' :
+                          statusTone[o.status] === 'purple' ? 'bg-purple-100 text-purple-700' :
+                          'bg-slate-100 text-slate-700'
+                        }`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(statusLabel).map(([key, label]) => (
+                          <SelectItem key={key} value={key}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </td>
                   <td className={`px-4 py-3 hidden md:table-cell text-xs ${overdue ? "text-destructive font-medium" : "text-muted-foreground"}`}>
                     {o.deadline ? new Date(o.deadline).toLocaleDateString("pt-BR") : "—"}

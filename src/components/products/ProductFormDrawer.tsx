@@ -7,8 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Switch } from "../ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Product, ProductVariation, useCreateProduct, useUpdateProduct } from "@/lib/api/products";
-import { useModels, useFabrics, useColors, useSuppliersCRM, useSizeGrids, useCategories, useDeleteModel, useDeleteFabric, useDeleteColor, useDeleteSizeGrid, useDeleteCategory } from "@/lib/api/inventory";
-import { QuickAddModelagem, QuickAddTecido, QuickAddCor, QuickAddGrade, QuickAddCategoria } from "./QuickAddDialogs";
+import { useModels, useFabrics, useColors, useSuppliers, useSizeGrids, useCategories, useDeleteModel, useDeleteFabric, useDeleteColor, useDeleteSizeGrid, useDeleteCategory, useCreateInventoryEntryGrid } from "@/lib/api/inventory";
+import { QuickAddModelagem, QuickAddTecido, QuickAddCor, QuickAddGrade, QuickAddCategoria, QuickAddFornecedor } from "./QuickAddDialogs";
+import { ProductStockTab } from "./ProductStockTab";
 import { useSkuRules } from "@/lib/api/skuRules";
 import { generateSku, generateTechnicalName } from "@/lib/skuGenerator";
 import { toast } from "sonner";
@@ -24,11 +25,12 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
   const isEditing = !!product;
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct();
+  const createGridMutation = useCreateInventoryEntryGrid();
 
   const { data: models = [] } = useModels();
   const { data: fabrics = [] } = useFabrics();
   const { data: colors = [] } = useColors();
-  const { data: suppliers = [] } = useSuppliersCRM();
+  const { data: suppliers = [] } = useSuppliers();
   const { data: sizeGrids = [] } = useSizeGrids();
   const { data: categories = [] } = useCategories();
 
@@ -43,6 +45,7 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
   const [qaCor, setQaCor] = useState(false);
   const [qaGrade, setQaGrade] = useState(false);
   const [qaCategoria, setQaCategoria] = useState(false);
+  const [qaFornecedor, setQaFornecedor] = useState(false);
 
   const { data: skuRules = [] } = useSkuRules();
   const [customSkuMode, setCustomSkuMode] = useState(false);
@@ -91,6 +94,7 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
   });
 
   const [variations, setVariations] = useState<Partial<ProductVariation>[]>([]);
+  const [initialStockGrid, setInitialStockGrid] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (open) {
@@ -135,6 +139,8 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
           ipi_percent: product.ipi_percent ?? 0,
           cfop: product.cfop || "5102",
           active: product.active ?? true,
+          technical_name: product.technical_name || "",
+          mix_allowed: product.mix_allowed || false,
         });
       } else {
         setFormData({
@@ -181,6 +187,7 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
           mix_allowed: false,
         });
         setCustomSkuMode(false);
+        setInitialStockGrid({});
       }
     }
   }, [open, product]);
@@ -228,29 +235,66 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const { fabric_family, ...restFormData } = formData;
       const dataToSave = { 
-        ...formData,
+        ...restFormData,
         variations: [] 
       };
 
+      let productId = "";
       if (isEditing) {
         await updateMutation.mutateAsync({ id: product.id, ...dataToSave });
+        productId = product.id;
         toast.success("Produto atualizado com sucesso!");
       } else {
-        await createMutation.mutateAsync(dataToSave);
+        const newProduct = await createMutation.mutateAsync(dataToSave);
+        productId = newProduct.id;
         toast.success("Produto criado com sucesso!");
       }
+
+      // Registra estoque inicial se MP e grade preenchida
+      const hasStock = Object.values(initialStockGrid).some(v => v > 0);
+      if (hasStock && productId && dataToSave.format === "MP") {
+        if (!dataToSave.supplier_id) {
+          toast.warning("Estoque inicial ignorado: É necessário selecionar um fornecedor para registrar o lote.");
+        } else {
+          await createGridMutation.mutateAsync({
+            product_id: productId,
+            supplier_id: dataToSave.supplier_id,
+            batch_code: `EST-INICIAL-${new Date().getTime().toString().slice(-6)}`,
+            average_cost: dataToSave.cost_price || 0,
+            quality_notes: "Estoque Inicial Cadastro",
+            grid: initialStockGrid
+          });
+          toast.success("Variações geradas e estoque registrado!");
+        }
+      }
+
       onOpenChange(false);
     } catch (error: any) {
-      toast.error(`Erro: ${error.message}`);
+      console.error("ERRO COMPLETO:", error);
+      
+      let msg = "";
+      if (error instanceof Error) {
+        msg = error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        msg = error.message || "Erro desconhecido do banco de dados";
+        if (error.code === '23503') {
+          msg = "Conflito de referência (Chave Estrangeira inválida). Verifique os campos selecionados.";
+        }
+      } else {
+        msg = String(error);
+      }
+      
+      toast.error(msg);
     }
   };
 
-  const isPending = createMutation.isPending || updateMutation.isPending;
+  const isPending = createMutation.isPending || updateMutation.isPending || createGridMutation.isPending;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-xl overflow-y-auto w-full p-0 bg-slate-50/50">
+      <SheetContent className="sm:max-w-[50vw] overflow-y-auto w-full p-0 bg-slate-50/50">
         <form onSubmit={handleSubmit} className="flex flex-col h-full">
           <SheetHeader className="p-6 pb-4 border-b bg-white">
             <div className="flex items-center justify-between">
@@ -275,7 +319,17 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
             </div>
           </SheetHeader>
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          <Tabs defaultValue="geral" className="flex-1 flex flex-col min-h-0">
+            <div className="px-6 pt-4 border-b">
+              <TabsList className="grid w-full max-w-[400px] grid-cols-2">
+                <TabsTrigger value="geral">Detalhes</TabsTrigger>
+                {isEditing && (formData.format === 'MP' || formData.format === 'Insumo') && (
+                  <TabsTrigger value="estoque">Estoque</TabsTrigger>
+                )}
+              </TabsList>
+            </div>
+
+            <TabsContent value="geral" className="flex-1 overflow-y-auto p-6 space-y-6 m-0 outline-none">
             <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
               <h3 className="text-sm font-semibold text-slate-800 tracking-tight">Dados Gerais</h3>
               
@@ -394,6 +448,35 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                 </div>
               </div>
             </div>
+
+            {formData.format === "MP" && formData.size_grid && sizeGrids.find(g => g.name === formData.size_grid) && (
+              <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-slate-800 tracking-tight">Estoque Inicial (Opcional)</h3>
+                  <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100">
+                    Gera Variações Automaticamente
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Preencha a quantidade inicial para cada tamanho. O sistema criará as variações (P, M, G, etc.) e o lote de estoque inicial automaticamente ao salvar. Necessita fornecedor selecionado.
+                </p>
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-3 pt-2">
+                  {sizeGrids.find(g => g.name === formData.size_grid)!.sizes.map(size => (
+                    <div key={size} className="space-y-1.5">
+                      <Label className="text-xs text-slate-600 text-center block font-medium">{size}</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        className="h-9 text-center bg-slate-50"
+                        value={initialStockGrid[size] || ""}
+                        onChange={e => setInitialStockGrid({ ...initialStockGrid, [size]: parseInt(e.target.value) || 0 })}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
@@ -535,19 +618,6 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                       </Select>
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-slate-500">Mistura Permitida</Label>
-                      <div className="h-9 flex items-center justify-between px-3 border border-slate-200 rounded-lg bg-white">
-                        <span className="text-xs text-slate-700">Cliente aceita mistura de malhas</span>
-                        <Switch 
-                          checked={formData.mix_allowed}
-                          onCheckedChange={(v) => setFormData({ ...formData, mix_allowed: v })}
-                        />
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </div>
             )}
@@ -596,15 +666,17 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
 
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <Label className="text-xs text-slate-500">Fornecedor (CRM)</Label>
-                      <span className="text-xs text-slate-400">Tipo: fornecedor</span>
+                      <Label className="text-xs text-slate-500">Fornecedor Principal (Estoque)</Label>
+                      <button type="button" onClick={() => setQaFornecedor(true)} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5 font-medium">
+                        <Plus className="h-3 w-3" /> Novo
+                      </button>
                     </div>
                     <Select value={formData.supplier_id || "none_supplier"} onValueChange={(v) => setFormData({ ...formData, supplier_id: v === "none_supplier" ? null : v })}>
                       <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none_supplier">Nenhum</SelectItem>
                         {suppliers.length === 0 && (
-                          <SelectItem value="_empty" disabled>Nenhum fornecedor no CRM</SelectItem>
+                          <SelectItem value="_empty" disabled>Nenhum fornecedor cadastrado</SelectItem>
                         )}
                         {suppliers.map(s => (
                           <SelectItem key={s.id} value={s.id}>
@@ -948,7 +1020,14 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                 </div>
               </div>
             </details>
-          </div>
+            </TabsContent>
+            
+            {isEditing && (formData.format === 'MP' || formData.format === 'Insumo') && (
+              <TabsContent value="estoque" className="flex-1 overflow-y-auto p-6 m-0 outline-none">
+                <ProductStockTab product={product} />
+              </TabsContent>
+            )}
+          </Tabs>
 
           <SheetFooter className="p-6 border-t mt-auto bg-white">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="h-9 text-xs">
@@ -986,6 +1065,11 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
           open={qaCategoria}
           onOpenChange={setQaCategoria}
           onCreated={(_id, name) => setFormData(prev => ({ ...prev, category: name }))}
+        />
+        <QuickAddFornecedor 
+          open={qaFornecedor} 
+          onOpenChange={setQaFornecedor} 
+          onCreated={(id) => setFormData({ ...formData, supplier_id: id })}
         />
       </SheetContent>
     </Sheet>

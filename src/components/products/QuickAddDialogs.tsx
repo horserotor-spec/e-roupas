@@ -11,7 +11,8 @@ import {
   useCreateFabric, 
   useCreateColor, 
   useCreateSizeGrid,
-  useCreateCategory
+  useCreateCategory,
+  useCreateSupplier
 } from "@/lib/api/inventory";
 
 // ─── QuickAdd Modelagem ───────────────────────────────────────────────────────
@@ -335,6 +336,52 @@ export function QuickAddCategoria({ open, onOpenChange, onCreated }: QuickAddCat
           <div className="space-y-1.5">
             <Label className="text-xs text-slate-500">Nome *</Label>
             <Input required autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Camisetas" className="h-9" />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="submit" size="sm" disabled={mutation.isPending}>
+              {mutation.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+              Cadastrar
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── QuickAdd Fornecedor ──────────────────────────────────────────────────────
+interface QuickAddFornecedorProps {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onCreated: (id: string, name: string) => void;
+}
+export function QuickAddFornecedor({ open, onOpenChange, onCreated }: QuickAddFornecedorProps) {
+  const [name, setName] = useState("");
+  const mutation = useCreateSupplier();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    try {
+      const result = await mutation.mutateAsync({ name, active: true });
+      toast.success("Fornecedor cadastrado com sucesso!");
+      onCreated(result.id, result.name);
+      setName("");
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error("Erro: " + err.message);
+    }
+  };
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-base">Novo Fornecedor</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-slate-500">Nome do Fornecedor *</Label>
+            <Input required autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Têxtil Silva" className="h-9" />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button>

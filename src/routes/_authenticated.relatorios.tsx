@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { orders, clients } from "@/lib/mock-data";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, Boxes, ArrowRight } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/relatorios")({
   head: () => ({ meta: [{ title: "Relatórios · e-roupas OS" }] }),
@@ -38,6 +39,21 @@ function Relatorios() {
             <Stat label="Receita PG8" value={`R$ ${pg8Total.toLocaleString("pt-BR")}`} />
           </dl>
         </div>
+      </div>
+
+      <div className="mt-3 rounded-2xl border border-border bg-white p-5 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 shrink-0">
+            <Boxes className="size-6" />
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-slate-800">Relatório Industrial de Estoque</h3>
+            <p className="text-sm text-slate-500 mt-0.5">Rastreabilidade, movimentações, saldo imutável e exportação de CSV.</p>
+          </div>
+        </div>
+        <Link to="/estoque" className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors shrink-0">
+          Acessar Relatório <ArrowRight className="size-4" />
+        </Link>
       </div>
 
       <div className="mt-3 rounded-2xl border border-dashed border-border p-12 text-center">

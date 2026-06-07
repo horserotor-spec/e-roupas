@@ -5,10 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useClients } from "@/lib/api/clients";
+
+import { useClients, useBrands } from "@/lib/api/clients";
+import { useSuppliers } from "@/lib/api/inventory";
 import { Switch } from "@/components/ui/switch";
 import { useProducts, Product } from "@/lib/api/products";
-import { useCreateOrder, OrderItem, OrderPayload } from "@/lib/api/orders";
+import { useCreateOrder, OrderItem, OrderPayload, OrderPayment } from "@/lib/api/orders";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Loader2, Trash2, Plus, ArrowLeft, Wand2, Check, ChevronsUpDown, Save } from "lucide-react";
@@ -20,6 +22,50 @@ import { cn } from "@/lib/utils";
 
 const ADULTO_SIZES = ["PP", "P", "M", "G", "GG", "XG", "G1", "G2", "G3", "G4"];
 const INFANTIL_SIZES = ["2", "4", "6", "8", "10", "12", "14", "16"];
+
+export function SearchableCombobox({ items, value, onChange, placeholder, minChars = 3 }: { items: {id: string, name: string}[], value: string, onChange: (v: string) => void, placeholder: string, minChars?: number }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const displayItems = search.length >= minChars ? items : [];
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" role="combobox" aria-expanded={open} className={cn("w-full justify-between h-9 px-3 bg-white font-normal", !value && "text-muted-foreground")}>
+          <span className="truncate">{value ? items.find((i) => i.id === value)?.name : placeholder}</span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[300px] p-0" align="start">
+        <Command>
+          <CommandInput placeholder={`Digite ${minChars} letras...`} onValueChange={setSearch} value={search} />
+          <CommandList>
+            {search.length < minChars && <div className="p-4 text-center text-sm text-muted-foreground">Digite pelo menos {minChars} letras para buscar.</div>}
+            {search.length >= minChars && displayItems.length === 0 && <CommandEmpty>Nenhum resultado.</CommandEmpty>}
+            {search.length >= minChars && (
+              <CommandGroup>
+                {displayItems.map((item) => (
+                  <CommandItem
+                    key={item.id}
+                    value={item.name}
+                    onSelect={() => {
+                      onChange(item.id);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check className={cn("mr-2 h-4 w-4", value === item.id ? "opacity-100" : "opacity-0")} />
+                    {item.name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export const Route = createFileRoute("/_authenticated/pedidos/novo")({
   head: () => ({ meta: [{ title: "Novo Pedido · e-roupas OS" }] }),
@@ -33,7 +79,9 @@ function NewOrderPage() {
   
   const { data: clients } = useClients();
   const { data: products } = useProducts();
+  const { data: suppliers } = useSuppliers();
   const [brands, setBrands] = useState<{id: string, name: string, code: string}[]>([]);
+  const [installmentsCount, setInstallmentsCount] = useState(1);
 
   useEffect(() => {
     supabase.from("brands").select("id, name, code").then(({ data }) => {
@@ -57,6 +105,7 @@ function NewOrderPage() {
     payment_category: "Sem categoria",
     payment_condition: "",
     payment_method: "PIX",
+    origin_channel: "Internet",
     carrier_name: "",
     freight_payer: "CIF",
     volumes_quantity: 0,
@@ -75,6 +124,7 @@ function NewOrderPage() {
   };
 
   const [items, setItems] = useState<any[]>([]);
+  const [payments, setPayments] = useState<OrderPayment[]>([{ amount: 0, payment_method: "PIX", installments: 1, due_date: new Date().toISOString().split("T")[0], status: "pendente", notes: "" }]);
   const [activeCustomizationIndex, setActiveCustomizationIndex] = useState<number | null>(null);
 
   const addItem = () => {
@@ -87,7 +137,9 @@ function NewOrderPage() {
       list_price: 0,
       discount_percent: 0,
       unit_price: 0,
+      art_code: "",
       customizations: [],
+      active_sizes: [],
       sizes: { ...emptySizes }
     }]);
   };
@@ -165,6 +217,73 @@ function NewOrderPage() {
   const freight = Number(formData.freight_cost || 0);
   const finalTotal = itemsTotalNet - saleDiscount + otherExpenses + freight;
 
+  useEffect(() => {
+    if (payments.length !== installmentsCount) {
+      if (installmentsCount < 1) return;
+      const baseValue = finalTotal / installmentsCount;
+      const newP = Array.from({ length: installmentsCount }).map((_, i) => {
+        const d = new Date(formData.sale_date || new Date());
+        d.setDate(d.getDate() + (30 * i));
+        return {
+          amount: Number(baseValue.toFixed(2)),
+          payment_method: payments[0]?.payment_method || "PIX",
+          installments: 1,
+          due_date: d.toISOString().split("T")[0],
+          status: "pendente" as const,
+          notes: ""
+        };
+      });
+      const sum = newP.reduce((acc, p) => acc + p.amount, 0);
+      if (sum !== finalTotal && installmentsCount > 0) {
+        newP[installmentsCount - 1].amount = Number((newP[installmentsCount - 1].amount + (finalTotal - sum)).toFixed(2));
+      }
+      setPayments(newP);
+    } else {
+      const currentSum = payments.reduce((acc, p) => acc + p.amount, 0);
+      if (Math.abs(currentSum - finalTotal) > 0.01 && payments.length > 0) {
+        const newP = [...payments];
+        newP[newP.length - 1].amount = Number((newP[newP.length - 1].amount + (finalTotal - currentSum)).toFixed(2));
+        setPayments(newP);
+      }
+    }
+  }, [installmentsCount, finalTotal]);
+
+  const updatePaymentAmount = (idx: number, newAmount: number) => {
+    const newPayments = [...payments];
+    newPayments[idx].amount = newAmount;
+    
+    let previousSum = newPayments.slice(0, idx + 1).reduce((acc, p) => acc + p.amount, 0);
+    const remaining = finalTotal - previousSum;
+    const countRemaining = newPayments.length - 1 - idx;
+    
+    if (countRemaining > 0) {
+      const dist = remaining / countRemaining;
+      for (let i = idx + 1; i < newPayments.length; i++) {
+        newPayments[i].amount = Number(dist.toFixed(2));
+      }
+      const newSum = newPayments.reduce((acc, p) => acc + p.amount, 0);
+      if (Math.abs(newSum - finalTotal) > 0.001) {
+        newPayments[newPayments.length - 1].amount = Number((newPayments[newPayments.length - 1].amount + (finalTotal - newSum)).toFixed(2));
+      }
+    }
+    setPayments(newPayments);
+  };
+
+  const updatePaymentField = (idx: number, field: keyof OrderPayment, value: any) => {
+    const newPayments = [...payments];
+    newPayments[idx] = { ...newPayments[idx], [field]: value };
+    setPayments(newPayments);
+  };
+
+  const addPayment = () => {
+    setInstallmentsCount(prev => prev + 1);
+  };
+  
+  const removePayment = (idx: number) => {
+    if (payments.length <= 1) return;
+    setInstallmentsCount(prev => prev - 1);
+  };
+
   const handleSubmit = async () => {
     if (!formData.client_id || !formData.brand_id) {
       toast.error("Cliente e Marca são obrigatórios.");
@@ -174,16 +293,21 @@ function NewOrderPage() {
     const explodedItems: any[] = [];
     items.forEach((item) => {
       if (item.sizes) {
-        const activeSizes = item.grid_type === "infantil" ? INFANTIL_SIZES : ADULTO_SIZES;
+        const activeSizes = item.active_sizes || [];
         activeSizes.forEach((size) => {
           const qty = item.sizes[size];
           const quantity = Number(qty);
           if (quantity > 0) {
+            if (!item.art_code) {
+              toast.error(`O código da arte é obrigatório para o item ${item.product_name}`);
+              throw new Error("Missing art code");
+            }
+            
             let itemSku = item.sku || "";
             if (itemSku.startsWith("PA-")) {
-              itemSku = itemSku.replace("PA-", "PF-");
-            } else if (!itemSku.startsWith("PF-")) {
-              itemSku = `PF-${itemSku}`;
+              itemSku = itemSku.replace("PA-", `${item.art_code}-`);
+            } else {
+              itemSku = `${item.art_code}-${itemSku}`;
             }
             const brandObj = brands.find(b => b.id === formData.brand_id);
             const brandCode = brandObj?.code || "CLI";
@@ -195,6 +319,7 @@ function NewOrderPage() {
               product_id: item.product_id,
               product_name: item.product_name,
               sku: finalSku,
+              art_code: item.art_code,
               model: p?.models?.name || p?.model || "",
               fabric: p?.fabrics?.name || p?.fabric || "",
               color: p?.canonical_colors?.name || p?.color || "",
@@ -223,7 +348,11 @@ function NewOrderPage() {
         items_discount: itemsDiscountTotal,
         estimated_total: itemsTotalList,
         final_total: finalTotal,
-        items: explodedItems
+        items: explodedItems,
+        payments: payments.map(p => ({
+          ...p,
+          amount: Number(p.amount)
+        }))
       });
       toast.success("Pedido criado com sucesso!");
       navigate({ to: "/pedidos" });
@@ -288,28 +417,45 @@ function NewOrderPage() {
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
             <div className="space-y-1.5 md:col-span-2">
               <Label className="text-xs text-muted-foreground">Cliente *</Label>
-              <Select value={formData.client_id} onValueChange={(v) => setFormData({ ...formData, client_id: v })}>
-                <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="Selecione um cliente" /></SelectTrigger>
-                <SelectContent>
-                  {clients?.map(c => <SelectItem key={c.id} value={c.id}>{c.name} {c.company_name ? `(${c.company_name})` : ''}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <SearchableCombobox
+                items={(clients || []).map(c => ({ id: c.id, name: `${c.name} ${c.company_name ? `(${c.company_name})` : ''}` }))}
+                value={formData.client_id}
+                onChange={(v) => setFormData({ ...formData, client_id: v })}
+                placeholder="Selecione um cliente"
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Vendedor</Label>
-              <Select value={formData.salesperson_id || ""} onValueChange={(v) => setFormData({ ...formData, salesperson_id: v })}>
-                <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="Selecione um vendedor" /></SelectTrigger>
-                <SelectContent>
-                  {clients?.filter(c => c.entity_type === "vendedor").map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <SearchableCombobox
+                items={(clients || []).filter(c => c.entity_type === "vendedor").map(c => ({ id: c.id, name: c.name }))}
+                value={formData.salesperson_id || ""}
+                onChange={(v) => setFormData({ ...formData, salesperson_id: v })}
+                placeholder="Selecione um vendedor"
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Marca (Obrigatório) *</Label>
-              <Select value={formData.brand_id} onValueChange={(v) => setFormData({ ...formData, brand_id: v })}>
-                <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="Selecione a marca" /></SelectTrigger>
+              <SearchableCombobox
+                items={brands.map(b => ({ id: b.id, name: b.name }))}
+                value={formData.brand_id}
+                onChange={(v) => setFormData({ ...formData, brand_id: v })}
+                placeholder="Selecione a marca"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Origem do Pedido *</Label>
+              <Select value={formData.origin_channel} onValueChange={(v) => setFormData({ ...formData, origin_channel: v })}>
+                <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="Selecione a origem" /></SelectTrigger>
                 <SelectContent>
-                  {brands.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                  <SelectItem value="Internet">Internet</SelectItem>
+                  <SelectItem value="Presencial">Presencial</SelectItem>
+                  <SelectItem value="Telefone">Telefone</SelectItem>
+                  <SelectItem value="Reparação">Reparação</SelectItem>
+                  <SelectItem value="Dropshipping">Dropshipping</SelectItem>
+                  <SelectItem value="Marketplace">Marketplace</SelectItem>
+                  <SelectItem value="WhatsApp">WhatsApp</SelectItem>
+                  <SelectItem value="Representante Comercial">Representante Comercial</SelectItem>
+                  <SelectItem value="Outro">Outro</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -330,23 +476,24 @@ function NewOrderPage() {
             <div className="px-1 py-2 border-b-2 border-green-600 text-green-700 text-sm font-medium">Itens do pedido de venda</div>
           </div>
           
-          <div className="bg-white border rounded-lg overflow-hidden mb-3">
-            <table className="w-full text-sm text-left">
+          <div className="bg-white border rounded-lg overflow-x-auto overflow-y-visible mb-3">
+            <table className="w-full text-sm text-left whitespace-nowrap">
               <thead className="bg-slate-50 border-b text-[10px] text-slate-500 uppercase tracking-wider">
                 <tr>
                   <th className="px-2 py-3 font-medium w-8 text-center">#</th>
                   <th className="px-2 py-3 font-medium min-w-[150px]">Descrição</th>
-                  <th className="px-2 py-3 font-medium w-28">Código</th>
-                  <th className="px-2 py-3 font-medium w-24">Gênero</th>
-                  <th className="px-2 py-3 font-medium w-20 text-center">Pers.</th>
-                  <th className="px-2 py-3 font-medium w-24">Grade</th>
-                  <th className="px-2 py-3 font-medium min-w-[280px]">Quantidades por Tamanho</th>
-                  <th className="px-2 py-3 font-medium w-14 text-center bg-slate-100/30">Qtd</th>
-                  <th className="px-2 py-3 font-medium w-24 text-right">Lista</th>
-                  <th className="px-2 py-3 font-medium w-16 text-right">Desc%</th>
-                  <th className="px-2 py-3 font-medium w-24 text-right font-semibold">Unit</th>
-                  <th className="px-2 py-3 font-medium w-24 text-right font-bold">Total</th>
-                  <th className="px-2 py-3 font-medium w-8 text-center"></th>
+                  <th className="px-2 py-3 font-medium w-28">Cód. Arte *</th>
+                  <th className="px-2 py-3 font-medium w-32">Cód. Base (PA)</th>
+                  <th className="px-2 py-3 font-medium w-28">Gênero</th>
+                  <th className="px-2 py-3 font-medium w-24 text-center">Pers.</th>
+                  <th className="px-2 py-3 font-medium w-28">Grade</th>
+                  <th className="px-2 py-3 font-medium min-w-[320px]">Quantidades por Tamanho</th>
+                  <th className="px-2 py-3 font-medium w-16 text-center bg-slate-100/30">Qtd</th>
+                  <th className="px-2 py-3 font-medium w-28 text-right">Lista</th>
+                  <th className="px-2 py-3 font-medium w-20 text-right">Desc%</th>
+                  <th className="px-2 py-3 font-medium w-28 text-right font-semibold">Unit</th>
+                  <th className="px-2 py-3 font-medium w-32 text-right font-bold">Total</th>
+                  <th className="px-2 py-3 font-medium w-10 text-center"></th>
                 </tr>
               </thead>
               <tbody className="divide-y text-xs">
@@ -356,13 +503,14 @@ function NewOrderPage() {
                     <tr key={idx} className="hover:bg-slate-50/50">
                       <td className="px-2 py-2 text-slate-400 bg-slate-100/50 text-center">{idx + 1}</td>
                       <td className="px-2 py-2">
-                        <Select value={item.product_id || ""} onValueChange={(v) => updateItem(idx, "product_id", v)}>
-                          <SelectTrigger className="h-8 border-transparent hover:border-input bg-transparent shadow-none p-1 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                          <SelectContent>
-                            {products?.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
+                        <SearchableCombobox
+                          items={(products || []).map(p => ({ id: p.id, name: p.name }))}
+                          value={item.product_id || ""}
+                          onChange={(v) => updateItem(idx, "product_id", v)}
+                          placeholder="Selecione..."
+                        />
                       </td>
+                      <td className="px-2 py-2"><Input className="h-8 text-xs font-mono border-green-500/50 bg-green-50/30 placeholder:text-green-600/40" placeholder="ex: CLV003" value={item.art_code || ""} onChange={e => updateItem(idx, "art_code", e.target.value.toUpperCase())} /></td>
                       <td className="px-2 py-2"><Input className="h-8 text-xs font-mono" value={item.sku || ""} onChange={e => updateItem(idx, "sku", e.target.value)} /></td>
                       <td className="px-2 py-2">
                         <Select value={item.gender || "Unissex"} onValueChange={(v) => updateItem(idx, "gender", v)}>
@@ -397,27 +545,53 @@ function NewOrderPage() {
                         </Select>
                       </td>
                       <td className="px-2 py-2">
-                        <div className="flex flex-wrap gap-1">
-                          {(item.grid_type === "infantil" ? INFANTIL_SIZES : ADULTO_SIZES).map((sz) => (
-                            <div key={sz} className="flex flex-col items-center gap-0.5">
+                        <div className="flex flex-wrap gap-1 items-end">
+                          {(item.active_sizes || []).map((sz: string) => (
+                            <div key={sz} className="flex flex-col items-center gap-0.5 relative group">
                               <span className="text-[9px] font-bold text-slate-500 uppercase">{sz}</span>
                               <Input
                                 type="number"
                                 min={0}
-                                className="h-7 px-1 text-center text-xs w-9 bg-white border border-slate-200 rounded"
+                                className="h-7 px-1 text-center text-xs w-10 bg-white border border-slate-200 rounded focus:border-green-500"
                                 value={item.sizes?.[sz] === 0 ? "" : (item.sizes?.[sz] || "")}
                                 onChange={e => updateItem(idx, `size_${sz}`, e.target.value)}
                                 placeholder="0"
                               />
+                              <button 
+                                onClick={() => updateItem(idx, "active_sizes", (item.active_sizes || []).filter((s: string) => s !== sz))}
+                                className="absolute -top-1 -right-1 bg-red-100 text-red-600 rounded-full w-3 h-3 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-[8px]"
+                              >×</button>
                             </div>
                           ))}
+                          
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" size="sm" className="h-7 text-[10px] px-2 text-green-700 border-green-200 hover:bg-green-50">+</Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-48 p-2" align="start">
+                              <div className="grid grid-cols-4 gap-1">
+                                {(item.grid_type === "infantil" ? INFANTIL_SIZES : ADULTO_SIZES).map((sz) => (
+                                  <Button 
+                                    key={sz} 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="h-7 text-xs"
+                                    disabled={(item.active_sizes || []).includes(sz)}
+                                    onClick={() => updateItem(idx, "active_sizes", [...(item.active_sizes || []), sz])}
+                                  >
+                                    {sz}
+                                  </Button>
+                                ))}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
                         </div>
                       </td>
                       <td className="px-2 py-2 text-center font-semibold text-slate-600 bg-slate-50/50">{qtyTotal}</td>
                       <td className="px-2 py-2"><Input type="number" step="0.01" className="h-8 text-right text-xs bg-white" value={item.list_price || ""} onChange={e => updateItem(idx, "list_price", parseFloat(e.target.value))} /></td>
                       <td className="px-2 py-2"><Input type="number" step="0.01" className="h-8 text-right text-xs bg-white" value={item.discount_percent || ""} onChange={e => updateItem(idx, "discount_percent", parseFloat(e.target.value))} /></td>
                       <td className="px-2 py-2"><Input type="number" step="0.01" className="h-8 text-right text-xs font-medium text-slate-700 bg-white" value={item.unit_price || ""} onChange={e => updateItem(idx, "unit_price", parseFloat(e.target.value))} /></td>
-                      <td className="px-2 py-2 text-right font-bold text-slate-900 bg-slate-50/30">{(qtyTotal * Number(item.unit_price || 0)).toFixed(2)}</td>
+                      <td className="px-2 py-2 text-right font-bold text-slate-900 bg-slate-50/30">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(qtyTotal * Number(item.unit_price || 0))}</td>
                       <td className="px-2 py-2 text-center">
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600" onClick={() => removeItem(idx)}><Trash2 className="size-3.5" /></Button>
                       </td>
@@ -444,8 +618,11 @@ function NewOrderPage() {
               <div className="h-9 px-3 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">{sumQuantities}</div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground text-blue-600">Desconto R$</Label>
-              <Input type="number" className="h-9" value={formData.discount || ""} onChange={e => setFormData({...formData, discount: parseFloat(e.target.value) || 0})} />
+              <Label className="text-xs text-muted-foreground text-blue-600">Desconto</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">R$</span>
+                <Input type="number" step="0.01" className="h-9 pl-8" value={formData.discount || ""} onChange={e => setFormData({...formData, discount: parseFloat(e.target.value) || 0})} />
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground text-blue-600">Prazo de entrega</Label>
@@ -453,28 +630,35 @@ function NewOrderPage() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Outras despesas</Label>
-              <Input type="number" className="h-9" value={formData.other_expenses || ""} onChange={e => setFormData({...formData, other_expenses: parseFloat(e.target.value) || 0})} />
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">R$</span>
+                <Input type="number" step="0.01" className="h-9 pl-8" value={formData.other_expenses || ""} onChange={e => setFormData({...formData, other_expenses: parseFloat(e.target.value) || 0})} />
+              </div>
             </div>
             
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Desconto total da venda</Label>
-              <div className="h-9 px-3 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">{saleDiscount.toFixed(2)}</div>
+              <div className="h-9 px-3 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(saleDiscount)}</div>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Total de comissões</Label>
-              <div className="h-9 px-3 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">0.00</div>
+              <div className="h-9 px-3 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(0)}</div>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Desconto total dos itens</Label>
-              <div className="h-9 px-3 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">{itemsDiscountTotal.toFixed(2)}</div>
+              <div className="h-9 px-3 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(itemsDiscountTotal)}</div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Valor do Frete</Label>
+              <div className="h-9 px-3 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(freight)}</div>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Total dos itens</Label>
-              <div className="h-9 px-3 flex items-center font-medium bg-slate-100 rounded-md text-sm border text-slate-800">{itemsTotalList.toFixed(2)}</div>
+              <div className="h-9 px-3 flex items-center font-medium bg-slate-100 rounded-md text-sm border text-slate-800">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(itemsTotalList)}</div>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-bold text-slate-800">Total da venda</Label>
-              <div className="h-9 px-3 flex items-center font-bold bg-slate-100 rounded-md text-sm border text-slate-800">{finalTotal.toFixed(2)}</div>
+              <div className="h-9 px-3 flex items-center font-bold bg-green-50 rounded-md text-sm border border-green-200 text-green-800">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(finalTotal)}</div>
             </div>
           </div>
         </section>
@@ -505,50 +689,75 @@ function NewOrderPage() {
         {/* PAGAMENTO */}
         <section>
           <h2 className="text-sm font-semibold text-slate-700 mb-4">Pagamento</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
-            <div className="space-y-1.5 md:col-span-2">
-              <Label className="text-xs text-muted-foreground text-blue-600">Condição de pagamento</Label>
-              <Input className="h-9" value={formData.payment_condition || ""} onChange={e => setFormData({...formData, payment_condition: e.target.value})} />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-4">
+            <div className="space-y-1.5 md:col-span-1">
+              <Label className="text-xs text-muted-foreground text-blue-600">Nº de Parcelas</Label>
+              <Input type="number" min="1" className="h-9" value={installmentsCount} onChange={e => setInstallmentsCount(parseInt(e.target.value) || 1)} />
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground text-blue-600">Categoria</Label>
-              <Select value={formData.payment_category || ""} onValueChange={(v) => setFormData({ ...formData, payment_category: v })}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="Sem categoria" /></SelectTrigger>
-                <SelectContent><SelectItem value="Sem categoria">Sem categoria</SelectItem><SelectItem value="Venda Produtos">Venda Produtos</SelectItem></SelectContent>
-              </Select>
+            <div className="space-y-1.5 md:col-span-3 text-xs text-muted-foreground flex items-end pb-2">
+              <span>Altere o valor de uma parcela para que as demais se ajustem automaticamente.</span>
             </div>
           </div>
           <div className="bg-white border rounded-lg overflow-hidden">
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-50 border-b text-xs text-slate-500">
-                <tr><th className="px-4 py-2 w-16">Parcela</th><th className="px-4 py-2 w-24">Dias</th><th className="px-4 py-2 w-36">Data</th><th className="px-4 py-2 w-32">Valor</th><th className="px-4 py-2 w-48">Forma</th><th className="px-4 py-2">Observação</th></tr>
+                <tr><th className="px-4 py-2 w-16">#</th><th className="px-4 py-2 w-32">Valor (R$)</th><th className="px-4 py-2 w-48">Forma</th><th className="px-4 py-2 w-36">Data Venc.</th><th className="px-4 py-2">Observação</th><th className="px-4 py-2 w-16 text-center">Ações</th></tr>
               </thead>
               <tbody className="divide-y">
-                <tr className="hover:bg-slate-50/50">
-                  <td className="px-4 py-2 text-center text-slate-400 bg-slate-100/50">1</td>
-                  <td className="px-4 py-2"><Input className="h-8" value="0" readOnly /></td>
-                  <td className="px-4 py-2"><Input type="date" className="h-8" value={formData.sale_date || ""} readOnly /></td>
-                  <td className="px-4 py-2"><Input className="h-8" value={finalTotal.toFixed(2)} readOnly /></td>
-                  <td className="px-4 py-2">
-                    <Select value={formData.payment_method || ""} onValueChange={(v) => setFormData({ ...formData, payment_method: v })}>
-                      <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                      <SelectContent><SelectItem value="PIX">PIX</SelectItem><SelectItem value="Boleto">Boleto</SelectItem><SelectItem value="Cartão">Cartão</SelectItem></SelectContent>
-                    </Select>
-                  </td>
-                  <td className="px-4 py-2"><Input className="h-8" /></td>
-                </tr>
+                {payments.map((p, idx) => (
+                  <tr key={idx} className="hover:bg-slate-50/50">
+                    <td className="px-4 py-2 text-center text-slate-400 bg-slate-100/50">{idx + 1}</td>
+                    <td className="px-4 py-2"><Input type="number" step="0.01" className="h-8" value={p.amount || ""} onChange={e => updatePaymentAmount(idx, parseFloat(e.target.value) || 0)} /></td>
+                    <td className="px-4 py-2">
+                      <Select value={p.payment_method || ""} onValueChange={(v) => updatePaymentField(idx, "payment_method", v)}>
+                        <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PIX">PIX</SelectItem>
+                          <SelectItem value="Débito">Débito</SelectItem>
+                          <SelectItem value="Crédito à vista">Crédito à vista</SelectItem>
+                          <SelectItem value="Crédito parcelado">Crédito parcelado</SelectItem>
+                          <SelectItem value="Boleto">Boleto</SelectItem>
+                          <SelectItem value="Transferência">Transferência</SelectItem>
+                          <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </td>
+                    <td className="px-4 py-2"><Input type="date" className="h-8" value={p.due_date} onChange={e => updatePaymentField(idx, "due_date", e.target.value)} /></td>
+                    <td className="px-4 py-2"><Input className="h-8" value={p.notes || ""} onChange={e => updatePaymentField(idx, "notes", e.target.value)} /></td>
+                    <td className="px-4 py-2 text-center">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600" onClick={() => removePayment(idx)}><Trash2 className="size-3.5" /></Button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
+          </div>
+          <div className="mt-3 flex items-center justify-between">
+            <Button variant="outline" size="sm" onClick={addPayment} className="text-blue-700 border-blue-600/30 hover:bg-blue-50"><Plus className="size-4 mr-1.5" /> Adicionar parcela</Button>
+            
+            <div className="text-xs">
+              <span className="text-slate-500 mr-2">Soma pagamentos:</span>
+              <span className={`font-bold ${payments.reduce((acc, p) => acc + (p.amount || 0), 0) === finalTotal ? 'text-green-600' : 'text-red-500'}`}>
+                R$ {payments.reduce((acc, p) => acc + (p.amount || 0), 0).toFixed(2)}
+              </span>
+              <span className="text-slate-400 mx-1">/</span>
+              <span className="text-slate-600">Total: R$ {finalTotal.toFixed(2)}</span>
+            </div>
           </div>
         </section>
 
         {/* TRANSPORTADOR */}
         <section>
           <h2 className="text-sm font-semibold text-slate-700 mb-4">Transportador</h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-6">
             <div className="space-y-1.5 md:col-span-2">
-              <Label className="text-xs text-muted-foreground">Nome</Label>
-              <Input className="h-9" value={formData.carrier_name || ""} onChange={e => setFormData({...formData, carrier_name: e.target.value})} />
+              <Label className="text-xs text-muted-foreground">Nome da Transportadora</Label>
+              <SearchableCombobox
+                items={(suppliers || []).map(s => ({ id: s.name, name: s.name }))}
+                value={formData.carrier_name || ""}
+                onChange={(v) => setFormData({ ...formData, carrier_name: v })}
+                placeholder="Selecione um transportador"
+              />
             </div>
             <div className="space-y-1.5 md:col-span-1">
               <Label className="text-xs text-muted-foreground">Frete por conta</Label>
@@ -562,8 +771,15 @@ function NewOrderPage() {
               <Input type="number" className="h-9" value={formData.volumes_quantity || ""} onChange={e => setFormData({...formData, volumes_quantity: parseInt(e.target.value) || 0})} />
             </div>
             <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Peso (Kg)</Label>
+              <Input type="number" step="0.01" className="h-9" value={formData.gross_weight || ""} onChange={e => setFormData({...formData, gross_weight: parseFloat(e.target.value) || 0})} />
+            </div>
+            <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground text-blue-600">Frete</Label>
-              <Input type="number" step="0.01" className="h-9" value={formData.freight_cost || ""} onChange={e => setFormData({...formData, freight_cost: parseFloat(e.target.value) || 0})} />
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">R$</span>
+                <Input type="number" step="0.01" className="h-9 pl-8" value={formData.freight_cost || ""} onChange={e => setFormData({...formData, freight_cost: parseFloat(e.target.value) || 0})} />
+              </div>
             </div>
           </div>
         </section>

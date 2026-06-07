@@ -11,7 +11,7 @@ const nav: NavItem[] = [
   { to: "/crm", label: "CRM", icon: Users },
   { to: "/produtos", label: "Produtos", icon: Package },
   { to: "/orcamentos", label: "Orçamentos", icon: FileText },
-  { to: "/pedidos", label: "Pedidos", icon: ShoppingBag },
+  { to: "/pedidos", label: "Pedidos", icon: ShoppingBag, highlighted: true },
   { to: "/producao", label: "Produção", icon: Factory },
   { to: "/estoque", label: "Estoque", icon: Boxes },
   { to: "/financeiro", label: "Financeiro", icon: Wallet },
@@ -42,10 +42,12 @@ export function Sidebar() {
                 "group flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors",
                 active
                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/80 hover:bg-muted hover:text-foreground",
+                  : (item as any).highlighted
+                    ? "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 shadow-sm"
+                    : "text-sidebar-foreground/80 hover:bg-muted hover:text-foreground",
               )}
             >
-              <Icon className={cn("size-4", active ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
+              <Icon className={cn("size-4", active ? "text-primary" : ((item as any).highlighted ? "text-green-600" : "text-muted-foreground group-hover:text-foreground"))} />
               <span>{item.label}</span>
             </Link>
           );
