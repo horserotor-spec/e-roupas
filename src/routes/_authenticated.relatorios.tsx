@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { formatCurrency } from "@/lib/utils";
 import { Link } from "@tanstack/react-router";
 import { orders, clients } from "@/lib/mock-data";
 import { BarChart3, Boxes, ArrowRight } from "lucide-react";
@@ -79,7 +80,7 @@ function BrandBar({ label, value, total, color }: { label: string; value: number
     <div>
       <div className="flex items-center justify-between text-xs mb-1.5">
         <span className="font-medium">{label}</span>
-        <span className="text-muted-foreground number">R$ {value.toLocaleString("pt-BR")} · {pct}%</span>
+        <span className="text-muted-foreground number">{formatCurrency(value)} · {pct}%</span>
       </div>
       <div className="h-2 rounded-full bg-muted overflow-hidden">
         <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />

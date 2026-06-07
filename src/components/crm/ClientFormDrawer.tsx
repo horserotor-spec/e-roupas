@@ -246,7 +246,7 @@ export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawe
                 </div>
                 <div className="space-y-2">
                   <Label>Categoria</Label>
-                  <Select value={formData.entity_type} onValueChange={(v: "cliente"|"fornecedor"|"colaborador"|"vendedor"|"socio") => setFormData({ ...formData, entity_type: v })}>
+                  <Select value={formData.entity_type} onValueChange={(v: "cliente"|"fornecedor"|"colaborador"|"vendedor"|"socio"|"transportadora") => setFormData({ ...formData, entity_type: v })}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
@@ -256,6 +256,7 @@ export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawe
                       <SelectItem value="colaborador">Colaborador</SelectItem>
                       <SelectItem value="vendedor">Vendedor</SelectItem>
                       <SelectItem value="socio">Sócio</SelectItem>
+                      <SelectItem value="transportadora">Transportadora</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -80,6 +80,19 @@ export interface Order {
   notes: string | null;
   internal_notes: string | null;
   salesperson_name?: string;
+
+    corte_faction?: string | null;
+    corte_start_date?: string | null;
+    corte_end_date?: string | null;
+    costura_faction?: string | null;
+    costura_start_date?: string | null;
+    costura_end_date?: string | null;
+    corte_grid?: Record<string, number>;
+    costura_grid?: Record<string, number>;
+    corte_unit_price?: number;
+    costura_unit_price?: number;
+
+
 }
 
 export type OrderPayload = Partial<Order> & { client_id: string; brand_id: string; items?: OrderItem[]; payments?: OrderPayment[] };
@@ -447,30 +460,43 @@ export function useOrder(id: string) {
         .select(`
           *,
           clients!orders_client_id_fkey(id, name, company_name),
-          brands(id, code),
-          users:responsible_user_id(id, name),
-          salesperson:clients!orders_salesperson_id_fkey(id, name),
-          order_items(*),
-          order_payments(*)
+          brands(id, name, code),
+          seller:users!orders_seller_id_fkey(id, name),
+          salesperson:clients!orders_salesperson_id_fkey(id, name, commission_rate)
         `)
         .eq("id", id)
         .single();
 
       if (error) throw error;
+      if (!data) return null;
 
       return {
         ...data,
         status: data.status as OrderStatus,
         urgent: data.priority === "alta",
-        brand_code: data.brands?.code || "GEN",
-        client_name: data.clients?.name || "Sem Cliente",
-        owner_name: data.users?.name || "Sem Responsável",
+        brand_code: data.brands?.code || "BRN",
+        client_name: data.clients?.company_name || data.clients?.name || "Cliente não informado",
+        owner_name: data.seller?.name || "—",
         salesperson_name: data.salesperson?.name || null,
         items: data.order_items || [],
         payments: data.order_payments || [],
       } as Order;
     },
     enabled: !!id,
+  });
+}
+
+export function useDeleteOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("orders").delete().eq("id", id);
+      if (error) throw error;
+      return true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    }
   });
 }
 
@@ -485,19 +511,28 @@ export function useCreateOrder() {
       delete (orderData as any).clients;
       delete (orderData as any).brands;
       delete (orderData as any).users;
+      delete (orderData as any).order_payments;
+      delete (orderData as any).created_at;
       if (orderData.seller_id === "") orderData.seller_id = null;
       if (orderData.salesperson_id === "") orderData.salesperson_id = null;
       if (orderData.responsible_user_id === "") orderData.responsible_user_id = null;
       
+      delete (orderData as any).mix_fabrics_allowed;
+      if (orderData.departure_date === "") orderData.departure_date = null;
+      if (orderData.expected_date === "") orderData.expected_date = null;
+      if (orderData.deadline === "") orderData.deadline = null;
+      if (orderData.sale_date === "") orderData.sale_date = null;
+      
       // Handle Commission calculation
       let commissionValue = 0;
       if (orderData.salesperson_id) {
-        const { data: seller } = await supabase.from("clients").select("commission_percent").eq("id", orderData.salesperson_id).single();
-        if (seller && seller.commission_percent) {
-          commissionValue = (Number(orderData.final_total || 0) * Number(seller.commission_percent)) / 100;
-          orderData.commissions_total = commissionValue;
+        const { data: salesperson } = await supabase.from("clients").select("*").eq("id", orderData.salesperson_id).single();
+        const rate = salesperson?.commission_rate || salesperson?.commission_percent || 0;
+        if (rate > 0) {
+          commissionValue = Number(orderData.final_total || 0) * (rate / 100);
         }
       }
+      orderData.commissions_total = commissionValue;
       
       // Fetch brand code for the order code prefix
       const { data: brand } = await supabase.from("brands").select("code").eq("id", orderData.brand_id).single();
@@ -521,7 +556,7 @@ export function useCreateOrder() {
         .insert([{
           ...orderData,
           code: finalCode,
-          status: orderData.status || "atendimento"
+          status: orderData.status || "confirmado"
         }])
         .select()
         .single();
@@ -550,8 +585,8 @@ export function useCreateOrder() {
       }
 
       // Insert Payments
-      if (paymentsToInsert && paymentsToInsert.length > 0) {
-        const paymentsWithOrderId = paymentsToInsert.map(p => ({
+      if (payments && payments.length > 0) {
+        const paymentsWithOrderId = payments.map(p => ({
           ...p,
           order_id: newOrder.id
         }));
@@ -602,16 +637,25 @@ export function useUpdateOrder() {
       delete (orderData as any).clients;
       delete (orderData as any).brands;
       delete (orderData as any).users;
+      delete (orderData as any).order_payments;
+      delete (orderData as any).created_at;
       if (orderData.seller_id === "") orderData.seller_id = null;
       if (orderData.salesperson_id === "") orderData.salesperson_id = null;
       if (orderData.responsible_user_id === "") orderData.responsible_user_id = null;
+      
+      delete (orderData as any).mix_fabrics_allowed;
+      if (orderData.departure_date === "") orderData.departure_date = null;
+      if (orderData.expected_date === "") orderData.expected_date = null;
+      if (orderData.deadline === "") orderData.deadline = null;
+      if (orderData.sale_date === "") orderData.sale_date = null;
 
       // Handle Commission calculation
       let commissionValue = 0;
       if (orderData.salesperson_id) {
-        const { data: seller } = await supabase.from("clients").select("commission_percent").eq("id", orderData.salesperson_id).single();
-        if (seller && seller.commission_percent) {
-          commissionValue = (Number(orderData.final_total || 0) * Number(seller.commission_percent)) / 100;
+        const { data: seller } = await supabase.from("clients").select("*").eq("id", orderData.salesperson_id).single();
+        const rate = seller?.commission_rate || seller?.commission_percent || 0;
+        if (rate > 0) {
+          commissionValue = (Number(orderData.final_total || 0) * Number(rate)) / 100;
           orderData.commissions_total = commissionValue;
         }
       }
@@ -649,11 +693,11 @@ export function useUpdateOrder() {
       }
 
       // Handle Payments update
-      if (paymentsToInsert !== undefined) {
+      if (payments !== undefined) {
         await supabase.from("order_payments").delete().eq("order_id", id);
         
-        if (paymentsToInsert.length > 0) {
-          const paymentsWithOrderId = paymentsToInsert.map(p => {
+        if (payments.length > 0) {
+          const paymentsWithOrderId = payments.map(p => {
             const clean = { ...p };
             delete clean.id; // delete ID if it exists so supabase generates new ones, as we just deleted all
             return {

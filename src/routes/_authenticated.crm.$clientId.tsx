@@ -1,4 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { formatCurrency } from "@/lib/utils";
 import { clientById, orders, statusLabel, statusTone, type Client } from "@/lib/mock-data";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ArrowLeft, Mail, Phone, FileText, MapPin } from "lucide-react";
@@ -62,7 +63,7 @@ function ClientPage() {
                 <div className="text-xs font-mono text-muted-foreground w-32">{o.code}</div>
                 <div className="flex-1 text-sm truncate">{o.items.map((i) => i.product).join(", ")}</div>
                 <StatusBadge tone={statusTone[o.status]}>{statusLabel[o.status]}</StatusBadge>
-                <div className="text-sm number w-24 text-right">R$ {o.total.toLocaleString("pt-BR")}</div>
+                <div className="text-sm number w-24 text-right">{formatCurrency(o.total)}</div>
               </Link>
             ))}
             {clientOrders.length === 0 && <p className="px-2 py-6 text-sm text-muted-foreground">Sem pedidos registrados.</p>}

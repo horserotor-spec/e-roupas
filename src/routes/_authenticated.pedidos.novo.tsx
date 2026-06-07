@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { formatCurrency } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,8 @@ import { useProducts, Product } from "@/lib/api/products";
 import { useCreateOrder, OrderItem, OrderPayload, OrderPayment } from "@/lib/api/orders";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { Loader2, Trash2, Plus, ArrowLeft, Wand2, Check, ChevronsUpDown, Save } from "lucide-react";
+import { Loader2, Trash2, Plus, ArrowLeft, Wand2, Save, Check, ChevronsUpDown, Flame } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useCreateProductFromBOM } from "@/lib/api/products";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -80,6 +82,7 @@ function NewOrderPage() {
   const { data: clients } = useClients();
   const { data: products } = useProducts();
   const { data: suppliers } = useSuppliers();
+  const carriers = (clients || []).filter(c => c.entity_type === "transportadora");
   const [brands, setBrands] = useState<{id: string, name: string, code: string}[]>([]);
   const [installmentsCount, setInstallmentsCount] = useState(1);
 
@@ -115,6 +118,9 @@ function NewOrderPage() {
     notes: "",
     internal_notes: "",
     mix_fabrics_allowed: false,
+    status: "confirmado",
+    salesperson_id: "",
+    seller_id: "",
     items: [],
   });
 
@@ -410,8 +416,17 @@ function NewOrderPage() {
         </div>
       </div>
 
-      <div className="max-w-[1400px] mx-auto px-6 py-8 space-y-8">
-        {/* DADOS DO CLIENTE */}
+      <div className="max-w-[1400px] mx-auto px-6 py-8">
+        <Tabs defaultValue="pedido" className="w-full">
+          <div className="flex justify-between items-center mb-6">
+            <TabsList className="grid w-[400px] grid-cols-2">
+              <TabsTrigger value="pedido">Dados do Pedido</TabsTrigger>
+              <TabsTrigger value="financeiro">Financeiro / Interno</TabsTrigger>
+            </TabsList>
+          </div>
+          
+          <TabsContent value="pedido" className="space-y-8 mt-0">
+            {/* DADOS DO CLIENTE */}
         <section>
           <h2 className="text-sm font-semibold text-slate-700 mb-4">Dados do cliente</h2>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
@@ -644,7 +659,7 @@ function NewOrderPage() {
               <Label className="text-xs text-muted-foreground">Total de comissões</Label>
               <div className="h-9 px-3 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(0)}</div>
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 hidden">
               <Label className="text-xs text-muted-foreground">Desconto total dos itens</Label>
               <div className="h-9 px-3 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(itemsDiscountTotal)}</div>
             </div>
@@ -652,7 +667,7 @@ function NewOrderPage() {
               <Label className="text-xs text-muted-foreground">Valor do Frete</Label>
               <div className="h-9 px-3 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(freight)}</div>
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 hidden">
               <Label className="text-xs text-muted-foreground">Total dos itens</Label>
               <div className="h-9 px-3 flex items-center font-medium bg-slate-100 rounded-md text-sm border text-slate-800">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(itemsTotalList)}</div>
             </div>
@@ -679,9 +694,27 @@ function NewOrderPage() {
               <Label className="text-xs text-muted-foreground text-blue-600">Data prevista</Label>
               <Input type="date" className="h-9" value={formData.expected_date || ""} onChange={e => setFormData({...formData, expected_date: e.target.value})} />
             </div>
-            <div className="space-y-1.5 md:col-span-2">
+            <div className="space-y-1.5 md:col-span-1">
               <Label className="text-xs text-muted-foreground text-blue-600">Pedido de compra</Label>
               <Input className="h-9" value={formData.purchase_order || ""} onChange={e => setFormData({...formData, purchase_order: e.target.value})} />
+            </div>
+            <div className="space-y-1.5 md:col-span-1">
+              <Label className="text-xs text-muted-foreground">Status do Pedido *</Label>
+              <Select value={formData.status || "confirmado"} onValueChange={(v) => setFormData({ ...formData, status: v })}>
+                <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="atendimento">Em Atendimento</SelectItem>
+                  <SelectItem value="confirmado">Confirmado</SelectItem>
+                  <SelectItem value="aguardando_financeiro">Ag. Financeiro</SelectItem>
+                  <SelectItem value="liberado_producao">Liberado Prod.</SelectItem>
+                  <SelectItem value="separacao">Separação</SelectItem>
+                  <SelectItem value="corte">Corte</SelectItem>
+                  <SelectItem value="costura">Costura</SelectItem>
+                  <SelectItem value="bordado">Bordado</SelectItem>
+                  <SelectItem value="impressao">Impressão</SelectItem>
+                  <SelectItem value="expedicao">Expedição</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </section>
@@ -738,10 +771,10 @@ function NewOrderPage() {
             <div className="text-xs">
               <span className="text-slate-500 mr-2">Soma pagamentos:</span>
               <span className={`font-bold ${payments.reduce((acc, p) => acc + (p.amount || 0), 0) === finalTotal ? 'text-green-600' : 'text-red-500'}`}>
-                R$ {payments.reduce((acc, p) => acc + (p.amount || 0), 0).toFixed(2)}
+                {formatCurrency(payments.reduce((acc, p) => acc + (p.amount || 0), 0))}
               </span>
               <span className="text-slate-400 mx-1">/</span>
-              <span className="text-slate-600">Total: R$ {finalTotal.toFixed(2)}</span>
+              <span className="text-slate-600">Total: {formatCurrency(finalTotal)}</span>
             </div>
           </div>
         </section>
@@ -753,7 +786,7 @@ function NewOrderPage() {
             <div className="space-y-1.5 md:col-span-2">
               <Label className="text-xs text-muted-foreground">Nome da Transportadora</Label>
               <SearchableCombobox
-                items={(suppliers || []).map(s => ({ id: s.name, name: s.name }))}
+                items={carriers.map(c => ({ id: c.name, name: c.name }))}
                 value={formData.carrier_name || ""}
                 onChange={(v) => setFormData({ ...formData, carrier_name: v })}
                 placeholder="Selecione um transportador"
@@ -798,6 +831,56 @@ function NewOrderPage() {
             </div>
           </div>
         </section>
+        </TabsContent>
+
+        <TabsContent value="financeiro" className="space-y-8 mt-0">
+          <section className="bg-white p-6 rounded-xl border">
+            <h2 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2"><Flame className="size-4 text-orange-500" /> Detalhamento Financeiro (Restrito)</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-4">
+                <div className="bg-slate-50 p-4 rounded-lg border">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Custos e Acréscimos</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-600">Total dos Itens (Sem desconto)</span>
+                      <span className="font-medium">{formatCurrency(itemsTotalList)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-600">Desconto nos Itens</span>
+                      <span className="text-red-500 font-medium">- {formatCurrency(itemsDiscountTotal)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-600">Desconto Adicional (Venda)</span>
+                      <span className="text-red-500 font-medium">- {formatCurrency(saleDiscount)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-600">Frete / Outras Despesas</span>
+                      <span className="text-emerald-600 font-medium">+ {formatCurrency((freight + otherExpenses))}</span>
+                    </div>
+                    <div className="pt-3 border-t flex justify-between items-center font-bold text-slate-800">
+                      <span>Total Final Cobrado</span>
+                      <span>{formatCurrency(finalTotal)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-purple-700 mb-3">Comissionamento</h3>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="text-purple-800 font-medium">Comissão Total Prevista</span>
+                      <span className="font-bold text-purple-900">Calculada automaticamente</span>
+                    </div>
+                    <p className="text-xs text-purple-600 mt-2">A comissão é calculada com base na taxa cadastrada no perfil do vendedor associado a este pedido (Representante). Ela incidirá sobre o valor final do pedido.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </TabsContent>
+        </Tabs>
         {/* CUSTOMIZATIONS MODAL */}
         <Dialog open={activeCustomizationIndex !== null} onOpenChange={(open) => { if (!open) setActiveCustomizationIndex(null); }}>
           <DialogContent className="max-w-4xl">
@@ -847,7 +930,7 @@ function NewOrderPage() {
                                       <Check className={cn("mr-2 h-4 w-4", cust.product_id === p.id ? "opacity-100" : "opacity-0")} />
                                       <div className="flex flex-col">
                                         <span>{p.name}</span>
-                                        <span className="text-[10px] text-muted-foreground">Custo: R${p.cost_price} | Venda: R${p.price}</span>
+                                        <span className="text-[10px] text-muted-foreground">Custo: {formatCurrency(p.cost_price)} | Venda: {formatCurrency(p.price)}</span>
                                       </div>
                                     </CommandItem>
                                   ))}

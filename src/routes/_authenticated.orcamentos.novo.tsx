@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { formatCurrency } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -156,7 +157,7 @@ function NewQuotePage() {
             {grossMargin < 15 ? <AlertTriangle className={cn("size-6", grossMargin < 0 ? "text-red-600" : "text-amber-600")} /> : <TrendingUp className="size-6 text-emerald-600" />}
             <div>
               <p className="text-sm font-semibold">Margem Bruta Estimada</p>
-              <p className="text-xs text-muted-foreground">Custo total: R$ {totalCost.toFixed(2)} | Venda: R$ {finalTotal.toFixed(2)}</p>
+              <p className="text-xs text-muted-foreground">Custo total: {formatCurrency(totalCost)} | Venda: {formatCurrency(finalTotal)}</p>
             </div>
           </div>
           <div className={cn("text-3xl font-bold tracking-tight", grossMargin < 0 ? "text-red-600" : grossMargin < 15 ? "text-amber-600" : "text-emerald-600")}>
@@ -336,7 +337,7 @@ function NewQuotePage() {
                                       <Check className={cn("mr-2 h-4 w-4", cust.product_id === p.id ? "opacity-100" : "opacity-0")} />
                                       <div className="flex flex-col">
                                         <span>{p.name}</span>
-                                        <span className="text-[10px] text-muted-foreground">Custo: R${p.cost_price} | Venda: R${p.price}</span>
+                                        <span className="text-[10px] text-muted-foreground">Custo: {formatCurrency(p.cost_price)} | Venda: {formatCurrency(p.price)}</span>
                                       </div>
                                     </CommandItem>
                                   ))}

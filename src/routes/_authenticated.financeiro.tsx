@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { formatCurrency } from "@/lib/utils";
 import { orders, clientById, statusLabel, statusTone } from "@/lib/mock-data";
 import { StatusBadge } from "@/components/StatusBadge";
 
@@ -34,7 +35,7 @@ function Financeiro() {
                 <div className="text-xs font-mono text-muted-foreground w-32">{o.code}</div>
                 <div className="flex-1 text-sm truncate">{c?.name}</div>
                 <StatusBadge tone={statusTone[o.status]}>{statusLabel[o.status]}</StatusBadge>
-                <div className="text-sm number w-24 text-right font-medium">R$ {o.total.toLocaleString("pt-BR")}</div>
+                <div className="text-sm number w-24 text-right font-medium">{formatCurrency(o.total)}</div>
               </Link>
             );
           })}

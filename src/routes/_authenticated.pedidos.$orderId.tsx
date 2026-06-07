@@ -1,8 +1,9 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
+import { formatCurrency } from "@/lib/utils";
 import { statusLabel, statusTone, processLabel, type OrderStatus } from "@/lib/constants";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Flame, Calendar, User, Package, MessageSquare, Paperclip, CheckCircle2, CircleDashed, Loader2, Lock, Plus, Activity, Edit, RefreshCw, Check } from "lucide-react";
-import { useOrder, useUpdateOrder, useOverrideStockBatch, consumeStockForOrder } from "@/lib/api/orders";
+import { ArrowLeft, Trash2, Flame, Calendar, User, Package, MessageSquare, Paperclip, CheckCircle2, CircleDashed, Loader2, Lock, Plus, Activity, Edit, RefreshCw, Check } from "lucide-react";
+import { useOrder, useUpdateOrder, useDeleteOrder, useOverrideStockBatch, consumeStockForOrder } from "@/lib/api/orders";
 import { useOrderItems } from "@/lib/api/order_items";
 import { useOrderTimeline, logTimelineEvent } from "@/lib/api/timeline";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { useState, useEffect } from "react";
 import { OrderItemDrawer } from "@/components/pedidos/OrderItemDrawer";
 import { toast } from "sonner";
 import { OrderItemProcess, useOrderItemProcesses } from "@/lib/api/production";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -26,8 +28,10 @@ function OrderPage() {
   
   const { data: order, isLoading: isLoadingOrder } = useOrder(orderId);
   const { data: items = [], isLoading: isLoadingItems } = useOrderItems(orderId);
-  const { data: timeline = [], isLoading: isLoadingTimeline } = useOrderTimeline(orderId);
+    const { data: timeline = [], isLoading: isLoadingTimeline } = useOrderTimeline(orderId);
   const updateOrder = useUpdateOrder();
+  const deleteOrder = useDeleteOrder();
+  const navigate = useNavigate();
   const overrideStock = useOverrideStockBatch();
 
   const SIZES = ["2", "4", "6", "8", "10", "12", "14", "16", "PP", "P", "M", "G", "GG", "XG", "G1", "G2", "G3", "G4"];
@@ -43,36 +47,6 @@ function OrderPage() {
     );
 
     if (existing) {
-      if (item.size) {
-        existing.sizes[item.size] = (existing.sizes[item.size] || 0) + (item.quantity || 0);
-      }
-      existing.totalQty += item.quantity || 0;
-      existing.itemIds.push(item.id);
-    } else {
-      const sizes: Record<string, number> = {
-        "2": 0, "4": 0, "6": 0, "8": 0, "10": 0, "12": 0, "14": 0, "16": 0,
-        PP: 0, P: 0, M: 0, G: 0, GG: 0, XG: 0, G1: 0, G2: 0, G3: 0, G4: 0
-      };
-      if (item.size) {
-        sizes[item.size] = item.quantity || 0;
-      }
-      let baseSku = item.sku || "";
-      const parts = baseSku.split("-");
-      if (parts.length >= 4 && parts[0] === "PF") {
-        baseSku = parts.slice(0, -2).join("-");
-        baseSku = baseSku.replace("PF-", "PA-");
-      }
-
-      groupedItems.push({
-        product_id: item.product_id,
-        product_name: item.product_name,
-        sku: baseSku,
-        gender: item.gender || "Unissex",
-        model: item.model,
-        line: item.line,
-        fabric: item.fabric,
-        color: item.color,
-        list_price: item.list_price || 0,
         unit_price: item.unit_price || 0,
         customizations: item.customizations || [],
         notes: item.notes,
@@ -238,8 +212,8 @@ function OrderPage() {
                         {group.notes && <div className="text-xs text-muted-foreground mt-1 italic">“{group.notes}”</div>}
                       </div>
                       <div className="text-right">
-                        <div className="text-sm font-semibold text-slate-800">R$ {((group.unit_price || 0) * group.totalQty).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
-                        <div className="text-xs text-muted-foreground">R$ {group.unit_price?.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} un.</div>
+                        <div className="text-sm font-semibold text-slate-800">{formatCurrency((group.unit_price || 0) * group.totalQty)}</div>
+                        <div className="text-xs text-muted-foreground">{formatCurrency(group.unit_price)} un.</div>
                         <div className="text-xs text-slate-500 mt-1">Total: {group.totalQty} peças</div>
                       </div>
                     </div>

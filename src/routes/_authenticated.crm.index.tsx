@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { formatCurrency } from "@/lib/utils";
 import { useClients, Client, useImportClients } from "@/lib/api/clients";
 import { useState, useDeferredValue, useRef } from "react";
 import { Search, Plus, Loader2, Edit2, Download, Upload } from "lucide-react";
@@ -227,7 +228,7 @@ function CrmPage() {
                   </div>
                 </td>
                 <td className="px-4 py-3 text-right number">{c.orders}</td>
-                <td className="px-4 py-3 text-right number font-medium">R$ {c.total.toLocaleString("pt-BR")}</td>
+                <td className="px-4 py-3 text-right number font-medium">{formatCurrency(c.total)}</td>
                 <td className="px-4 py-3 text-right">
                   <Button variant="ghost" size="icon" onClick={() => openEditClient(c)} className="h-8 w-8 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity">
                     <Edit2 className="size-4" />

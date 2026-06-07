@@ -1,164 +1,259 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useOrders, useUpdateOrderItemStatus, OrderItem, Order } from "@/lib/api/orders";
-import { Loader2, ArrowRight, Printer, Scissors, Shirt, Package, Truck, Box } from "lucide-react";
+import { useOrders, Order } from "@/lib/api/orders";
+import { Loader2, ArrowRight, Clock, Box, ShieldAlert, AlertTriangle, User, Search, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { OrderStatus, statusLabel, statusTone } from "@/lib/constants";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth";
+import { useState, useDeferredValue, useMemo } from "react";
+import { DrawerPedido } from "@/components/pedidos/DrawerPedido";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_authenticated/producao")({
   head: () => ({ meta: [{ title: "Produção · e-roupas OS" }] }),
   component: ProducaoPage,
 });
 
-type ProductionStage = {
-  id: string;
-  label: string;
-  icon: any;
-  color: string;
-};
-
-const stages: ProductionStage[] = [
-  { id: "aguardando", label: "Aguardando", icon: Box, color: "bg-slate-100 text-slate-700 border-slate-200" },
-  { id: "captura", label: "Captura (Picking)", icon: Package, color: "bg-amber-50 text-amber-700 border-amber-200" },
-  { id: "impressao", label: "Impressão / Corte", icon: Printer, color: "bg-blue-50 text-blue-700 border-blue-200" },
-  { id: "prensa", label: "Prensa / Costura", icon: Shirt, color: "bg-purple-50 text-purple-700 border-purple-200" },
-  { id: "manuseio", label: "Manuseio / QC", icon: Scissors, color: "bg-pink-50 text-pink-700 border-pink-200" },
-  { id: "envio", label: "Expedição", icon: Truck, color: "bg-green-50 text-green-700 border-green-200" }
+const KANBAN_STAGES: { id: OrderStatus; label: string; tone: string }[] = [
+  { id: "confirmado", label: "Confirmado", tone: "bg-blue-50 text-blue-700 border-blue-200" },
+  { id: "aguardando_financeiro", label: "Ag. Financeiro", tone: "bg-orange-50 text-orange-700 border-orange-200" },
+  { id: "liberado_producao", label: "Liberado", tone: "bg-purple-50 text-purple-700 border-purple-200" },
+  { id: "separacao", label: "Separação", tone: "bg-slate-100 text-slate-700 border-slate-200" },
+  { id: "corte", label: "Corte", tone: "bg-slate-100 text-slate-700 border-slate-200" },
+  { id: "costura", label: "Costura", tone: "bg-slate-100 text-slate-700 border-slate-200" },
+  { id: "bordado", label: "Bordado", tone: "bg-slate-100 text-slate-700 border-slate-200" },
+  { id: "impressao", label: "Impressão", tone: "bg-slate-100 text-slate-700 border-slate-200" },
+  { id: "prensa", label: "Prensa", tone: "bg-slate-100 text-slate-700 border-slate-200" },
+  { id: "qualidade", label: "Qualidade", tone: "bg-pink-50 text-pink-700 border-pink-200" },
+  { id: "expedicao", label: "Expedição", tone: "bg-green-50 text-green-700 border-green-200" },
 ];
 
 function ProducaoPage() {
   const { data: orders = [], isLoading } = useOrders();
-  const updateStatus = useUpdateOrderItemStatus();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [allowUrgentMove, setAllowUrgentMove] = useState(false);
+  
+  const [q, setQ] = useState("");
+  const deferredQ = useDeferredValue(q);
 
-  // Filter orders that are active in production
-  const activeOrders = orders.filter(o => ["em_producao", "atendimento", "expedicao"].includes(o.status));
+  // Mover pedido
+  const moveOrderMutation = useMutation({
+    mutationFn: async ({ orderId, newStatus, oldStatus }: { orderId: string; newStatus: OrderStatus; oldStatus: OrderStatus }) => {
+      // 1. Update order
+      const { error: updateError } = await supabase
+        .from("orders")
+        .update({ status: newStatus })
+        .eq("id", orderId);
+      
+      if (updateError) throw updateError;
 
-  // Flatten items
-  const allItems: { order: Order; item: OrderItem }[] = [];
-  activeOrders.forEach(o => {
-    o.items.forEach(i => {
-      // ignore concluded items for this board
-      if (i.production_status !== "concluido") {
-        allItems.push({ order: o, item: i });
-      }
-    });
+      // 2. Insert Timeline Event
+      await supabase
+        .from("order_timeline")
+        .insert([{
+          order_id: orderId,
+          user_id: user?.id,
+          event_type: "status_change",
+          description: `Movido de ${statusLabel[oldStatus]} para ${statusLabel[newStatus]} via Kanban.`,
+          // Aqui no futuro poderia gravar um payload json com tempos, etc.
+        }]);
+
+      return true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      toast.success("Pedido movido com sucesso!");
+    },
+    onError: (err) => {
+      toast.error("Erro ao mover pedido.");
+      console.error(err);
+    }
   });
 
-  const handleDragStart = (e: React.DragEvent, itemId: string) => {
-    e.dataTransfer.setData("itemId", itemId);
+  const activeOrders = useMemo(() => {
+    return orders.filter(o => 
+      KANBAN_STAGES.some(s => s.id === o.status) &&
+      (deferredQ === "" || 
+       o.code.toLowerCase().includes(deferredQ.toLowerCase()) || 
+       o.client_name.toLowerCase().includes(deferredQ.toLowerCase()))
+    );
+  }, [orders, deferredQ]);
+
+  const handleDragStart = (e: React.DragEvent, orderId: string, currentStatus: string) => {
+    e.dataTransfer.setData("orderId", orderId);
+    e.dataTransfer.setData("currentStatus", currentStatus);
   };
 
-  const handleDrop = async (e: React.DragEvent, stageId: string) => {
+  const handleDrop = async (e: React.DragEvent, stageId: OrderStatus) => {
     e.preventDefault();
-    const itemId = e.dataTransfer.getData("itemId");
-    if (!itemId) return;
+    const orderId = e.dataTransfer.getData("orderId");
+    const currentStatus = e.dataTransfer.getData("currentStatus") as OrderStatus;
+    
+    if (!orderId || currentStatus === stageId) return;
 
-    try {
-      await updateStatus.mutateAsync({ id: itemId, status: stageId });
-    } catch (err) {
-      toast.error("Erro ao mover item.");
+    // Regras de validação
+    const currentIndex = KANBAN_STAGES.findIndex(s => s.id === currentStatus);
+    const targetIndex = KANBAN_STAGES.findIndex(s => s.id === stageId);
+
+    // Sem a flag "Produção Urgente", só pode mover 1 etapa para frente (ou para trás livremente caso precise voltar)
+    if (!allowUrgentMove && targetIndex > currentIndex + 1) {
+      toast.error("Não é possível pular etapas. Ative 'Produção Urgente' para forçar.");
+      return;
     }
+
+    moveOrderMutation.mutate({ orderId, newStatus: stageId, oldStatus: currentStatus });
   };
 
-  const advanceStage = async (itemId: string, currentStage: string) => {
-    const idx = stages.findIndex(s => s.id === currentStage);
-    let nextStage = "concluido";
-    if (idx >= 0 && idx < stages.length - 1) {
-      nextStage = stages[idx + 1].id;
-    }
-    
-    try {
-      await updateStatus.mutateAsync({ id: itemId, status: nextStage });
-    } catch (err) {
-      toast.error("Erro ao mover item.");
-    }
+  const openDrawer = (order: Order) => {
+    setSelectedOrder(order);
+    setIsDrawerOpen(true);
   };
 
   if (isLoading) {
-    return <div className="flex h-screen items-center justify-center"><Loader2 className="size-8 animate-spin text-primary" /></div>;
+    return <div className="flex h-[calc(100vh-64px)] items-center justify-center"><Loader2 className="size-8 animate-spin text-primary" /></div>;
   }
 
+  // Métricas
+  const atrasados = activeOrders.filter(o => o.deadline && new Date(o.deadline) < new Date()).length;
+  const urgentes = activeOrders.filter(o => o.urgent).length;
+  const total = activeOrders.length;
+
   return (
-    <div className="px-6 md:px-10 py-8 max-w-[1800px] mx-auto h-[calc(100vh-64px)] flex flex-col">
-      <div className="mb-6 flex-shrink-0">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Chão de Fábrica</p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight">Painel de Produção (PCP)</h1>
-        <p className="text-sm text-muted-foreground mt-1">Arraste os itens entre as colunas ou clique na setinha para avançar.</p>
+    <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-50">
+      {/* HEADER */}
+      <div className="flex-shrink-0 bg-white border-b px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Kanban de Produção</h1>
+          <p className="text-sm text-muted-foreground flex items-center gap-4 mt-1">
+            <span><strong className="text-slate-700">{total}</strong> na esteira</span>
+            {atrasados > 0 && <span className="text-red-600 flex items-center gap-1"><AlertTriangle className="size-3" /> {atrasados} atrasados</span>}
+            {urgentes > 0 && <span className="text-orange-600 flex items-center gap-1"><ShieldAlert className="size-3" /> {urgentes} urgentes</span>}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="relative w-64 hidden sm:block">
+            <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              value={q} onChange={(e) => setQ(e.target.value)}
+              placeholder="Buscar pedido ou cliente..."
+              className="h-9 w-full rounded-full border border-slate-200 bg-slate-50 pl-9 pr-4 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+            />
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border bg-slate-50">
+            <Switch id="urgent-mode" checked={allowUrgentMove} onCheckedChange={setAllowUrgentMove} />
+            <Label htmlFor="urgent-mode" className="text-xs font-semibold uppercase text-slate-600 cursor-pointer">Livrar Bloqueios</Label>
+          </div>
+        </div>
       </div>
 
-      <div className="flex gap-4 overflow-x-auto pb-4 flex-1 items-start min-h-0 snap-x">
-        {stages.map((stage) => {
-          const itemsInStage = allItems.filter(x => (x.item.production_status || "aguardando") === stage.id);
-          const Icon = stage.icon;
-          
-          return (
-            <div 
-              key={stage.id} 
-              className="w-80 shrink-0 snap-center h-full flex flex-col"
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => handleDrop(e, stage.id)}
-            >
-              <div className={cn("px-4 py-3 rounded-t-xl border-t border-l border-r font-medium flex items-center justify-between", stage.color)}>
-                <div className="flex items-center gap-2">
-                  <Icon className="size-4" />
-                  <span className="text-sm tracking-tight">{stage.label}</span>
+      {/* KANBAN BOARD */}
+      <div className="flex-1 overflow-x-auto overflow-y-hidden p-6">
+        <div className="flex h-full items-start gap-4 w-max">
+          {KANBAN_STAGES.map((stage) => {
+            const stageOrders = activeOrders.filter(o => o.status === stage.id);
+            
+            return (
+              <div 
+                key={stage.id} 
+                className="w-[320px] shrink-0 h-full max-h-full flex flex-col rounded-xl bg-slate-100/50 border border-slate-200"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => handleDrop(e, stage.id)}
+              >
+                {/* Column Header */}
+                <div className={cn("px-4 py-3 rounded-t-xl border-b font-medium flex items-center justify-between", stage.tone)}>
+                  <span className="text-sm font-semibold tracking-tight uppercase">{stage.label}</span>
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/50">{stageOrders.length}</span>
                 </div>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-white/50">{itemsInStage.length}</span>
-              </div>
-              <div className="bg-slate-100/50 border rounded-b-xl p-2 flex-1 overflow-y-auto space-y-2">
-                {itemsInStage.map(({ order, item }) => (
-                  <div 
-                    key={item.id}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, item.id!)}
-                    className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm hover:shadow cursor-grab active:cursor-grabbing group"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <Link to="/pedidos/$id" params={{ id: order.id }} className="text-[10px] font-mono text-blue-600 hover:underline">
-                        {order.code}
-                      </Link>
-                      <span className="text-[10px] text-muted-foreground font-medium uppercase">{order.client_name}</span>
-                    </div>
-                    
-                    <h3 className="font-semibold text-sm leading-tight text-slate-800">{item.product_name}</h3>
-                    
-                    {item.customizations && item.customizations.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        <p className="text-[10px] font-semibold text-slate-500 uppercase">Ficha Técnica:</p>
-                        {item.customizations.map((c: any, i: number) => (
-                          <div key={i} className="text-xs bg-slate-50 p-1.5 rounded border border-slate-100 flex justify-between">
-                            <span className="font-medium text-slate-700">{c.quantity}x {c.name}</span>
-                            <span className="text-slate-500">{c.details}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="mt-3 pt-3 border-t flex items-center justify-between">
-                      <span className="text-xs font-medium text-slate-600">Qtd: {item.quantity}</span>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => advanceStage(item.id!, stage.id)}
-                        title="Avançar etapa"
-                      >
-                        <ArrowRight className="size-4 text-primary" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
                 
-                {itemsInStage.length === 0 && (
-                  <div className="h-24 flex items-center justify-center text-xs text-slate-400 border-2 border-dashed border-slate-200 rounded-lg">
-                    Vazio
-                  </div>
-                )}
+                {/* Column Cards */}
+                <div className="p-3 flex-1 overflow-y-auto space-y-3 kanban-scroll">
+                  {stageOrders.map(order => {
+                    const overdue = order.deadline && new Date(order.deadline) < new Date();
+                    
+                    // Infer badges from items
+                    const badges = new Set<string>();
+                    order.items?.forEach(i => {
+                      i.customizations?.forEach(c => {
+                        if (c.name.toLowerCase().includes("dtf")) badges.add("DTF");
+                        if (c.name.toLowerCase().includes("bordado")) badges.add("Bordado");
+                        if (c.name.toLowerCase().includes("silk")) badges.add("Silk");
+                      });
+                    });
+
+                    return (
+                      <div 
+                        key={order.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, order.id, order.status)}
+                        onClick={() => openDrawer(order)}
+                        className={cn(
+                          "bg-white p-3.5 rounded-lg border shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing group",
+                          order.urgent ? "border-orange-300 shadow-orange-100" : "border-slate-200"
+                        )}
+                      >
+                        <div className="flex justify-between items-start mb-1.5">
+                          <span className="text-xs font-mono font-bold text-slate-700">
+                            {order.code}
+                          </span>
+                          {order.urgent && <Badge variant="destructive" className="text-[9px] px-1 py-0 h-4">URG</Badge>}
+                        </div>
+                        
+                        <div className="text-sm font-medium leading-tight text-slate-900 mb-2 truncate">
+                          {order.client_name}
+                        </div>
+                        
+                        <div className="text-xs text-slate-500 mb-3 truncate">
+                          {order.items?.map(i => `${i.quantity}x ${i.product_name.split(' ')[0]}`).join(', ') || "Sem itens"}
+                        </div>
+
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {Array.from(badges).map(b => (
+                            <span key={b} className="text-[9px] font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-sm">
+                              {b === 'DTF' ? '🟣' : b === 'Bordado' ? '🟡' : '🟢'} {b}
+                            </span>
+                          ))}
+                        </div>
+
+                        <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
+                          <span className={cn("text-[10px] font-medium flex items-center gap-1", overdue ? "text-red-600 font-bold" : "text-slate-500")}>
+                            <Clock className="size-3" />
+                            {order.deadline ? new Date(order.deadline).toLocaleDateString("pt-BR", {day: '2-digit', month: '2-digit'}) : "S/ prazo"}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">
+                            {order.items?.reduce((acc, i) => acc + i.quantity, 0) || 0} un
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  
+                  {stageOrders.length === 0 && (
+                    <div className="h-24 flex items-center justify-center text-xs text-slate-400 border-2 border-dashed border-slate-200 rounded-lg">
+                      Arraste pedidos para cá
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
+
+      <DrawerPedido 
+        order={selectedOrder} 
+        open={isDrawerOpen} 
+        onOpenChange={setIsDrawerOpen} 
+      />
     </div>
   );
 }

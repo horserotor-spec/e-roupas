@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { formatCurrency } from "@/lib/utils";
 import { useState } from "react";
 import { useQuote, useUpdateQuote, useConvertQuoteToOrder, useCloneQuote } from "@/lib/api/quotes";
 import { useClients } from "@/lib/api/clients";
@@ -129,7 +130,7 @@ function QuoteDetailPage() {
             {/* Total */}
             <div className="rounded-2xl border bg-card p-5">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Total do Orçamento</p>
-              <p className="text-3xl font-bold tracking-tight">R$ {finalTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
+              <p className="text-3xl font-bold tracking-tight">{formatCurrency(finalTotal)}</p>
               <p className="text-xs text-muted-foreground mt-1">Validade: {quote.validity_days} dias</p>
             </div>
           </div>
@@ -214,9 +215,9 @@ function QuoteDetailPage() {
             </table>
           </div>
           <div className="text-right text-sm">
-            <div className="flex justify-between border-b border-gray-200 py-1"><span className="text-gray-600">Subtotal:</span><span>R$ {Number(quote.estimated_total || 0).toLocaleString("pt-BR", {minimumFractionDigits:2})}</span></div>
-            {Number(quote.discount) > 0 && <div className="flex justify-between border-b border-gray-200 py-1"><span className="text-gray-600">Desconto:</span><span>- R$ {Number(quote.discount).toLocaleString("pt-BR", {minimumFractionDigits:2})}</span></div>}
-            {Number(quote.freight_cost) > 0 && <div className="flex justify-between border-b border-gray-200 py-1"><span className="text-gray-600">Frete:</span><span>+ R$ {Number(quote.freight_cost).toLocaleString("pt-BR", {minimumFractionDigits:2})}</span></div>}
+            <div className="flex justify-between border-b border-gray-200 py-1"><span className="text-gray-600">Subtotal:</span><span>{formatCurrency(quote.estimated_total)}</span></div>
+            {Number(quote.discount) > 0 && <div className="flex justify-between border-b border-gray-200 py-1"><span className="text-gray-600">Desconto:</span><span>- {formatCurrency(quote.discount)}</span></div>}
+            {Number(quote.freight_cost) > 0 && <div className="flex justify-between border-b border-gray-200 py-1"><span className="text-gray-600">Frete:</span><span>+ {formatCurrency(quote.freight_cost)}</span></div>}
             <div className="flex justify-between py-2 text-lg font-bold"><span>Total:</span><span>R$ {finalTotal.toLocaleString("pt-BR", {minimumFractionDigits:2})}</span></div>
           </div>
           {quote.notes && <div className="mt-6 text-sm"><h3 className="font-bold border-b border-gray-300 mb-2 uppercase text-xs">Observações</h3><p className="whitespace-pre-wrap">{quote.notes}</p></div>}

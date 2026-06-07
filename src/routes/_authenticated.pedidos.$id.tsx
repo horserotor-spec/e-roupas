@@ -78,6 +78,7 @@ function EditOrderPage() {
   const createProductMutation = useCreateProductFromBOM();
   
   const { data: clients } = useClients();
+  const carriers = (clients || []).filter((c: any) => c.entity_type === "transportadora");
   const { data: products } = useProducts();
   const [brands, setBrands] = useState<{id: string, name: string, code: string}[]>([]);
 
@@ -880,7 +881,7 @@ function EditOrderPage() {
             <div className="space-y-1.5 md:col-span-2">
               <Label className="text-xs text-muted-foreground">Nome da Transportadora</Label>
               <SearchableCombobox
-                items={(suppliers || []).map(s => ({ id: s.name, name: s.name }))}
+                items={(carriers || []).map((c: any) => ({ id: c.name, name: c.name }))}
                 value={formData.carrier_name || ""}
                 onChange={(v) => setFormData({ ...formData, carrier_name: v })}
                 placeholder="Selecione um transportador"
@@ -1046,8 +1047,11 @@ function EditOrderPage() {
         <div className="print-only p-8 text-black bg-white max-w-[210mm] mx-auto min-h-[297mm]">
           <div className="flex justify-between items-end border-b-2 border-black pb-4 mb-6">
             <div>
-              <h1 className="text-3xl font-bold uppercase tracking-tighter">e-roupas</h1>
-              <p className="text-sm text-gray-600">Pedido de Venda / Ordem de Produção</p>
+              <img src="/logo.png" alt="Logo" className="h-10 object-contain mb-2" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              <p className="text-sm font-bold">E-roupas Lab Têxtil Ltda.</p>
+              <p className="text-xs text-gray-600">CNPJ: 18.288.318/0001-85 | (43) 3357-0809</p>
+              <p className="text-xs text-gray-600">Rua Etienne Lenoir, 71 - Industrial - Londrina - PR - CEP 86063-380</p>
+              <p className="text-xs text-gray-600">Pedido de Venda / Ordem de Produção</p>
             </div>
             <div className="text-right">
               <p className="font-bold text-xl">{formData.code}</p>
@@ -1085,12 +1089,32 @@ function EditOrderPage() {
               <tbody>
                 {items.map((item, i) => {
                   const hasCustomizations = item.customizations && item.customizations.length > 0;
+                  const sizesObj = item.sizes || {};
+                  const sizesEntries = Object.entries(sizesObj).filter(([k, v]) => Number(v) > 0);
+                  const qtyTotal = sizesEntries.length > 0 ? sizesEntries.reduce((acc, [_, v]) => acc + Number(v), 0) : Number(item.quantity || 0);
+                  
                   return (
                     <tr key={i} className="print-break-inside-avoid">
-                      <td className="border border-gray-300 p-2 align-top text-center font-bold">{item.quantity}</td>
+                      <td className="border border-gray-300 p-2 align-top text-center font-bold">{qtyTotal}</td>
                       <td className="border border-gray-300 p-2 align-top">
                         <div className="font-semibold">{item.product_name}</div>
-                        <div className="text-xs text-gray-500">SKU: {item.sku || "N/A"}</div>
+                        <div className="mt-1.5 flex flex-wrap gap-2">
+                          <div className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold text-green-700 bg-green-50 border border-green-300 uppercase">
+                            CÓD. ARTE: {item.art_code || "N/A"}
+                          </div>
+                          <div className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold text-slate-700 bg-white border border-slate-300 uppercase">
+                            CÓD. BASE: {item.sku || "N/A"}
+                          </div>
+                        </div>
+                        {sizesEntries.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {sizesEntries.map(([sz, q]) => (
+                              <span key={sz} className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                                <strong>{sz}:</strong> {String(q)}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </td>
                       <td className="border border-gray-300 p-2 align-top">
                         {hasCustomizations ? (
@@ -1102,7 +1126,7 @@ function EditOrderPage() {
                         ) : <span className="text-gray-400 text-xs">Liso / Sem personalização</span>}
                       </td>
                       <td className="border border-gray-300 p-2 align-top text-right number">{(item.unit_price || 0).toLocaleString("pt-BR", {minimumFractionDigits:2})}</td>
-                      <td className="border border-gray-300 p-2 align-top text-right number">{((item.unit_price || 0) * (item.quantity || 1)).toLocaleString("pt-BR", {minimumFractionDigits:2})}</td>
+                      <td className="border border-gray-300 p-2 align-top text-right number">{((item.unit_price || 0) * qtyTotal).toLocaleString("pt-BR", {minimumFractionDigits:2})}</td>
                     </tr>
                   )
                 })}
@@ -1132,14 +1156,17 @@ function EditOrderPage() {
       {/* PRINT LAYOUT: ETIQUETA DE ENVIO (Térmica 100x150mm) */}
       {printLayout === "etiqueta" && (
         <div className="print-only text-black bg-white" style={{ width: "100mm", minHeight: "150mm", padding: "8mm", margin: "0 auto", border: "1px solid #ccc" }}>
-          <div className="border-b-2 border-black pb-2 mb-2">
-            <h1 className="text-2xl font-bold uppercase text-center tracking-tighter">e-roupas</h1>
-            <p className="text-center text-xs uppercase font-bold mt-1">Declaração de Conteúdo / Envio</p>
+          <div className="border-b-2 border-black pb-2 mb-2 flex flex-col items-center">
+            <img src="/logo.png" alt="Logo" className="h-6 object-contain mb-1" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            <p className="text-xs font-bold mt-1">E-roupas Lab Têxtil Ltda.</p>
+            <p className="text-[10px] text-gray-600">CNPJ: 18.288.318/0001-85 | (43) 3357-0809</p>
+            <p className="text-[10px] text-gray-600 text-center">Rua Etienne Lenoir, 71 - Industrial<br/>Londrina - PR - CEP 86063-380</p>
+            <p className="text-center text-[10px] uppercase font-bold mt-2">Declaração de Conteúdo / Envio</p>
           </div>
 
           <div className="mb-4">
             <h2 className="text-[10px] uppercase text-gray-600 mb-1 border-b border-gray-300">Remetente</h2>
-            <p className="text-xs font-bold">e-roupas Confecções LTDA</p>
+            <p className="text-xs font-bold">E-roupas Lab Têxtil Ltda.</p>
           </div>
 
           <div className="mb-4 border-2 border-black p-2 rounded">
