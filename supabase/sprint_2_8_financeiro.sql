@@ -81,3 +81,10 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER set_timestamp_financial_transactions
 BEFORE UPDATE ON public.financial_transactions
 FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp_financial();
+
+-- Adicionar colunas de controle de pagamento em suppliers e clients
+ALTER TABLE public.suppliers ADD COLUMN IF NOT EXISTS payment_terms_days INTEGER DEFAULT 30;
+ALTER TABLE public.suppliers ADD COLUMN IF NOT EXISTS default_payment_method TEXT DEFAULT 'Boleto';
+
+ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS payment_terms_days INTEGER DEFAULT 30;
+ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS default_payment_method TEXT DEFAULT 'Boleto';

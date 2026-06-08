@@ -2,7 +2,7 @@ import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-ro
 import { formatCurrency } from "@/lib/utils";
 import { statusLabel, statusTone, processLabel, type OrderStatus } from "@/lib/constants";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Trash2, Flame, Calendar, User, Package, MessageSquare, Paperclip, CheckCircle2, CircleDashed, Loader2, Lock, Plus, Activity, Edit, RefreshCw, Check } from "lucide-react";
+import { ArrowLeft, Trash2, Flame, Calendar, User, Package, MessageSquare, Paperclip, CheckCircle2, CircleDashed, Loader2, Lock, Plus, Activity, Edit, RefreshCw, Check, Truck, MapPin, Tag, FileText, ExternalLink } from "lucide-react";
 import { useOrder, useUpdateOrder, useDeleteOrder, useOverrideStockBatch, consumeStockForOrder } from "@/lib/api/orders";
 import { useOrderItems } from "@/lib/api/order_items";
 import { useOrderTimeline, logTimelineEvent } from "@/lib/api/timeline";
@@ -198,6 +198,72 @@ function OrderPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <section className="lg:col-span-2 space-y-4">
+          
+          {/* PAINEL LOGÍSTICO */}
+          {order.status === "expedicao" && (
+            <div className="rounded-2xl border border-blue-200 bg-blue-50/30 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-sm font-semibold mb-1 flex items-center gap-2 text-blue-900">
+                    <Truck className="size-4 text-blue-600" /> Logística e Expedição
+                  </h2>
+                  <p className="text-xs text-blue-700/80">Integração SGP Web para geração de etiquetas e postagem.</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="h-8 text-xs bg-white border-blue-200 text-blue-700 hover:bg-blue-50">
+                    <RefreshCw className="size-3.5 mr-1" /> Cotar Frete
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white rounded-lg border border-blue-100 p-3 shadow-sm">
+                  <div className="text-[10px] uppercase font-semibold text-slate-400 mb-1">Dados de Envio</div>
+                  <div className="text-xs font-medium text-slate-700">{order.logistics_type || "Correios"}</div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">
+                    {order.volumes_quantity || 1} volume(s) · {order.gross_weight || 0} kg
+                  </div>
+                  {order.freight_cost > 0 && <div className="text-[11px] text-emerald-600 font-medium mt-1">Frete cobrado: {formatCurrency(order.freight_cost)}</div>}
+                </div>
+                
+                <div className="bg-white rounded-lg border border-blue-100 p-3 shadow-sm">
+                  <div className="text-[10px] uppercase font-semibold text-slate-400 mb-1">Endereço de Entrega</div>
+                  <div className="text-xs font-medium text-slate-700 truncate" title={order.delivery_name || order.client_name}>{order.delivery_name || order.client_name}</div>
+                  <div className="text-[11px] text-slate-500 mt-0.5 flex gap-1">
+                    <MapPin className="size-3 shrink-0" />
+                    <span className="truncate" title={`${order.delivery_street || ''}, ${order.delivery_number || ''}`}>
+                      {order.delivery_street || 'Endereço não informado'}, {order.delivery_number || ''}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-slate-400 mt-0.5 ml-4">
+                    CEP: {order.delivery_zip || '—'} · {order.delivery_city || ''}/{order.delivery_state || ''}
+                  </div>
+                </div>
+                
+                <div className="bg-white rounded-lg border border-blue-100 p-3 shadow-sm">
+                  <div className="text-[10px] uppercase font-semibold text-slate-400 mb-1">Rastreamento SGP</div>
+                  {order.tracking_code ? (
+                    <>
+                      <div className="text-xs font-mono font-medium text-slate-800 flex items-center justify-between">
+                        {order.tracking_code}
+                        <Button variant="ghost" size="icon" className="size-5 hover:bg-blue-50">
+                          <ExternalLink className="size-3 text-blue-600" />
+                        </Button>
+                      </div>
+                      <div className="text-[10px] font-medium mt-1 px-1.5 py-0.5 rounded-full inline-flex bg-amber-100 text-amber-700">
+                        {order.logistics_status || "Aguardando Postagem"}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-[11px] text-slate-500 italic mt-1">
+                      Etiqueta não gerada.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="rounded-2xl border border-border bg-card p-5">
             <div className="flex items-center justify-between mb-4">
               <div>

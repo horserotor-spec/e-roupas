@@ -128,17 +128,21 @@ export interface InventoryBatch {
 // 2. Auxiliary Lookups (Fabrics, Colors, Categories, Suppliers)
 // ----------------------------------------------------------------------
 
-export function useSuppliers() {
+export function useSuppliers(search?: string) {
   return useQuery({
-    queryKey: ["suppliers_inventory"],
+    queryKey: ["suppliers_inventory", search],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("clients")
-        .select("id, name, company_name, phone, email, city")
+      let query = supabase
+        .from("suppliers")
+        .select("*")
         .eq("active", true)
-        .ilike("entity_type", "%fornecedor%")
         .order("name");
 
+      if (search) {
+        query = query.ilike("name", `%${search}%`);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data as Supplier[];
     },
@@ -150,8 +154,8 @@ export function useCreateSupplier() {
   return useMutation({
     mutationFn: async (payload: Partial<Supplier>) => {
       const { data, error } = await supabase
-        .from("clients")
-        .insert([{ ...payload, entity_type: 'fornecedor', entity_class: 'pj' }])
+        .from("suppliers")
+        .insert([payload])
         .select()
         .single();
       
@@ -178,7 +182,10 @@ export function useSaveSupplier() {
         return data;
       }
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["suppliers"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["suppliers_inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+    },
   });
 }
 
@@ -811,8 +818,36 @@ export function useCreateInventoryEntryGrid() {
       }
       
       if (totalCost > 0) {
+        let termsDays = 30;
+        let paymentMethod = "Boleto";
+
+        const { data: supplierObj } = await supabase
+          .from("suppliers")
+          .select("*")
+          .eq("id", payload.supplier_id)
+          .maybeSingle();
+
+        if (supplierObj) {
+          termsDays = supplierObj.payment_terms_days !== undefined && supplierObj.payment_terms_days !== null 
+            ? Number(supplierObj.payment_terms_days) 
+            : 30;
+          paymentMethod = supplierObj.default_payment_method || "Boleto";
+        } else {
+          const { data: clientObj } = await supabase
+            .from("clients")
+            .select("*")
+            .eq("id", payload.supplier_id)
+            .maybeSingle();
+          if (clientObj) {
+            termsDays = clientObj.payment_terms_days !== undefined && clientObj.payment_terms_days !== null 
+              ? Number(clientObj.payment_terms_days) 
+              : 30;
+            paymentMethod = clientObj.default_payment_method || "Boleto";
+          }
+        }
+
         const dueDate = new Date();
-        dueDate.setDate(dueDate.getDate() + 30); // Padrão 30 dias, ideal seria ler do fornecedor
+        dueDate.setDate(dueDate.getDate() + termsDays);
 
         await supabase.from("financial_transactions").insert([{
           type: 'pagar',
@@ -822,6 +857,7 @@ export function useCreateInventoryEntryGrid() {
           due_date: dueDate.toISOString().split('T')[0],
           status: 'pendente',
           supplier_id: payload.supplier_id,
+          payment_method: paymentMethod,
           cost_center: 'Estoque'
         }]);
       }

@@ -218,26 +218,24 @@ function FinanceWidget() {
   }, []);
 
   return (
-    <ul className="space-y-3">
-      {metrics.atrasadas > 0 && (
-        <li className="text-xs flex gap-3">
-          <span className="mt-1 size-1.5 rounded-full bg-destructive shrink-0" />
-          <div className="min-w-0">
-            <span className="font-medium text-red-600">{metrics.atrasadas} contas a pagar atrasadas</span>
-          </div>
-        </li>
-      )}
-      <li className="text-xs flex gap-3">
-        <span className="mt-1 size-1.5 rounded-full bg-warning shrink-0" />
-        <div className="min-w-0">
-          <span className="font-medium text-amber-600">{metrics.vencemHoje} contas vencem hoje</span>
-        </div>
+    <ul className="space-y-3 font-medium">
+      <li className="text-xs flex items-center gap-2">
+        <span className="text-lg">⚠</span>
+        <span className={metrics.atrasadas > 0 ? "text-red-600 font-bold" : "text-slate-500"}>
+          {metrics.atrasadas} contas atrasadas
+        </span>
       </li>
-      <li className="text-xs flex gap-3">
-        <span className="mt-1 size-1.5 rounded-full bg-success shrink-0" />
-        <div className="min-w-0">
-          <span className="font-medium text-emerald-600">R$ {metrics.recebidosMes.toLocaleString('pt-BR', {minimumFractionDigits: 2})} recebidos este mês</span>
-        </div>
+      <li className="text-xs flex items-center gap-2">
+        <span className="text-lg">💰</span>
+        <span className={metrics.vencemHoje > 0 ? "text-amber-600 font-bold" : "text-slate-500"}>
+          {metrics.vencemHoje} contas vencem hoje
+        </span>
+      </li>
+      <li className="text-xs flex items-center gap-2">
+        <span className="text-lg">✔</span>
+        <span className="text-emerald-600 font-bold">
+          R$ {metrics.recebidosMes.toLocaleString('pt-BR', {minimumFractionDigits: 2})} recebidos mês
+        </span>
       </li>
     </ul>
   );

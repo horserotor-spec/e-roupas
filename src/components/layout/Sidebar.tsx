@@ -28,6 +28,9 @@ const allNavItems: NavItem[] = [
       { to: "/financeiro/pagar", label: "Contas a Pagar" },
       { to: "/financeiro/fluxo-caixa", label: "Fluxo de Caixa" },
       { to: "/financeiro/dre", label: "DRE Gerencial" },
+      { to: "/financeiro/centro-custos", label: "Centro de Custos" },
+      { to: "/financeiro/conciliacao", label: "Conciliação" },
+      { to: "/financeiro/relatorios", label: "Relatórios" },
     ]
   },
   { to: "/expedicao", label: "Expedição", icon: Truck, module: "Expedição" },
@@ -63,6 +66,10 @@ export function Sidebar() {
       <nav className="flex-1 px-2.5 py-3 space-y-0.5 overflow-y-auto">
         {nav.map((item) => {
           const isActive = item.exact ? pathname === item.to : pathname.startsWith(item.to);
+          // Para itens com subItems, o módulo é considerado ativo se estamos em qualquer rota do grupo
+          const isModuleActive = item.subItems
+            ? (pathname === item.to || pathname.startsWith(item.to + "/"))
+            : isActive;
           const Icon = item.icon;
           return (
             <div key={item.to} className="flex flex-col">
@@ -75,13 +82,13 @@ export function Sidebar() {
                     : item.highlighted
                       ? "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 shadow-sm"
                       : "text-sidebar-foreground/80 hover:bg-muted hover:text-foreground",
-                  isActive && item.subItems ? "text-primary" : ""
+                  isModuleActive && item.subItems ? "text-primary" : ""
                 )}
               >
-                <Icon className={cn("size-4", isActive ? "text-primary" : (item.highlighted ? "text-green-600" : "text-muted-foreground group-hover:text-foreground"))} />
+                <Icon className={cn("size-4", isModuleActive ? "text-primary" : (item.highlighted ? "text-green-600" : "text-muted-foreground group-hover:text-foreground"))} />
                 <span>{item.label}</span>
               </Link>
-              {item.subItems && isActive && (
+              {item.subItems && isModuleActive && (
                 <div className="ml-6 mt-1 flex flex-col space-y-1 border-l pl-2 border-border/50">
                   {item.subItems.map(sub => {
                     const isSubActive = pathname === sub.to;

@@ -77,6 +77,25 @@ export interface Order {
   gross_weight: number;
   freight_cost: number;
   logistics_integration: string | null;
+  logistics_type?: string | null;
+  tracking_code?: string | null;
+  shipping_label_url?: string | null;
+  posting_date?: string | null;
+  logistics_status?: string | null;
+  delivery_name?: string | null;
+  delivery_phone?: string | null;
+  delivery_document?: string | null;
+  delivery_zip?: string | null;
+  delivery_street?: string | null;
+  delivery_number?: string | null;
+  delivery_complement?: string | null;
+  delivery_neighborhood?: string | null;
+  delivery_city?: string | null;
+  delivery_state?: string | null;
+  delivery_reference?: string | null;
+  package_height?: number;
+  package_width?: number;
+  package_length?: number;
   notes: string | null;
   internal_notes: string | null;
   salesperson_name?: string;
@@ -490,7 +509,7 @@ export function useOrder(id: string) {
           clients!orders_client_id_fkey(id, name, company_name),
           brands(id, name, code),
           seller:users!orders_seller_id_fkey(id, name),
-          salesperson:clients!orders_salesperson_id_fkey(id, name, commission_rate)
+          salesperson:clients!orders_salesperson_id_fkey(id, name, commission_percent)
         `)
         .eq("id", id)
         .single();
@@ -626,26 +645,19 @@ export function useCreateOrder() {
         if (paymentsError) throw paymentsError;
 
         // Gerar Contas a Receber no Módulo Financeiro
-        if (orderData.status === "confirmado" || orderData.status === "aguardando_financeiro" || orderData.status === "em_producao") {
+        if (["confirmado", "aguardando_financeiro", "em_producao", "separacao", "corte", "costura", "bordado", "impressao", "expedicao"].includes(orderData.status || "")) {
           const financialTransactions = payments.map((p, idx) => {
-             // Simplificação: distribuímos os vencimentos com 30 dias de diferença se for parcelado, senão hoje.
-             // Na vida real, seria capturado a data exata da parcela.
-             const isParcelado = String(p.installments).toLowerCase().includes('x');
-             const parcelsCount = isParcelado ? parseInt(String(p.installments).replace(/\D/g, '')) || 1 : 1;
-             
-             const today = new Date();
-             today.setMonth(today.getMonth() + idx); // Apenas um exemplo de parcelamento
-             
+             const pDueDate = p.due_date ? new Date(p.due_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
              return {
-               type: 'receber',
-               description: `Recebimento - Pedido ${finalCode} (${p.installments})`,
-               amount: Number(p.amount),
-               original_amount: Number(p.amount),
-               due_date: today.toISOString().split('T')[0],
-               status: 'pendente',
-               payment_method: p.method,
-               order_id: newOrder.id,
-               cost_center: 'Comercial'
+                type: 'receber',
+                description: `Recebimento - Pedido ${finalCode} (Parc. ${idx + 1}/${payments.length})`,
+                amount: Number(p.amount),
+                original_amount: Number(p.amount),
+                due_date: pDueDate,
+                status: p.status || 'pendente',
+                payment_method: p.payment_method || 'PIX',
+                order_id: newOrder.id,
+                cost_center: 'Comercial'
              };
           });
           
@@ -665,6 +677,19 @@ export function useCreateOrder() {
           status: 'pendente',
           supplier_id: orderData.salesperson_id,
           order_id: newOrder.id,
+          notes: 'Gerado automaticamente na criação do pedido.'
+        }]);
+
+        await supabase.from("financial_transactions").insert([{
+          type: 'pagar',
+          description: `Comissão de Venda - Pedido ${finalCode}`,
+          amount: commissionValue,
+          original_amount: commissionValue,
+          due_date: dueDate.toISOString().split('T')[0],
+          status: 'pendente',
+          supplier_id: orderData.salesperson_id,
+          order_id: newOrder.id,
+          cost_center: 'Comercial',
           notes: 'Gerado automaticamente na criação do pedido.'
         }]);
       }
@@ -749,12 +774,22 @@ export function useUpdateOrder() {
 
       // Handle Payments update
       if (payments !== undefined) {
+        const { data: existingTx } = await supabase
+          .from("financial_transactions")
+          .select("*")
+          .eq("order_id", id);
+          
+        const receivedTxDates = (existingTx || [])
+          .filter(tx => tx.status === 'recebido')
+          .map(tx => ({ amount: Number(tx.amount), due_date: tx.due_date, payment_date: tx.payment_date }));
+
+        await supabase.from("financial_transactions").delete().eq("order_id", id).eq("type", "receber");
         await supabase.from("order_payments").delete().eq("order_id", id);
         
         if (payments.length > 0) {
           const paymentsWithOrderId = payments.map(p => {
             const clean = { ...p };
-            delete clean.id; // delete ID if it exists so supabase generates new ones, as we just deleted all
+            delete clean.id;
             return {
               ...clean,
               order_id: id
@@ -764,17 +799,64 @@ export function useUpdateOrder() {
             .from("order_payments")
             .insert(paymentsWithOrderId);
           if (paymentsError) throw paymentsError;
+
+          const orderStatus = orderData.status || data.status || "";
+          if (["confirmado", "aguardando_financeiro", "em_producao", "separacao", "corte", "costura", "bordado", "impressao", "expedicao"].includes(orderStatus)) {
+            const transToInsert = payments.map((p, idx) => {
+              const pDueDate = p.due_date ? new Date(p.due_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+              const pAmount = Number(p.amount);
+              const wasReceived = receivedTxDates.find(rx => rx.amount === pAmount && rx.due_date === pDueDate);
+              
+              return {
+                type: 'receber',
+                description: `Recebimento - Pedido ${data.code} (Parc. ${idx + 1}/${payments.length})`,
+                amount: pAmount,
+                original_amount: pAmount,
+                due_date: pDueDate,
+                status: wasReceived ? 'recebido' : (p.status || 'pendente'),
+                payment_date: wasReceived ? wasReceived.payment_date : p.payment_date || null,
+                payment_method: p.payment_method || 'PIX',
+                order_id: id,
+                cost_center: 'Comercial'
+              };
+            });
+            
+            await supabase.from("financial_transactions").insert(transToInsert);
+          }
+        }
+      } else if (orderData.status !== undefined) {
+        if (orderData.status === "cancelado") {
+          await supabase.from("financial_transactions").update({ status: 'cancelado' }).eq("order_id", id);
+        } else if (["confirmado", "aguardando_financeiro", "em_producao", "separacao", "corte", "costura", "bordado", "impressao", "expedicao"].includes(orderData.status)) {
+          const { data: existingTx } = await supabase.from("financial_transactions").select("id").eq("order_id", id).eq("type", "receber");
+          if (!existingTx || existingTx.length === 0) {
+            const { data: currentPayments } = await supabase.from("order_payments").select("*").eq("order_id", id);
+            if (currentPayments && currentPayments.length > 0) {
+              const transToInsert = currentPayments.map((p, idx) => ({
+                type: 'receber',
+                description: `Recebimento - Pedido ${data.code} (Parc. ${idx + 1}/${currentPayments.length})`,
+                amount: Number(p.amount),
+                original_amount: Number(p.amount),
+                due_date: p.due_date ? new Date(p.due_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                status: p.status || 'pendente',
+                payment_method: p.payment_method || 'PIX',
+                order_id: id,
+                cost_center: 'Comercial'
+              }));
+              await supabase.from("financial_transactions").insert(transToInsert);
+            }
+          }
         }
       }
 
       // Handle Accounts Payable update/creation
       if (orderData.salesperson_id) {
-        // Delete existing payable for this order if any
         await supabase.from("accounts_payable").delete().eq("order_id", id);
+        await supabase.from("financial_transactions").delete().eq("order_id", id).eq("type", "pagar").ilike("description", "%Comissão%");
         
         if (commissionValue > 0) {
           const dueDate = new Date();
-          dueDate.setDate(dueDate.getDate() + 30); // Default 30 days
+          dueDate.setDate(dueDate.getDate() + 30);
           
           await supabase.from("accounts_payable").insert([{
             description: `Comissão de Venda - Pedido atualizado`,
@@ -784,6 +866,137 @@ export function useUpdateOrder() {
             supplier_id: orderData.salesperson_id,
             order_id: id,
             notes: 'Recalculado automaticamente na atualização do pedido.'
+          }]);
+
+          await supabase.from("financial_transactions").insert([{
+            type: 'pagar',
+            description: `Comissão de Venda - Pedido atualizado`,
+            amount: commissionValue,
+            original_amount: commissionValue,
+            due_date: dueDate.toISOString().split('T')[0],
+            status: 'pendente',
+            supplier_id: orderData.salesperson_id,
+            order_id: id,
+            cost_center: 'Comercial',
+            notes: 'Recalculado automaticamente na atualização do pedido.'
+          }]);
+        }
+      }
+
+      // Handle Accounts Payable for Corte and Costura Factions
+      // Deletar lançamentos antigos de corte/costura para este pedido
+      await supabase.from("accounts_payable").delete().eq("order_id", id).ilike("description", "%Serviço - Corte - Pedido%");
+      await supabase.from("accounts_payable").delete().eq("order_id", id).ilike("description", "%Serviço - Costura - Pedido%");
+      await supabase.from("financial_transactions").delete().eq("order_id", id).eq("type", "pagar").ilike("description", "%Serviço - Corte - Pedido%");
+      await supabase.from("financial_transactions").delete().eq("order_id", id).eq("type", "pagar").ilike("description", "%Serviço - Costura - Pedido%");
+
+      // Buscar categorias de Corte e Costura
+      const { data: catCorte } = await supabase.from("financial_categories").select("id").eq("name", "Corte").maybeSingle();
+      const { data: catCostura } = await supabase.from("financial_categories").select("id").eq("name", "Costura").maybeSingle();
+      
+      const corteCategoryId = catCorte?.id || null;
+      const costuraCategoryId = catCostura?.id || null;
+
+      const orderCode = data.code;
+
+      // Sincronizar Corte
+      if (data.corte_faction && data.corte_grid && data.corte_unit_price) {
+        const qtyTotal = Object.values(data.corte_grid || {}).reduce((acc, v) => acc + (Number(v) || 0), 0);
+        const amount = qtyTotal * Number(data.corte_unit_price || 0);
+
+        if (amount > 0) {
+          const { data: fac } = await supabase
+            .from("clients")
+            .select("id, payment_terms_days, default_payment_method")
+            .eq("name", data.corte_faction)
+            .eq("entity_type", "fornecedor")
+            .maybeSingle();
+
+          let dueDate = new Date();
+          if (data.corte_end_date) {
+            dueDate = new Date(data.corte_end_date);
+          } else if (fac?.payment_terms_days) {
+            dueDate.setDate(dueDate.getDate() + Number(fac.payment_terms_days));
+          } else {
+            dueDate.setDate(dueDate.getDate() + 30);
+          }
+
+          const desc = `Serviço - Corte - Pedido ${orderCode} - Facção ${data.corte_faction}`;
+
+          await supabase.from("accounts_payable").insert([{
+            description: desc,
+            amount: amount,
+            due_date: dueDate.toISOString(),
+            status: 'pendente',
+            supplier_id: fac?.id || null,
+            order_id: id,
+            notes: `Gerado automaticamente com base na grade de corte do pedido.`
+          }]);
+
+          await supabase.from("financial_transactions").insert([{
+            type: 'pagar',
+            description: desc,
+            amount: amount,
+            original_amount: amount,
+            due_date: dueDate.toISOString().split('T')[0],
+            status: 'pendente',
+            payment_method: fac?.default_payment_method || 'Boleto',
+            supplier_id: fac?.id || null,
+            order_id: id,
+            cost_center: 'Produção',
+            category_id: corteCategoryId,
+            notes: `Gerado automaticamente com base na grade de corte do pedido.`
+          }]);
+        }
+      }
+
+      // Sincronizar Costura
+      if (data.costura_faction && data.costura_grid && data.costura_unit_price) {
+        const qtyTotal = Object.values(data.costura_grid || {}).reduce((acc, v) => acc + (Number(v) || 0), 0);
+        const amount = qtyTotal * Number(data.costura_unit_price || 0);
+
+        if (amount > 0) {
+          const { data: fac } = await supabase
+            .from("clients")
+            .select("id, payment_terms_days, default_payment_method")
+            .eq("name", data.costura_faction)
+            .eq("entity_type", "fornecedor")
+            .maybeSingle();
+
+          let dueDate = new Date();
+          if (data.costura_end_date) {
+            dueDate = new Date(data.costura_end_date);
+          } else if (fac?.payment_terms_days) {
+            dueDate.setDate(dueDate.getDate() + Number(fac.payment_terms_days));
+          } else {
+            dueDate.setDate(dueDate.getDate() + 30);
+          }
+
+          const desc = `Serviço - Costura - Pedido ${orderCode} - Facção ${data.costura_faction}`;
+
+          await supabase.from("accounts_payable").insert([{
+            description: desc,
+            amount: amount,
+            due_date: dueDate.toISOString(),
+            status: 'pendente',
+            supplier_id: fac?.id || null,
+            order_id: id,
+            notes: `Gerado automaticamente com base na grade de costura do pedido.`
+          }]);
+
+          await supabase.from("financial_transactions").insert([{
+            type: 'pagar',
+            description: desc,
+            amount: amount,
+            original_amount: amount,
+            due_date: dueDate.toISOString().split('T')[0],
+            status: 'pendente',
+            payment_method: fac?.default_payment_method || 'Boleto',
+            supplier_id: fac?.id || null,
+            order_id: id,
+            cost_center: 'Produção',
+            category_id: costuraCategoryId,
+            notes: `Gerado automaticamente com base na grade de costura do pedido.`
           }]);
         }
       }

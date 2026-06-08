@@ -110,6 +110,20 @@ function EditOrderPage() {
     gross_weight: 0,
     freight_cost: 0,
     logistics_integration: "",
+    logistics_type: "Correios",
+    delivery_name: "",
+    delivery_document: "",
+    delivery_phone: "",
+    delivery_zip: "",
+    delivery_street: "",
+    delivery_number: "",
+    delivery_complement: "",
+    delivery_neighborhood: "",
+    delivery_city: "",
+    delivery_state: "",
+    package_height: 0,
+    package_width: 0,
+    package_length: 0,
     notes: "",
     internal_notes: "",
     mix_fabrics_allowed: false,
@@ -123,6 +137,27 @@ function EditOrderPage() {
 
   const [payments, setPayments] = useState<any[]>([]);
   const [installmentsCount, setInstallmentsCount] = useState(1);
+
+  useEffect(() => {
+    if (formData.client_id && clients && !loadingOrder) {
+      const selectedClient = clients.find(c => c.id === formData.client_id);
+      if (selectedClient && !formData.delivery_zip) {
+        setFormData(prev => ({
+          ...prev,
+          delivery_name: prev.delivery_name || selectedClient.name || "",
+          delivery_document: prev.delivery_document || selectedClient.document || "",
+          delivery_phone: prev.delivery_phone || selectedClient.phone || "",
+          delivery_zip: prev.delivery_zip || selectedClient.zip_code || "",
+          delivery_street: prev.delivery_street || selectedClient.street || "",
+          delivery_number: prev.delivery_number || selectedClient.number || "",
+          delivery_complement: prev.delivery_complement || selectedClient.complement || "",
+          delivery_neighborhood: prev.delivery_neighborhood || selectedClient.neighborhood || "",
+          delivery_city: prev.delivery_city || selectedClient.city || "",
+          delivery_state: prev.delivery_state || selectedClient.state || ""
+        }));
+      }
+    }
+  }, [formData.client_id, clients, loadingOrder]);
 
   useEffect(() => {
     supabase.from("orders").select("*, order_items(*), order_payments(*)").eq("id", id).single().then(({ data }) => {
@@ -906,12 +941,30 @@ function EditOrderPage() {
           </div>
         </section>
 
-        {/* TRANSPORTADOR */}
+        {/* LOGÍSTICA E ENTREGA */}
         <section>
-          <h2 className="text-sm font-semibold text-slate-700 mb-4">Transportador</h2>
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-6">
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-sm font-semibold text-slate-700">Logística e Entrega</h2>
+            <div className="h-px flex-1 bg-slate-200 ml-4"></div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            <div className="space-y-1.5 md:col-span-1">
+              <Label className="text-xs text-muted-foreground text-blue-600">Tipo Logístico</Label>
+              <Select value={formData.logistics_type || "Correios"} onValueChange={(v) => setFormData({ ...formData, logistics_type: v })}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Correios">Correios (SGP Web)</SelectItem>
+                  <SelectItem value="Transportadora">Transportadora (SGP Web)</SelectItem>
+                  <SelectItem value="Motoboy">Motoboy</SelectItem>
+                  <SelectItem value="Retirada Local">Retirada Local</SelectItem>
+                  <SelectItem value="Entrega Própria">Entrega Própria</SelectItem>
+                  <SelectItem value="Dropshipping">Dropshipping Fornecedor</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-1.5 md:col-span-2">
-              <Label className="text-xs text-muted-foreground">Nome da Transportadora</Label>
+              <Label className="text-xs text-muted-foreground">Nome da Transportadora (Se aplicável)</Label>
               <SearchableCombobox
                 items={(carriers || []).map((c: any) => ({ id: c.name, name: c.name }))}
                 value={formData.carrier_name || ""}
@@ -926,8 +979,59 @@ function EditOrderPage() {
                 <SelectContent><SelectItem value="CIF">Remetente (CIF)</SelectItem><SelectItem value="FOB">Destinatário (FOB)</SelectItem></SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 bg-slate-50 p-4 rounded-lg border border-slate-200">
+            <div className="col-span-12 mb-2"><h3 className="text-xs font-semibold uppercase text-slate-500">Endereço de Entrega</h3></div>
+            
+            <div className="space-y-1.5 col-span-12 md:col-span-4">
+              <Label className="text-xs text-muted-foreground">Nome / Destinatário</Label>
+              <Input className="h-8 text-xs bg-white" value={formData.delivery_name || ""} onChange={e => setFormData({...formData, delivery_name: e.target.value})} />
+            </div>
+            <div className="space-y-1.5 col-span-6 md:col-span-4">
+              <Label className="text-xs text-muted-foreground">CPF / CNPJ</Label>
+              <Input className="h-8 text-xs bg-white" value={formData.delivery_document || ""} onChange={e => setFormData({...formData, delivery_document: e.target.value})} />
+            </div>
+            <div className="space-y-1.5 col-span-6 md:col-span-4">
+              <Label className="text-xs text-muted-foreground">Telefone</Label>
+              <Input className="h-8 text-xs bg-white" value={formData.delivery_phone || ""} onChange={e => setFormData({...formData, delivery_phone: e.target.value})} />
+            </div>
+            
+            <div className="space-y-1.5 col-span-6 md:col-span-3">
+              <Label className="text-xs text-muted-foreground">CEP</Label>
+              <Input className="h-8 text-xs bg-white" value={formData.delivery_zip || ""} onChange={e => setFormData({...formData, delivery_zip: e.target.value})} />
+            </div>
+            <div className="space-y-1.5 col-span-12 md:col-span-7">
+              <Label className="text-xs text-muted-foreground">Rua / Logradouro</Label>
+              <Input className="h-8 text-xs bg-white" value={formData.delivery_street || ""} onChange={e => setFormData({...formData, delivery_street: e.target.value})} />
+            </div>
+            <div className="space-y-1.5 col-span-6 md:col-span-2">
+              <Label className="text-xs text-muted-foreground">Número</Label>
+              <Input className="h-8 text-xs bg-white" value={formData.delivery_number || ""} onChange={e => setFormData({...formData, delivery_number: e.target.value})} />
+            </div>
+            
+            <div className="space-y-1.5 col-span-6 md:col-span-3">
+              <Label className="text-xs text-muted-foreground">Complemento</Label>
+              <Input className="h-8 text-xs bg-white" value={formData.delivery_complement || ""} onChange={e => setFormData({...formData, delivery_complement: e.target.value})} />
+            </div>
+            <div className="space-y-1.5 col-span-6 md:col-span-4">
+              <Label className="text-xs text-muted-foreground">Bairro</Label>
+              <Input className="h-8 text-xs bg-white" value={formData.delivery_neighborhood || ""} onChange={e => setFormData({...formData, delivery_neighborhood: e.target.value})} />
+            </div>
+            <div className="space-y-1.5 col-span-8 md:col-span-4">
+              <Label className="text-xs text-muted-foreground">Cidade</Label>
+              <Input className="h-8 text-xs bg-white" value={formData.delivery_city || ""} onChange={e => setFormData({...formData, delivery_city: e.target.value})} />
+            </div>
+            <div className="space-y-1.5 col-span-4 md:col-span-1">
+              <Label className="text-xs text-muted-foreground">UF</Label>
+              <Input className="h-8 text-xs bg-white" maxLength={2} value={formData.delivery_state || ""} onChange={e => setFormData({...formData, delivery_state: e.target.value.toUpperCase()})} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-6 mt-6">
+            <div className="col-span-2 md:col-span-6 mb-[-10px]"><h3 className="text-xs font-semibold uppercase text-slate-500">Volume e Dimensões (Cálculo Automático)</h3></div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Quantidade (Vol)</Label>
+              <Label className="text-xs text-muted-foreground">Qtd (Vol)</Label>
               <Input type="number" className="h-9" value={formData.volumes_quantity || ""} onChange={e => setFormData({...formData, volumes_quantity: parseInt(e.target.value) || 0})} />
             </div>
             <div className="space-y-1.5">
@@ -935,7 +1039,19 @@ function EditOrderPage() {
               <Input type="number" step="0.01" className="h-9" value={formData.gross_weight || ""} onChange={e => setFormData({...formData, gross_weight: parseFloat(e.target.value) || 0})} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground text-blue-600">Frete</Label>
+              <Label className="text-xs text-muted-foreground">Altura (cm)</Label>
+              <Input type="number" step="0.1" className="h-9" value={formData.package_height || ""} onChange={e => setFormData({...formData, package_height: parseFloat(e.target.value) || 0})} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Largura (cm)</Label>
+              <Input type="number" step="0.1" className="h-9" value={formData.package_width || ""} onChange={e => setFormData({...formData, package_width: parseFloat(e.target.value) || 0})} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Comp. (cm)</Label>
+              <Input type="number" step="0.1" className="h-9" value={formData.package_length || ""} onChange={e => setFormData({...formData, package_length: parseFloat(e.target.value) || 0})} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground text-blue-600">Frete Cobrado</Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">R$</span>
                 <Input type="number" step="0.01" className="h-9 pl-8" value={formData.freight_cost || ""} onChange={e => setFormData({...formData, freight_cost: parseFloat(e.target.value) || 0})} />

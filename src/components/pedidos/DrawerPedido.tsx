@@ -18,9 +18,9 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Save, Factory, X } from "lucide-react";
-
-
+import { Trash2, Save, Factory, X, MessageSquare, Phone } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 interface DrawerPedidoProps {
   order: Order | null;
   open: boolean;
@@ -34,6 +34,75 @@ export function DrawerPedido({ order, open, onOpenChange }: DrawerPedidoProps) {
   const deleteOrder = useDeleteOrder();
   const { data: clients = [] } = useClients();
   const suppliers = clients.filter(c => c.entity_type === "fornecedor");
+
+  // Buscar reservas de estoque para identificar itens em falta
+  const { data: reservations = [] } = useQuery({
+    queryKey: ["order_reservations", order.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("stock_reservations")
+        .select("*, inventory_batches(*)")
+        .eq("order_id", order.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!order.id,
+  });
+
+  // Buscar detalhes dos produtos e seus fornecedores de insumos (MP)
+  const { data: productsDetails = [] } = useQuery({
+    queryKey: ["order_products_suppliers", order.id],
+    queryFn: async () => {
+      const productIds = order.items?.map(i => i.product_id).filter(Boolean) || [];
+      if (productIds.length === 0) return [];
+      
+      const { data: prods, error } = await supabase
+        .from("products")
+        .select("*, suppliers(*)")
+        .in("id", productIds);
+      
+      if (error) throw error;
+      
+      const results = [...(prods || [])];
+      
+      // Se for PA (Produto Acabado), tentar resolver o fornecedor da MP correspondente
+      for (const prod of results) {
+        if (!prod.suppliers && prod.format === 'PA' && prod.model_id && prod.fabric_id && prod.color_id) {
+          const { data: mpProd } = await supabase
+            .from("products")
+            .select("*, suppliers(*)")
+            .eq("format", "MP")
+            .eq("model_id", prod.model_id)
+            .eq("fabric_id", prod.fabric_id)
+            .eq("color_id", prod.color_id)
+            .eq("active", true)
+            .maybeSingle();
+          
+          if (mpProd && mpProd.suppliers) {
+            prod.suppliers = mpProd.suppliers;
+          }
+        }
+      }
+      return results;
+    },
+    enabled: !!order.items && order.items.length > 0,
+  });
+
+  // Buscar transações financeiras (Contas a Pagar) do pedido para Corte e Costura
+  const { data: prodPayments = [], refetch: refetchPayments } = useQuery({
+    queryKey: ["order_production_payments", order.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("financial_transactions")
+        .select("*")
+        .eq("order_id", order.id)
+        .eq("type", "pagar");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!order.id,
+  });
+
   const [isSavingProd, setIsSavingProd] = useState(false);
   const [prodForm, setProdForm] = useState({
     corte_faction: "",
@@ -104,6 +173,7 @@ export function DrawerPedido({ order, open, onOpenChange }: DrawerPedidoProps) {
     setIsSavingProd(true);
     try {
       await updateOrder.mutateAsync({ id: order.id, ...prodForm });
+      refetchPayments();
       toast.success("Dados de produção salvos com sucesso!");
     } catch (e: any) {
       toast.error("Erro ao salvar dados: " + e.message);
@@ -111,6 +181,9 @@ export function DrawerPedido({ order, open, onOpenChange }: DrawerPedidoProps) {
       setIsSavingProd(false);
     }
   };
+
+  const cortePayment = prodPayments.find((p: any) => p.description?.toLowerCase().includes("corte"));
+  const costuraPayment = prodPayments.find((p: any) => p.description?.toLowerCase().includes("costura"));
 
   const overdue = order.deadline && new Date(order.deadline) < new Date() && order.status !== "entregue" && order.status !== "finalizado";
 
@@ -177,26 +250,79 @@ export function DrawerPedido({ order, open, onOpenChange }: DrawerPedidoProps) {
                 <Package className="size-4 text-muted-foreground" /> Itens do Pedido ({order.items?.length || 0})
               </h3>
               <div className="space-y-3">
-                {order.items?.map((item) => (
-                  <div key={item.id} className="p-3 rounded-lg border bg-card">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="font-medium text-sm">{item.quantity}x {item.product_name} {item.size ? `(Tam: ${item.size})` : ''}</div>
-                      <span className="text-xs text-muted-foreground font-mono">{item.sku || "N/A"}</span>
-                    </div>
-                    {item.customizations && item.customizations.length > 0 && (
-                      <div className="mt-2 space-y-1.5">
-                        <div className="text-[10px] font-semibold text-muted-foreground uppercase">Personalizações</div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {item.customizations.map((c: any, i: number) => (
-                            <Badge key={i} variant="secondary" className="text-[10px] bg-slate-100 font-normal">
-                              {c.name} {c.details ? `(${c.details})` : ''}
-                            </Badge>
-                          ))}
-                        </div>
+                {order.items?.map((item) => {
+                  const itemReservations = reservations.filter((r: any) => r.order_item_id === item.id);
+                  const qtyReserved = itemReservations.reduce((acc: number, r: any) => acc + Number(r.quantity), 0);
+                  const qtyMissing = Math.max(0, Number(item.quantity) - qtyReserved);
+
+                  const prodDetail = productsDetails.find((p: any) => p.id === item.product_id);
+                  const supplier = prodDetail?.suppliers;
+
+                  return (
+                    <div key={item.id} className="p-3 rounded-lg border bg-card">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="font-medium text-sm">{item.quantity}x {item.product_name} {item.size ? `(Tam: ${item.size})` : ''}</div>
+                        <span className="text-xs text-muted-foreground font-mono">{item.sku || "N/A"}</span>
                       </div>
-                    )}
-                  </div>
-                ))}
+
+                      {/* Status de Estoque */}
+                      <div className="mt-1 flex items-center justify-between">
+                        <span className="text-xs">
+                          {qtyMissing > 0 ? (
+                            <span className="text-red-600 font-semibold flex items-center gap-1">
+                              ⚠️ Falta de Estoque ({qtyMissing} un. em falta)
+                            </span>
+                          ) : (
+                            <span className="text-green-600 font-semibold flex items-center gap-1">
+                              ✓ Estoque Alocado
+                            </span>
+                          )}
+                        </span>
+                      </div>
+
+                      {/* Link com Fornecedor de Matéria-Prima em falta */}
+                      {qtyMissing > 0 && supplier && (
+                        <div className="mt-2.5 p-2.5 bg-red-50/50 border border-red-100 rounded-lg text-xs">
+                          <div className="font-bold text-red-800 uppercase text-[9px] mb-1">Fornecedor da Matéria-Prima (Insumo)</div>
+                          <div className="text-slate-700 font-semibold">{supplier.name}</div>
+                          <div className="text-[10px] text-slate-500 mt-0.5">Prazo de Entrega: <strong className="text-slate-700">{supplier.lead_time_days} dias</strong></div>
+                          
+                          {(supplier.phone || supplier.whatsapp) && (
+                            <div className="mt-2 flex items-center gap-2">
+                              <Button 
+                                variant="outline" 
+                                size="icon" 
+                                className="h-6 w-6 border-red-200 text-red-600 hover:bg-red-50"
+                                onClick={() => {
+                                  const num = (supplier.whatsapp || supplier.phone).replace(/\D/g, "");
+                                  const msg = encodeURIComponent(`Olá, precisamos de matéria-prima para o pedido ${order.code}. Você tem o tecido do item "${item.product_name}" com prazo para entrega?`);
+                                  window.open(`https://wa.me/55${num}?text=${msg}`, "_blank");
+                                }}
+                                title="Enviar mensagem no WhatsApp"
+                              >
+                                <MessageSquare className="size-3" />
+                              </Button>
+                              <span className="text-[10px] text-slate-500 font-mono">Contato: {supplier.whatsapp || supplier.phone}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {item.customizations && item.customizations.length > 0 && (
+                        <div className="mt-2.5 space-y-1.5 pt-2.5 border-t border-slate-100">
+                          <div className="text-[10px] font-semibold text-muted-foreground uppercase">Personalizações</div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {item.customizations.map((c: any, i: number) => (
+                              <Badge key={i} variant="secondary" className="text-[10px] bg-slate-100 font-normal">
+                                {c.name} {c.details ? `(${c.details})` : ''}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
                 {(!order.items || order.items.length === 0) && (
                   <div className="text-sm text-muted-foreground italic">Nenhum item adicionado.</div>
                 )}
@@ -298,6 +424,23 @@ export function DrawerPedido({ order, open, onOpenChange }: DrawerPedidoProps) {
                   <div className="text-[10px] text-slate-500 text-right mt-1">
                     {Object.values(prodForm.corte_grid).reduce((a,b)=>a+(b||0),0)} peças totais
                   </div>
+
+                  {cortePayment && (
+                    <div className="mt-3 pt-3 border-t border-dashed border-slate-200 space-y-1.5">
+                      <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Lançamento Financeiro</div>
+                      <div className="flex items-center justify-between">
+                        <Badge variant="outline" className={`text-[9px] px-1.5 py-0.5 font-semibold uppercase ${
+                          cortePayment.status === 'pago' ? 'bg-green-50 text-green-700 border-green-200' :
+                          cortePayment.status === 'atrasado' ? 'bg-red-50 text-red-700 border-red-200' :
+                          cortePayment.status === 'vence_hoje' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                          'bg-slate-50 text-slate-700 border-slate-200'
+                        }`}>
+                          {cortePayment.status === 'pago' ? 'Pago' : cortePayment.status === 'atrasado' ? 'Atrasado' : 'Pendente'}
+                        </Badge>
+                        <span className="text-[10px] text-slate-500">Vencimento: <strong className="text-slate-700">{cortePayment.due_date ? cortePayment.due_date.split('-').reverse().join('/') : '—'}</strong></span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Costura */}
@@ -380,6 +523,23 @@ export function DrawerPedido({ order, open, onOpenChange }: DrawerPedidoProps) {
                   <div className="text-[10px] text-slate-500 text-right mt-1">
                     {Object.values(prodForm.costura_grid).reduce((a,b)=>a+(b||0),0)} peças totais
                   </div>
+
+                  {costuraPayment && (
+                    <div className="mt-3 pt-3 border-t border-dashed border-slate-200 space-y-1.5">
+                      <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Lançamento Financeiro</div>
+                      <div className="flex items-center justify-between">
+                        <Badge variant="outline" className={`text-[9px] px-1.5 py-0.5 font-semibold uppercase ${
+                          costuraPayment.status === 'pago' ? 'bg-green-50 text-green-700 border-green-200' :
+                          costuraPayment.status === 'atrasado' ? 'bg-red-50 text-red-700 border-red-200' :
+                          costuraPayment.status === 'vence_hoje' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                          'bg-slate-50 text-slate-700 border-slate-200'
+                        }`}>
+                          {costuraPayment.status === 'pago' ? 'Pago' : costuraPayment.status === 'atrasado' ? 'Atrasado' : 'Pendente'}
+                        </Badge>
+                        <span className="text-[10px] text-slate-500">Vencimento: <strong className="text-slate-700">{costuraPayment.due_date ? costuraPayment.due_date.split('-').reverse().join('/') : '—'}</strong></span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

@@ -27,15 +27,19 @@ import { Route as AuthenticatedPedidosIndexRouteImport } from './routes/_authent
 import { Route as AuthenticatedOrcamentosIndexRouteImport } from './routes/_authenticated.orcamentos.index'
 import { Route as AuthenticatedFinanceiroIndexRouteImport } from './routes/_authenticated.financeiro.index'
 import { Route as AuthenticatedCrmIndexRouteImport } from './routes/_authenticated.crm.index'
+import { Route as PrintEtiquetaIdRouteImport } from './routes/print.etiqueta.$id'
 import { Route as AuthenticatedUsuariosNovoRouteImport } from './routes/_authenticated.usuarios.novo'
 import { Route as AuthenticatedUsuariosIdRouteImport } from './routes/_authenticated.usuarios.$id'
 import { Route as AuthenticatedPedidosNovoRouteImport } from './routes/_authenticated.pedidos.novo'
 import { Route as AuthenticatedPedidosOrderIdRouteImport } from './routes/_authenticated.pedidos.$orderId'
 import { Route as AuthenticatedPedidosIdRouteImport } from './routes/_authenticated.pedidos.$id'
+import { Route as AuthenticatedFinanceiroRelatoriosRouteImport } from './routes/_authenticated.financeiro.relatorios'
 import { Route as AuthenticatedFinanceiroReceberRouteImport } from './routes/_authenticated.financeiro.receber'
 import { Route as AuthenticatedFinanceiroPagarRouteImport } from './routes/_authenticated.financeiro.pagar'
 import { Route as AuthenticatedFinanceiroFluxoCaixaRouteImport } from './routes/_authenticated.financeiro.fluxo-caixa'
 import { Route as AuthenticatedFinanceiroDreRouteImport } from './routes/_authenticated.financeiro.dre'
+import { Route as AuthenticatedFinanceiroConciliacaoRouteImport } from './routes/_authenticated.financeiro.conciliacao'
+import { Route as AuthenticatedFinanceiroCentroCustosRouteImport } from './routes/_authenticated.financeiro.centro-custos'
 import { Route as AuthenticatedCrmClientIdRouteImport } from './routes/_authenticated.crm.$clientId'
 
 const LoginRoute = LoginRouteImport.update({
@@ -133,6 +137,11 @@ const AuthenticatedCrmIndexRoute = AuthenticatedCrmIndexRouteImport.update({
   path: '/crm/',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const PrintEtiquetaIdRoute = PrintEtiquetaIdRouteImport.update({
+  id: '/print/etiqueta/$id',
+  path: '/print/etiqueta/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedUsuariosNovoRoute =
   AuthenticatedUsuariosNovoRouteImport.update({
     id: '/usuarios/novo',
@@ -161,6 +170,12 @@ const AuthenticatedPedidosIdRoute = AuthenticatedPedidosIdRouteImport.update({
   path: '/pedidos/$id',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedFinanceiroRelatoriosRoute =
+  AuthenticatedFinanceiroRelatoriosRouteImport.update({
+    id: '/relatorios',
+    path: '/relatorios',
+    getParentRoute: () => AuthenticatedFinanceiroRoute,
+  } as any)
 const AuthenticatedFinanceiroReceberRoute =
   AuthenticatedFinanceiroReceberRouteImport.update({
     id: '/receber',
@@ -185,6 +200,18 @@ const AuthenticatedFinanceiroDreRoute =
     path: '/dre',
     getParentRoute: () => AuthenticatedFinanceiroRoute,
   } as any)
+const AuthenticatedFinanceiroConciliacaoRoute =
+  AuthenticatedFinanceiroConciliacaoRouteImport.update({
+    id: '/conciliacao',
+    path: '/conciliacao',
+    getParentRoute: () => AuthenticatedFinanceiroRoute,
+  } as any)
+const AuthenticatedFinanceiroCentroCustosRoute =
+  AuthenticatedFinanceiroCentroCustosRouteImport.update({
+    id: '/centro-custos',
+    path: '/centro-custos',
+    getParentRoute: () => AuthenticatedFinanceiroRoute,
+  } as any)
 const AuthenticatedCrmClientIdRoute =
   AuthenticatedCrmClientIdRouteImport.update({
     id: '/crm/$clientId',
@@ -205,15 +232,19 @@ export interface FileRoutesByFullPath {
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/print/$id': typeof PrintIdRoute
   '/crm/$clientId': typeof AuthenticatedCrmClientIdRoute
+  '/financeiro/centro-custos': typeof AuthenticatedFinanceiroCentroCustosRoute
+  '/financeiro/conciliacao': typeof AuthenticatedFinanceiroConciliacaoRoute
   '/financeiro/dre': typeof AuthenticatedFinanceiroDreRoute
   '/financeiro/fluxo-caixa': typeof AuthenticatedFinanceiroFluxoCaixaRoute
   '/financeiro/pagar': typeof AuthenticatedFinanceiroPagarRoute
   '/financeiro/receber': typeof AuthenticatedFinanceiroReceberRoute
+  '/financeiro/relatorios': typeof AuthenticatedFinanceiroRelatoriosRoute
   '/pedidos/$id': typeof AuthenticatedPedidosIdRoute
   '/pedidos/$orderId': typeof AuthenticatedPedidosOrderIdRoute
   '/pedidos/novo': typeof AuthenticatedPedidosNovoRoute
   '/usuarios/$id': typeof AuthenticatedUsuariosIdRoute
   '/usuarios/novo': typeof AuthenticatedUsuariosNovoRoute
+  '/print/etiqueta/$id': typeof PrintEtiquetaIdRoute
   '/crm/': typeof AuthenticatedCrmIndexRoute
   '/financeiro/': typeof AuthenticatedFinanceiroIndexRoute
   '/orcamentos/': typeof AuthenticatedOrcamentosIndexRoute
@@ -233,15 +264,19 @@ export interface FileRoutesByTo {
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/print/$id': typeof PrintIdRoute
   '/crm/$clientId': typeof AuthenticatedCrmClientIdRoute
+  '/financeiro/centro-custos': typeof AuthenticatedFinanceiroCentroCustosRoute
+  '/financeiro/conciliacao': typeof AuthenticatedFinanceiroConciliacaoRoute
   '/financeiro/dre': typeof AuthenticatedFinanceiroDreRoute
   '/financeiro/fluxo-caixa': typeof AuthenticatedFinanceiroFluxoCaixaRoute
   '/financeiro/pagar': typeof AuthenticatedFinanceiroPagarRoute
   '/financeiro/receber': typeof AuthenticatedFinanceiroReceberRoute
+  '/financeiro/relatorios': typeof AuthenticatedFinanceiroRelatoriosRoute
   '/pedidos/$id': typeof AuthenticatedPedidosIdRoute
   '/pedidos/$orderId': typeof AuthenticatedPedidosOrderIdRoute
   '/pedidos/novo': typeof AuthenticatedPedidosNovoRoute
   '/usuarios/$id': typeof AuthenticatedUsuariosIdRoute
   '/usuarios/novo': typeof AuthenticatedUsuariosNovoRoute
+  '/print/etiqueta/$id': typeof PrintEtiquetaIdRoute
   '/crm': typeof AuthenticatedCrmIndexRoute
   '/financeiro': typeof AuthenticatedFinanceiroIndexRoute
   '/orcamentos': typeof AuthenticatedOrcamentosIndexRoute
@@ -264,15 +299,19 @@ export interface FileRoutesById {
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
   '/print/$id': typeof PrintIdRoute
   '/_authenticated/crm/$clientId': typeof AuthenticatedCrmClientIdRoute
+  '/_authenticated/financeiro/centro-custos': typeof AuthenticatedFinanceiroCentroCustosRoute
+  '/_authenticated/financeiro/conciliacao': typeof AuthenticatedFinanceiroConciliacaoRoute
   '/_authenticated/financeiro/dre': typeof AuthenticatedFinanceiroDreRoute
   '/_authenticated/financeiro/fluxo-caixa': typeof AuthenticatedFinanceiroFluxoCaixaRoute
   '/_authenticated/financeiro/pagar': typeof AuthenticatedFinanceiroPagarRoute
   '/_authenticated/financeiro/receber': typeof AuthenticatedFinanceiroReceberRoute
+  '/_authenticated/financeiro/relatorios': typeof AuthenticatedFinanceiroRelatoriosRoute
   '/_authenticated/pedidos/$id': typeof AuthenticatedPedidosIdRoute
   '/_authenticated/pedidos/$orderId': typeof AuthenticatedPedidosOrderIdRoute
   '/_authenticated/pedidos/novo': typeof AuthenticatedPedidosNovoRoute
   '/_authenticated/usuarios/$id': typeof AuthenticatedUsuariosIdRoute
   '/_authenticated/usuarios/novo': typeof AuthenticatedUsuariosNovoRoute
+  '/print/etiqueta/$id': typeof PrintEtiquetaIdRoute
   '/_authenticated/crm/': typeof AuthenticatedCrmIndexRoute
   '/_authenticated/financeiro/': typeof AuthenticatedFinanceiroIndexRoute
   '/_authenticated/orcamentos/': typeof AuthenticatedOrcamentosIndexRoute
@@ -295,15 +334,19 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/print/$id'
     | '/crm/$clientId'
+    | '/financeiro/centro-custos'
+    | '/financeiro/conciliacao'
     | '/financeiro/dre'
     | '/financeiro/fluxo-caixa'
     | '/financeiro/pagar'
     | '/financeiro/receber'
+    | '/financeiro/relatorios'
     | '/pedidos/$id'
     | '/pedidos/$orderId'
     | '/pedidos/novo'
     | '/usuarios/$id'
     | '/usuarios/novo'
+    | '/print/etiqueta/$id'
     | '/crm/'
     | '/financeiro/'
     | '/orcamentos/'
@@ -323,15 +366,19 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/print/$id'
     | '/crm/$clientId'
+    | '/financeiro/centro-custos'
+    | '/financeiro/conciliacao'
     | '/financeiro/dre'
     | '/financeiro/fluxo-caixa'
     | '/financeiro/pagar'
     | '/financeiro/receber'
+    | '/financeiro/relatorios'
     | '/pedidos/$id'
     | '/pedidos/$orderId'
     | '/pedidos/novo'
     | '/usuarios/$id'
     | '/usuarios/novo'
+    | '/print/etiqueta/$id'
     | '/crm'
     | '/financeiro'
     | '/orcamentos'
@@ -353,15 +400,19 @@ export interface FileRouteTypes {
     | '/_authenticated/relatorios'
     | '/print/$id'
     | '/_authenticated/crm/$clientId'
+    | '/_authenticated/financeiro/centro-custos'
+    | '/_authenticated/financeiro/conciliacao'
     | '/_authenticated/financeiro/dre'
     | '/_authenticated/financeiro/fluxo-caixa'
     | '/_authenticated/financeiro/pagar'
     | '/_authenticated/financeiro/receber'
+    | '/_authenticated/financeiro/relatorios'
     | '/_authenticated/pedidos/$id'
     | '/_authenticated/pedidos/$orderId'
     | '/_authenticated/pedidos/novo'
     | '/_authenticated/usuarios/$id'
     | '/_authenticated/usuarios/novo'
+    | '/print/etiqueta/$id'
     | '/_authenticated/crm/'
     | '/_authenticated/financeiro/'
     | '/_authenticated/orcamentos/'
@@ -375,6 +426,7 @@ export interface RootRouteChildren {
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   LoginRoute: typeof LoginRoute
   PrintIdRoute: typeof PrintIdRoute
+  PrintEtiquetaIdRoute: typeof PrintEtiquetaIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -505,6 +557,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCrmIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/print/etiqueta/$id': {
+      id: '/print/etiqueta/$id'
+      path: '/print/etiqueta/$id'
+      fullPath: '/print/etiqueta/$id'
+      preLoaderRoute: typeof PrintEtiquetaIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/usuarios/novo': {
       id: '/_authenticated/usuarios/novo'
       path: '/usuarios/novo'
@@ -540,6 +599,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPedidosIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/financeiro/relatorios': {
+      id: '/_authenticated/financeiro/relatorios'
+      path: '/relatorios'
+      fullPath: '/financeiro/relatorios'
+      preLoaderRoute: typeof AuthenticatedFinanceiroRelatoriosRouteImport
+      parentRoute: typeof AuthenticatedFinanceiroRoute
+    }
     '/_authenticated/financeiro/receber': {
       id: '/_authenticated/financeiro/receber'
       path: '/receber'
@@ -568,6 +634,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedFinanceiroDreRouteImport
       parentRoute: typeof AuthenticatedFinanceiroRoute
     }
+    '/_authenticated/financeiro/conciliacao': {
+      id: '/_authenticated/financeiro/conciliacao'
+      path: '/conciliacao'
+      fullPath: '/financeiro/conciliacao'
+      preLoaderRoute: typeof AuthenticatedFinanceiroConciliacaoRouteImport
+      parentRoute: typeof AuthenticatedFinanceiroRoute
+    }
+    '/_authenticated/financeiro/centro-custos': {
+      id: '/_authenticated/financeiro/centro-custos'
+      path: '/centro-custos'
+      fullPath: '/financeiro/centro-custos'
+      preLoaderRoute: typeof AuthenticatedFinanceiroCentroCustosRouteImport
+      parentRoute: typeof AuthenticatedFinanceiroRoute
+    }
     '/_authenticated/crm/$clientId': {
       id: '/_authenticated/crm/$clientId'
       path: '/crm/$clientId'
@@ -579,20 +659,29 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedFinanceiroRouteChildren {
+  AuthenticatedFinanceiroCentroCustosRoute: typeof AuthenticatedFinanceiroCentroCustosRoute
+  AuthenticatedFinanceiroConciliacaoRoute: typeof AuthenticatedFinanceiroConciliacaoRoute
   AuthenticatedFinanceiroDreRoute: typeof AuthenticatedFinanceiroDreRoute
   AuthenticatedFinanceiroFluxoCaixaRoute: typeof AuthenticatedFinanceiroFluxoCaixaRoute
   AuthenticatedFinanceiroPagarRoute: typeof AuthenticatedFinanceiroPagarRoute
   AuthenticatedFinanceiroReceberRoute: typeof AuthenticatedFinanceiroReceberRoute
+  AuthenticatedFinanceiroRelatoriosRoute: typeof AuthenticatedFinanceiroRelatoriosRoute
   AuthenticatedFinanceiroIndexRoute: typeof AuthenticatedFinanceiroIndexRoute
 }
 
 const AuthenticatedFinanceiroRouteChildren: AuthenticatedFinanceiroRouteChildren =
   {
+    AuthenticatedFinanceiroCentroCustosRoute:
+      AuthenticatedFinanceiroCentroCustosRoute,
+    AuthenticatedFinanceiroConciliacaoRoute:
+      AuthenticatedFinanceiroConciliacaoRoute,
     AuthenticatedFinanceiroDreRoute: AuthenticatedFinanceiroDreRoute,
     AuthenticatedFinanceiroFluxoCaixaRoute:
       AuthenticatedFinanceiroFluxoCaixaRoute,
     AuthenticatedFinanceiroPagarRoute: AuthenticatedFinanceiroPagarRoute,
     AuthenticatedFinanceiroReceberRoute: AuthenticatedFinanceiroReceberRoute,
+    AuthenticatedFinanceiroRelatoriosRoute:
+      AuthenticatedFinanceiroRelatoriosRoute,
     AuthenticatedFinanceiroIndexRoute: AuthenticatedFinanceiroIndexRoute,
   }
 
@@ -654,6 +743,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   LoginRoute: LoginRoute,
   PrintIdRoute: PrintIdRoute,
+  PrintEtiquetaIdRoute: PrintEtiquetaIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
