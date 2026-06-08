@@ -171,8 +171,75 @@ function Dashboard() {
             )}
           </ul>
         </section>
+
+        <section className="rounded-2xl border border-border bg-card p-5">
+          <h2 className="text-sm font-semibold tracking-tight mb-1">Radar Financeiro</h2>
+          <p className="text-xs text-muted-foreground mb-4">Módulo de contas a receber/pagar.</p>
+          <FinanceWidget />
+        </section>
       </div>
     </div>
+  );
+}
+
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+
+function FinanceWidget() {
+  const [metrics, setMetrics] = useState({ atrasadas: 0, vencemHoje: 0, recebidosMes: 0 });
+
+  useEffect(() => {
+    const load = async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+      
+      const { data } = await supabase.from('financial_transactions').select('*');
+      if (data) {
+        let atrasadas = 0;
+        let vencemHoje = 0;
+        let recebidosMes = 0;
+
+        data.forEach(t => {
+          const amt = Number(t.amount);
+          if (t.type === 'pagar' && t.status === 'pendente') {
+            if (t.due_date < today) atrasadas++;
+          }
+          if (t.status === 'pendente' && t.due_date === today) {
+            vencemHoje++;
+          }
+          if (t.type === 'receber' && (t.status === 'recebido' || t.status === 'pago') && t.payment_date >= startOfMonth) {
+            recebidosMes += amt;
+          }
+        });
+        setMetrics({ atrasadas, vencemHoje, recebidosMes });
+      }
+    };
+    load();
+  }, []);
+
+  return (
+    <ul className="space-y-3">
+      {metrics.atrasadas > 0 && (
+        <li className="text-xs flex gap-3">
+          <span className="mt-1 size-1.5 rounded-full bg-destructive shrink-0" />
+          <div className="min-w-0">
+            <span className="font-medium text-red-600">{metrics.atrasadas} contas a pagar atrasadas</span>
+          </div>
+        </li>
+      )}
+      <li className="text-xs flex gap-3">
+        <span className="mt-1 size-1.5 rounded-full bg-warning shrink-0" />
+        <div className="min-w-0">
+          <span className="font-medium text-amber-600">{metrics.vencemHoje} contas vencem hoje</span>
+        </div>
+      </li>
+      <li className="text-xs flex gap-3">
+        <span className="mt-1 size-1.5 rounded-full bg-success shrink-0" />
+        <div className="min-w-0">
+          <span className="font-medium text-emerald-600">R$ {metrics.recebidosMes.toLocaleString('pt-BR', {minimumFractionDigits: 2})} recebidos este mês</span>
+        </div>
+      </li>
+    </ul>
   );
 }
 

@@ -8,8 +8,9 @@ export interface User {
   phone?: string;
   avatarUrl?: string;
   role: string;
-  permissions: Record<string, string>;
-  active: boolean;
+  permissions: Record<string, Record<string, boolean>>;
+  status: string;
+  forcePasswordChange?: boolean;
 }
 
 interface AuthCtx {
@@ -50,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 id: sessionUser.id,
                 name: sessionUser.user_metadata?.full_name || sessionUser.email?.split('@')[0] || 'Usuário',
                 email: sessionUser.email,
+                status: 'Ativo'
               })
               .select("*, roles(name)")
               .single();
@@ -68,16 +70,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        // Fetch permissions
-        const { data: perms } = await supabase
+        // Bloquear acesso se inativo/bloqueado/desligado
+        if (profile.status === 'Bloqueado' || profile.status === 'Inativo' || profile.status === 'Desligado') {
+          console.warn(`User is ${profile.status}, denying access.`);
+          await supabase.auth.signOut();
+          setUser(null);
+          return;
+        }
+
+        // Fetch permissions (actions column is JSONB, with fallback to permission_level)
+        const { data: perms, error: permsErr } = await supabase
           .from("user_permissions")
-          .select("module, permission_level")
+          .select("module, actions, permission_level")
           .eq("user_id", authUserId);
 
-        const permissionsMap: Record<string, string> = {};
-        if (perms) {
+        const permissionsMap: Record<string, Record<string, boolean>> = {};
+        
+        if (permsErr && permsErr.code === "42703") {
+          // Fallback se a coluna actions não existir ainda
+          console.warn("Coluna actions não existe. Rodar SQL de migração.");
+          const { data: oldPerms } = await supabase
+            .from("user_permissions")
+            .select("module, permission_level")
+            .eq("user_id", authUserId);
+            
+          if (oldPerms) {
+            oldPerms.forEach(p => {
+              permissionsMap[p.module] = {
+                visualizar: true,
+                criar: p.permission_level === 'write' || p.permission_level === 'admin',
+                editar: p.permission_level === 'write' || p.permission_level === 'admin',
+                excluir: p.permission_level === 'admin'
+              };
+            });
+          }
+        } else if (perms) {
           perms.forEach(p => {
-            permissionsMap[p.module] = p.permission_level;
+            permissionsMap[p.module] = p.actions || {
+              visualizar: true,
+              criar: p.permission_level === 'write' || p.permission_level === 'admin',
+              editar: p.permission_level === 'write' || p.permission_level === 'admin',
+            };
           });
         }
 
@@ -90,7 +123,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             avatarUrl: profile.avatar_url,
             role: profile.roles?.name || "Sem Cargo",
             permissions: permissionsMap,
-            active: profile.active,
+            status: profile.status || 'Ativo',
+            forcePasswordChange: profile.force_password_change,
           });
         }
       } catch (e) {

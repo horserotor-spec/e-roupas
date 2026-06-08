@@ -118,7 +118,7 @@ function NewOrderPage() {
     notes: "",
     internal_notes: "",
     mix_fabrics_allowed: false,
-    status: "confirmado",
+    status: "orcamento",
     salesperson_id: "",
     seller_id: "",
     items: [],
@@ -143,6 +143,7 @@ function NewOrderPage() {
       list_price: 0,
       discount_percent: 0,
       unit_price: 0,
+      unit_cost: 0,
       art_code: "",
       customizations: [],
       active_sizes: [],
@@ -176,6 +177,7 @@ function NewOrderPage() {
         item.sku = p.sku || "";
         item.list_price = p.price;
         item.unit_price = p.price;
+        item.unit_cost = p.cost_price || 0;
       }
     }
 
@@ -188,14 +190,8 @@ function NewOrderPage() {
     const dp = Number(item.discount_percent || 0);
     const custSum = (item.customizations || []).reduce((acc: number, c: any) => acc + (Number(c.price || 0) * Number(c.quantity || 1)), 0);
     
-    if (field !== "unit_price") {
+    if (field === "list_price" || field === "discount_percent" || field === "customizations") {
       item.unit_price = lp - (lp * (dp / 100)) + custSum;
-    } else {
-      // Auto-calc discount if unit price changes manually (ignoring customizations for the discount calc to avoid confusion)
-      const up = Number(item.unit_price || 0) - custSum;
-      if (lp > 0) {
-        item.discount_percent = ((lp - up) / lp) * 100;
-      }
     }
 
     newItems[index] = item;
@@ -214,14 +210,32 @@ function NewOrderPage() {
   // Calculations
   const numItems = items.length;
   const sumQuantities = items.reduce((acc, item) => acc + getItemQuantity(item), 0);
-  const itemsTotalList = items.reduce((acc, item) => acc + (Number(item.list_price || 0) * getItemQuantity(item)), 0);
-  const itemsTotalNet = items.reduce((acc, item) => acc + (Number(item.unit_price || 0) * getItemQuantity(item)), 0);
-  const itemsDiscountTotal = itemsTotalList - itemsTotalNet;
   
-  const saleDiscount = Number(formData.discount || 0);
+  const getCustSum = (item: any) => (item.customizations || []).reduce((acc: number, c: any) => acc + (Number(c.price || 0) * Number(c.quantity || 1)), 0);
+
+  // itemsTotalNet is the sum of the manual or calculated UNIT price
+  const itemsTotalNet = items.reduce((acc, item) => acc + (Number(item.unit_price || 0) * getItemQuantity(item)), 0);
+
+  // itemsDiscountTotal is strictly the explicit discount_percent applied to list_price
+  const itemsDiscountTotal = items.reduce((acc, item) => {
+    const lp = Number(item.list_price || 0);
+    const dp = Number(item.discount_percent || 0);
+    return acc + (lp * (dp / 100) * getItemQuantity(item));
+  }, 0);
+
+  const saleDiscount = itemsTotalNet * (Number(formData.discount || 0) / 100);
   const otherExpenses = Number(formData.other_expenses || 0);
   const freight = Number(formData.freight_cost || 0);
   const finalTotal = itemsTotalNet - saleDiscount + otherExpenses + freight;
+
+  const totalCost = items.reduce((acc, item) => {
+    const baseCost = Number(item.unit_cost || 0);
+    const custCostSum = (item.customizations || []).reduce((sum: number, c: any) => sum + (Number(c.cost || 0) * Number(c.quantity || 1)), 0);
+    return acc + ((baseCost + custCostSum) * getItemQuantity(item));
+  }, 0);
+  
+  const liquidRevenue = itemsTotalNet - saleDiscount;
+  const grossMarginPct = (totalCost > 0 && liquidRevenue > 0) ? ((liquidRevenue - totalCost) / liquidRevenue) * 100 : (finalTotal > 0 ? 100 : 0);
 
   useEffect(() => {
     if (payments.length !== installmentsCount) {
@@ -332,6 +346,7 @@ function NewOrderPage() {
               size,
               gender: item.gender,
               quantity,
+              unit_cost: item.unit_cost,
               list_price: item.list_price,
               discount_percent: item.discount_percent,
               unit_price: item.unit_price,
@@ -352,7 +367,7 @@ function NewOrderPage() {
       await createMutation.mutateAsync({
         ...formData,
         items_discount: itemsDiscountTotal,
-        estimated_total: itemsTotalList,
+        estimated_total: itemsTotalNet,
         final_total: finalTotal,
         items: explodedItems,
         payments: payments.map(p => ({
@@ -402,14 +417,24 @@ function NewOrderPage() {
             <Link to="/pedidos" className="text-muted-foreground hover:text-foreground">
               <ArrowLeft className="size-5" />
             </Link>
-            <h1 className="text-xl font-semibold text-slate-800">Pedido de venda - Novo</h1>
+            <h1 className="text-xl font-semibold text-slate-800">
+              {formData.status === "orcamento" ? "Orçamento - Novo" : "Pedido de venda - Novo"}
+            </h1>
+            {formData.status === "orcamento" && (
+              <div className="ml-4 px-3 py-1 bg-slate-100 rounded-md border text-xs flex items-center gap-2">
+                <span className="text-muted-foreground font-medium uppercase tracking-wider text-[10px]">Margem Bruta</span>
+                <span className={`font-bold ${grossMarginPct < 15 ? "text-red-600" : "text-emerald-600"}`}>
+                  {grossMarginPct.toFixed(1)}%
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <Link to="/pedidos">
-              <Button variant="outline" className="h-9 px-6 rounded-full border-green-600 text-green-700 hover:bg-green-50">Cancelar</Button>
+              <Button variant="outline" className="h-7 px-4 text-xs rounded-full border-green-600 text-green-700 hover:bg-green-50">Cancelar</Button>
             </Link>
-            <Button onClick={handleSubmit} disabled={createMutation.isPending} className="h-9 px-8 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-sm">
-              {createMutation.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+            <Button onClick={handleSubmit} disabled={createMutation.isPending} className="h-7 px-5 text-xs rounded-full bg-green-600 hover:bg-green-700 text-white shadow-sm">
+              {createMutation.isPending && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
               Salvar
             </Button>
           </div>
@@ -492,22 +517,22 @@ function NewOrderPage() {
           </div>
           
           <div className="bg-white border rounded-lg overflow-x-auto overflow-y-visible mb-3">
-            <table className="w-full text-sm text-left whitespace-nowrap">
+            <table className="w-full min-w-[1200px] text-sm text-left whitespace-nowrap">
               <thead className="bg-slate-50 border-b text-[10px] text-slate-500 uppercase tracking-wider">
                 <tr>
                   <th className="px-2 py-3 font-medium w-8 text-center">#</th>
-                  <th className="px-2 py-3 font-medium min-w-[150px]">Descrição</th>
-                  <th className="px-2 py-3 font-medium w-28">Cód. Arte *</th>
-                  <th className="px-2 py-3 font-medium w-32">Cód. Base (PA)</th>
-                  <th className="px-2 py-3 font-medium w-28">Gênero</th>
-                  <th className="px-2 py-3 font-medium w-24 text-center">Pers.</th>
-                  <th className="px-2 py-3 font-medium w-28">Grade</th>
-                  <th className="px-2 py-3 font-medium min-w-[320px]">Quantidades por Tamanho</th>
-                  <th className="px-2 py-3 font-medium w-16 text-center bg-slate-100/30">Qtd</th>
-                  <th className="px-2 py-3 font-medium w-28 text-right">Lista</th>
+                  <th className="px-2 py-3 font-medium min-w-[180px]">Descrição</th>
+                  <th className="px-2 py-3 font-medium w-24">Cód. Arte *</th>
+                  <th className="px-2 py-3 font-medium w-28">Cód. Base (PA)</th>
+                  <th className="px-2 py-3 font-medium w-24">Gênero</th>
+                  <th className="px-2 py-3 font-medium w-20 text-center">Pers.</th>
+                  <th className="px-2 py-3 font-medium w-24">Grade</th>
+                  <th className="px-2 py-3 font-medium min-w-[280px]">Quantidades por Tamanho</th>
+                  <th className="px-2 py-3 font-medium w-12 text-center bg-slate-100/30">Qtd</th>
+                  <th className="px-2 py-3 font-medium w-24 text-right">Lista</th>
                   <th className="px-2 py-3 font-medium w-20 text-right">Desc%</th>
-                  <th className="px-2 py-3 font-medium w-28 text-right font-semibold">Unit</th>
-                  <th className="px-2 py-3 font-medium w-32 text-right font-bold">Total</th>
+                  <th className="px-2 py-3 font-medium w-24 text-right font-semibold">Unit</th>
+                  <th className="px-2 py-3 font-medium w-28 text-right font-bold">Total</th>
                   <th className="px-2 py-3 font-medium w-10 text-center"></th>
                 </tr>
               </thead>
@@ -519,17 +544,17 @@ function NewOrderPage() {
                       <td className="px-2 py-2 text-slate-400 bg-slate-100/50 text-center">{idx + 1}</td>
                       <td className="px-2 py-2">
                         <SearchableCombobox
-                          items={(products || []).map(p => ({ id: p.id, name: p.name }))}
+                          items={(products || []).filter(p => ['PA', 'Serviço', 'PF'].includes(p.format || '')).map(p => ({ id: p.id, name: p.name }))}
                           value={item.product_id || ""}
                           onChange={(v) => updateItem(idx, "product_id", v)}
                           placeholder="Selecione..."
                         />
                       </td>
-                      <td className="px-2 py-2"><Input className="h-8 text-xs font-mono border-green-500/50 bg-green-50/30 placeholder:text-green-600/40" placeholder="ex: CLV003" value={item.art_code || ""} onChange={e => updateItem(idx, "art_code", e.target.value.toUpperCase())} /></td>
-                      <td className="px-2 py-2"><Input className="h-8 text-xs font-mono" value={item.sku || ""} onChange={e => updateItem(idx, "sku", e.target.value)} /></td>
+                      <td className="px-2 py-2"><Input className="h-8 text-xs font-mono border-green-500/50 bg-green-50/30 placeholder:text-green-600/40 min-w-[80px]" placeholder="ex: CLV003" value={item.art_code || ""} onChange={e => updateItem(idx, "art_code", e.target.value.toUpperCase())} /></td>
+                      <td className="px-2 py-2"><Input className="h-8 text-xs font-mono min-w-[90px]" value={item.sku || ""} onChange={e => updateItem(idx, "sku", e.target.value)} /></td>
                       <td className="px-2 py-2">
                         <Select value={item.gender || "Unissex"} onValueChange={(v) => updateItem(idx, "gender", v)}>
-                          <SelectTrigger className="h-8 border-transparent hover:border-input bg-transparent shadow-none p-1 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="h-8 border-transparent hover:border-input bg-transparent shadow-none p-1 text-xs min-w-[80px]"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="Masculino">Masculino</SelectItem>
                             <SelectItem value="Feminino">Feminino</SelectItem>
@@ -540,7 +565,7 @@ function NewOrderPage() {
                       </td>
                       <td className="px-2 py-2 text-center">
                         <div className="flex flex-col gap-1 items-center justify-center">
-                          <Button variant="outline" size="sm" onClick={() => setActiveCustomizationIndex(idx)} className="h-7 text-[10px] border-dashed text-blue-600 hover:text-blue-700 hover:bg-blue-50 w-full px-1">
+                          <Button variant="outline" size="sm" onClick={() => setActiveCustomizationIndex(idx)} className="h-7 text-[10px] border-dashed text-blue-600 hover:text-blue-700 hover:bg-blue-50 w-full px-1 min-w-[50px]">
                             <Wand2 className="size-3 mr-1" /> {(item.customizations || []).length} pr.
                           </Button>
                           {(item.customizations || []).length > 0 && (
@@ -552,7 +577,7 @@ function NewOrderPage() {
                       </td>
                       <td className="px-2 py-2">
                         <Select value={item.grid_type || "adulto"} onValueChange={(v) => updateItem(idx, "grid_type", v)}>
-                          <SelectTrigger className="h-8 border-transparent hover:border-input bg-transparent shadow-none p-1 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="h-8 border-transparent hover:border-input bg-transparent shadow-none p-1 text-xs min-w-[70px]"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="adulto">Adulto</SelectItem>
                             <SelectItem value="infantil">Infantil</SelectItem>
@@ -567,7 +592,7 @@ function NewOrderPage() {
                               <Input
                                 type="number"
                                 min={0}
-                                className="h-7 px-1 text-center text-xs w-10 bg-white border border-slate-200 rounded focus:border-green-500"
+                                className="h-7 px-1 text-center text-xs w-9 bg-white border border-slate-200 rounded focus:border-green-500"
                                 value={item.sizes?.[sz] === 0 ? "" : (item.sizes?.[sz] || "")}
                                 onChange={e => updateItem(idx, `size_${sz}`, e.target.value)}
                                 placeholder="0"
@@ -603,10 +628,10 @@ function NewOrderPage() {
                         </div>
                       </td>
                       <td className="px-2 py-2 text-center font-semibold text-slate-600 bg-slate-50/50">{qtyTotal}</td>
-                      <td className="px-2 py-2"><Input type="number" step="0.01" className="h-8 text-right text-xs bg-white" value={item.list_price || ""} onChange={e => updateItem(idx, "list_price", parseFloat(e.target.value))} /></td>
-                      <td className="px-2 py-2"><Input type="number" step="0.01" className="h-8 text-right text-xs bg-white" value={item.discount_percent || ""} onChange={e => updateItem(idx, "discount_percent", parseFloat(e.target.value))} /></td>
-                      <td className="px-2 py-2"><Input type="number" step="0.01" className="h-8 text-right text-xs font-medium text-slate-700 bg-white" value={item.unit_price || ""} onChange={e => updateItem(idx, "unit_price", parseFloat(e.target.value))} /></td>
-                      <td className="px-2 py-2 text-right font-bold text-slate-900 bg-slate-50/30">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(qtyTotal * Number(item.unit_price || 0))}</td>
+                      <td className="px-2 py-2"><Input type="number" step="0.01" className="h-8 text-right text-xs bg-white min-w-[90px] w-full" value={item.list_price || ""} onChange={e => updateItem(idx, "list_price", parseFloat(e.target.value))} /></td>
+                      <td className="px-2 py-2"><Input type="number" step="0.01" className="h-8 text-right text-xs bg-white min-w-[80px] w-full" value={item.discount_percent || ""} onChange={e => updateItem(idx, "discount_percent", parseFloat(e.target.value))} /></td>
+                      <td className="px-2 py-2"><Input type="number" step="0.01" className="h-8 text-right text-xs font-medium text-slate-700 bg-white min-w-[90px] w-full" value={item.unit_price || ""} onChange={e => updateItem(idx, "unit_price", parseFloat(e.target.value))} /></td>
+                      <td className="px-2 py-2 text-right font-bold text-slate-900 bg-slate-50/30 whitespace-nowrap min-w-[90px]">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(qtyTotal * Number(item.unit_price || 0))}</td>
                       <td className="px-2 py-2 text-center">
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600" onClick={() => removeItem(idx)}><Trash2 className="size-3.5" /></Button>
                       </td>
@@ -623,57 +648,44 @@ function NewOrderPage() {
         {/* TOTAIS */}
         <section>
           <h2 className="text-sm font-semibold text-slate-700 mb-4">Totais</h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-x-6 gap-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-8 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Nº de itens</Label>
-              <div className="h-9 px-3 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">{numItems}</div>
+              <Label className="text-[10px] text-muted-foreground uppercase tracking-wider truncate" title="Soma das quantidades">Soma Qtds</Label>
+              <div className="h-9 px-2 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">{sumQuantities}</div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Soma das quantidades</Label>
-              <div className="h-9 px-3 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">{sumQuantities}</div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground text-blue-600">Desconto</Label>
+              <Label className="text-[10px] text-blue-600 uppercase tracking-wider truncate" title="Desconto total do pedido">Desconto</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">R$</span>
-                <Input type="number" step="0.01" className="h-9 pl-8" value={formData.discount || ""} onChange={e => setFormData({...formData, discount: parseFloat(e.target.value) || 0})} />
+                <Input type="number" step="0.01" className="h-9 pr-7 text-xs" value={formData.discount || ""} onChange={e => setFormData({...formData, discount: parseFloat(e.target.value) || 0})} />
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">%</span>
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground text-blue-600">Prazo de entrega</Label>
-              <Input type="number" className="h-9" value={formData.delivery_days || ""} onChange={e => setFormData({...formData, delivery_days: parseInt(e.target.value) || 0})} />
+              <Label className="text-[10px] text-blue-600 uppercase tracking-wider truncate" title="Prazo de entrega (dias)">Prazo (dias)</Label>
+              <Input type="number" className="h-9 text-xs" value={formData.delivery_days || ""} onChange={e => setFormData({...formData, delivery_days: parseInt(e.target.value) || 0})} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Outras despesas</Label>
+              <Label className="text-[10px] text-blue-600 uppercase tracking-wider truncate" title="Outras despesas">Outras Desp.</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">R$</span>
-                <Input type="number" step="0.01" className="h-9 pl-8" value={formData.other_expenses || ""} onChange={e => setFormData({...formData, other_expenses: parseFloat(e.target.value) || 0})} />
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">R$</span>
+                <Input type="number" step="0.01" className="h-9 pl-7 text-xs" value={formData.other_expenses || ""} onChange={e => setFormData({...formData, other_expenses: parseFloat(e.target.value) || 0})} />
               </div>
             </div>
-            
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Desconto total da venda</Label>
-              <div className="h-9 px-3 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(saleDiscount)}</div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Total de comissões</Label>
-              <div className="h-9 px-3 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(0)}</div>
-            </div>
-            <div className="space-y-1.5 hidden">
-              <Label className="text-xs text-muted-foreground">Desconto total dos itens</Label>
-              <div className="h-9 px-3 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(itemsDiscountTotal)}</div>
+              <Label className="text-[10px] text-muted-foreground uppercase tracking-wider truncate" title="Desconto total dos itens">Desc. Itens</Label>
+              <div className="h-9 px-2 flex items-center bg-slate-100 rounded-md text-xs border text-slate-600 truncate">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(itemsDiscountTotal)}</div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Valor do Frete</Label>
-              <div className="h-9 px-3 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(freight)}</div>
-            </div>
-            <div className="space-y-1.5 hidden">
-              <Label className="text-xs text-muted-foreground">Total dos itens</Label>
-              <div className="h-9 px-3 flex items-center font-medium bg-slate-100 rounded-md text-sm border text-slate-800">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(itemsTotalList)}</div>
+              <Label className="text-[10px] text-muted-foreground uppercase tracking-wider truncate" title="Desconto total da venda">Desc. Venda</Label>
+              <div className="h-9 px-2 flex items-center bg-slate-100 rounded-md text-xs border text-slate-600 truncate">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(itemsDiscountTotal + saleDiscount)}</div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-bold text-slate-800">Total da venda</Label>
-              <div className="h-9 px-3 flex items-center font-bold bg-green-50 rounded-md text-sm border border-green-200 text-green-800">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(finalTotal)}</div>
+              <Label className="text-[10px] text-muted-foreground uppercase tracking-wider truncate" title="Total dos itens">Total Itens</Label>
+              <div className="h-9 px-2 flex items-center font-medium bg-slate-100 rounded-md text-xs border text-slate-800 truncate">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(itemsTotalNet)}</div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold text-slate-800 uppercase tracking-wider truncate" title="Total da venda">Total Venda</Label>
+              <div className="h-9 px-2 flex items-center font-bold bg-green-50 rounded-md text-xs border border-green-200 text-green-800 truncate">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(finalTotal)}</div>
             </div>
           </div>
         </section>
@@ -841,9 +853,9 @@ function NewOrderPage() {
                 <div className="bg-slate-50 p-4 rounded-lg border">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Custos e Acréscimos</h3>
                   <div className="space-y-3">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-slate-600">Total dos Itens (Sem desconto)</span>
-                      <span className="font-medium">{formatCurrency(itemsTotalList)}</span>
+                    <div className="flex justify-between border-b pb-2">
+                      <span className="text-slate-500">Subtotal Produtos:</span> 
+                      <span className="font-medium">{formatCurrency(itemsTotalGross)}</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-slate-600">Desconto nos Itens</span>

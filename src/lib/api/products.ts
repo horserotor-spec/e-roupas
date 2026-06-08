@@ -74,7 +74,7 @@ export function useCreateProductFromBOM() {
           price: payload.price,
           cost_price: payload.cost_price,
           customizations: payload.customizations,
-          format: 'MP',
+          format: 'PF',
         }])
         .select()
         .single();
@@ -321,6 +321,7 @@ export function useProductSuggestions(search?: string) {
       let query = supabase
         .from("products")
         .select(`name, sku`)
+        .in("format", ["PA", "PF", "Serviço"])
         .order("name", { ascending: true });
 
       if (search) {
@@ -331,5 +332,30 @@ export function useProductSuggestions(search?: string) {
       if (error) throw error;
       return data as ProductSuggestion[];
     },
+  });
+}
+
+export function useProductRelationships(mpProductId?: string) {
+  return useQuery({
+    queryKey: ["productRelationships", mpProductId],
+    queryFn: async () => {
+      if (!mpProductId) return [];
+      const { data, error } = await supabase
+        .from("product_relationships")
+        .select(`
+          id,
+          pa_variant_id,
+          pa_product_id,
+          pa_variant:product_variations!pa_variant_id(
+            id, name, sku, price, active
+          )
+        `)
+        .eq("mp_product_id", mpProductId)
+        .eq("relationship_type", "MP_PA");
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!mpProductId
   });
 }

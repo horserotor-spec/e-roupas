@@ -20,7 +20,7 @@ export function TopBar() {
   const Icon = mode === "system" ? Monitor : resolved === "dark" ? Moon : Sun;
 
   return (
-    <header className="sticky top-0 z-30 glass hairline-b">
+    <header className="sticky top-0 z-30 glass hairline-b print:hidden">
       <div className="h-14 px-4 md:px-6 flex items-center gap-4">
         <div className="flex-1 max-w-md">
           <UniversalSearch />

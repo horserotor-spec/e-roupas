@@ -180,7 +180,7 @@ export function DrawerPedido({ order, open, onOpenChange }: DrawerPedidoProps) {
                 {order.items?.map((item) => (
                   <div key={item.id} className="p-3 rounded-lg border bg-card">
                     <div className="flex justify-between items-start mb-2">
-                      <div className="font-medium text-sm">{item.quantity}x {item.product_name}</div>
+                      <div className="font-medium text-sm">{item.quantity}x {item.product_name} {item.size ? `(Tam: ${item.size})` : ''}</div>
                       <span className="text-xs text-muted-foreground font-mono">{item.sku || "N/A"}</span>
                     </div>
                     {item.customizations && item.customizations.length > 0 && (

@@ -6,7 +6,7 @@ import { Label } from "../ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { Product, ProductVariation, useCreateProduct, useUpdateProduct } from "@/lib/api/products";
+import { Product, ProductVariation, useCreateProduct, useUpdateProduct, useProductRelationships } from "@/lib/api/products";
 import { useModels, useFabrics, useColors, useSuppliers, useSizeGrids, useCategories, useDeleteModel, useDeleteFabric, useDeleteColor, useDeleteSizeGrid, useDeleteCategory, useCreateInventoryEntryGrid } from "@/lib/api/inventory";
 import { QuickAddModelagem, QuickAddTecido, QuickAddCor, QuickAddGrade, QuickAddCategoria, QuickAddFornecedor } from "./QuickAddDialogs";
 import { ProductStockTab } from "./ProductStockTab";
@@ -26,6 +26,8 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct();
   const createGridMutation = useCreateInventoryEntryGrid();
+
+  const { data: paRelationships = [] } = useProductRelationships(product?.id);
 
   const { data: models = [] } = useModels();
   const { data: fabrics = [] } = useFabrics();
@@ -229,7 +231,10 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
     formData.fabric_id, 
     formData.color_id, 
     customSkuMode, 
-    skuRules
+    skuRules,
+    models,
+    fabrics,
+    colors
   ]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -299,8 +304,13 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
           <SheetHeader className="p-6 pb-4 border-b bg-white">
             <div className="flex items-center justify-between">
               <div>
-                <SheetTitle className="text-xl font-semibold tracking-tight text-slate-900">
+                <SheetTitle className="text-xl font-semibold tracking-tight text-slate-900 flex items-center gap-2">
                   {isEditing ? "Editar Produto" : "Novo Produto"}
+                  {formData.format === 'PA' && (
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+                      Gerado pelo sistema
+                    </span>
+                  )}
                 </SheetTitle>
                 <SheetDescription className="text-xs text-slate-500 mt-1">
                   Configure as informações do produto seguindo a engenharia industrial.
@@ -348,15 +358,16 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label className="text-xs text-slate-500">Formato / Tipo *</Label>
-                    <Select value={formData.format} onValueChange={(v) => setFormData({ ...formData, format: v })}>
+                    <Select disabled={formData.format === 'PA' || formData.format === 'PF'} value={formData.format} onValueChange={(v) => setFormData({ ...formData, format: v })}>
                       <SelectTrigger className="h-9">
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="MP">MP (Matéria-Prima)</SelectItem>
-                        <SelectItem value="PA">PA (Produto Acabável)</SelectItem>
                         <SelectItem value="Serviço">Serviço</SelectItem>
                         <SelectItem value="Insumo">Insumo</SelectItem>
+                        {formData.format === 'PA' && <SelectItem value="PA">PA (Produto Acabável)</SelectItem>}
+                        {formData.format === 'PF' && <SelectItem value="PF">PF (Produto Final)</SelectItem>}
                       </SelectContent>
                     </Select>
                   </div>
@@ -543,33 +554,43 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
             </div>
 
             {(formData.format === "MP" || formData.format === "PA") && (
+              <>
               <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
-                <h3 className="text-sm font-semibold text-slate-800 tracking-tight">Engenharia Têxtil</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-slate-800 tracking-tight">Engenharia Têxtil</h3>
+                  {formData.format === 'PA' && (
+                    <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200">
+                      Herdado do MP
+                    </span>
+                  )}
+                </div>
                 
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <Label className="text-xs text-slate-500">Modelagem</Label>
-                        <div className="flex items-center gap-2">
-                          <button type="button" onClick={() => setQaModelagem(true)} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5 font-medium">
-                            <Plus className="h-3 w-3" /> Nova
-                          </button>
-                          <button 
-                            type="button" 
-                            disabled={!formData.model_id || formData.model_id === "none_model"}
-                            onClick={async () => {
-                              if(confirm('Excluir modelagem?')) {
-                                try { await delModel.mutateAsync(formData.model_id!); setFormData({...formData, model_id: null}); } catch(e:any) { toast.error(e.message); }
-                              }
-                            }} 
-                            className="text-xs text-red-500 hover:text-red-700 disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        </div>
+                        {formData.format !== 'PA' && (
+                          <div className="flex items-center gap-2">
+                            <button type="button" onClick={() => setQaModelagem(true)} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5 font-medium">
+                              <Plus className="h-3 w-3" /> Nova
+                            </button>
+                            <button 
+                              type="button" 
+                              disabled={!formData.model_id || formData.model_id === "none_model"}
+                              onClick={async () => {
+                                if(confirm('Excluir modelagem?')) {
+                                  try { await delModel.mutateAsync(formData.model_id!); setFormData({...formData, model_id: null}); } catch(e:any) { toast.error(e.message); }
+                                }
+                              }} 
+                              className="text-xs text-red-500 hover:text-red-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      <Select value={formData.model_id || "none_model"} onValueChange={(v) => setFormData({ ...formData, model_id: v === "none_model" ? null : v })}>
+                      <Select disabled={formData.format === 'PA'} value={formData.model_id || "none_model"} onValueChange={(v) => setFormData({ ...formData, model_id: v === "none_model" ? null : v })}>
                         <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none_model">Nenhum</SelectItem>
@@ -581,25 +602,28 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <Label className="text-xs text-slate-500">Tecido / Malha</Label>
-                        <div className="flex items-center gap-2">
-                          <button type="button" onClick={() => setQaTecido(true)} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5 font-medium">
-                            <Plus className="h-3 w-3" /> Novo
-                          </button>
-                          <button 
-                            type="button" 
-                            disabled={!formData.fabric_id || formData.fabric_id === "none_fabric"}
-                            onClick={async () => {
-                              if(confirm('Excluir tecido?')) {
-                                try { await delFabric.mutateAsync(formData.fabric_id!); setFormData({...formData, fabric_id: null}); } catch(e:any) { toast.error(e.message); }
-                              }
-                            }} 
-                            className="text-xs text-red-500 hover:text-red-700 disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        </div>
+                        {formData.format !== 'PA' && (
+                          <div className="flex items-center gap-2">
+                            <button type="button" onClick={() => setQaTecido(true)} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5 font-medium">
+                              <Plus className="h-3 w-3" /> Novo
+                            </button>
+                            <button 
+                              type="button" 
+                              disabled={!formData.fabric_id || formData.fabric_id === "none_fabric"}
+                              onClick={async () => {
+                                if(confirm('Excluir tecido?')) {
+                                  try { await delFabric.mutateAsync(formData.fabric_id!); setFormData({...formData, fabric_id: null}); } catch(e:any) { toast.error(e.message); }
+                                }
+                              }} 
+                              className="text-xs text-red-500 hover:text-red-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        )}
                       </div>
                       <Select
+                        disabled={formData.format === 'PA'}
                         value={formData.fabric_id || "none_fabric"}
                         onValueChange={(v) => {
                           const selected = fabrics.find(f => f.id === v);
@@ -620,35 +644,42 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                   </div>
                 </div>
               </div>
-            )}
 
-            {formData.format === "MP" && (
               <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
-                <h3 className="text-sm font-semibold text-slate-800 tracking-tight">Cor Oficial & Fornecedor</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-slate-800 tracking-tight">Cor Oficial</h3>
+                  {formData.format === 'PA' && (
+                    <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200">
+                      Herdado do MP
+                    </span>
+                  )}
+                </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <Label className="text-xs text-slate-500">Cor Oficial</Label>
-                      <div className="flex items-center gap-2">
-                        <button type="button" onClick={() => setQaCor(true)} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5 font-medium">
-                          <Plus className="h-3 w-3" /> Nova
-                        </button>
-                        <button 
-                          type="button" 
-                          disabled={!formData.color_id || formData.color_id === "none_color"}
-                          onClick={async () => {
-                            if(confirm('Excluir cor?')) {
-                              try { await delColor.mutateAsync(formData.color_id!); setFormData({...formData, color_id: null}); } catch(e:any) { toast.error(e.message); }
-                            }
-                          }} 
-                          className="text-xs text-red-500 hover:text-red-700 disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </div>
+                      {formData.format !== 'PA' && (
+                        <div className="flex items-center gap-2">
+                          <button type="button" onClick={() => setQaCor(true)} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5 font-medium">
+                            <Plus className="h-3 w-3" /> Nova
+                          </button>
+                          <button 
+                            type="button" 
+                            disabled={!formData.color_id || formData.color_id === "none_color"}
+                            onClick={async () => {
+                              if(confirm('Excluir cor?')) {
+                                try { await delColor.mutateAsync(formData.color_id!); setFormData({...formData, color_id: null}); } catch(e:any) { toast.error(e.message); }
+                              }
+                            }} 
+                            className="text-xs text-red-500 hover:text-red-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    <Select value={formData.color_id || "none_color"} onValueChange={(v) => setFormData({ ...formData, color_id: v === "none_color" ? null : v })}>
+                    <Select disabled={formData.format === 'PA'} value={formData.color_id || "none_color"} onValueChange={(v) => setFormData({ ...formData, color_id: v === "none_color" ? null : v })}>
                       <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none_color">Nenhuma</SelectItem>
@@ -664,30 +695,33 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                     </Select>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs text-slate-500">Fornecedor Principal (Estoque)</Label>
-                      <button type="button" onClick={() => setQaFornecedor(true)} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5 font-medium">
-                        <Plus className="h-3 w-3" /> Novo
-                      </button>
+                  {formData.format === "MP" && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs text-slate-500">Fornecedor Principal (Estoque)</Label>
+                        <button type="button" onClick={() => setQaFornecedor(true)} className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-0.5 font-medium">
+                          <Plus className="h-3 w-3" /> Novo
+                        </button>
+                      </div>
+                      <Select value={formData.supplier_id || "none_supplier"} onValueChange={(v) => setFormData({ ...formData, supplier_id: v === "none_supplier" ? null : v })}>
+                        <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none_supplier">Nenhum</SelectItem>
+                          {suppliers.length === 0 && (
+                            <SelectItem value="_empty" disabled>Nenhum fornecedor cadastrado</SelectItem>
+                          )}
+                          {suppliers.map(s => (
+                            <SelectItem key={s.id} value={s.id}>
+                              {s.company_name || s.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <Select value={formData.supplier_id || "none_supplier"} onValueChange={(v) => setFormData({ ...formData, supplier_id: v === "none_supplier" ? null : v })}>
-                      <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none_supplier">Nenhum</SelectItem>
-                        {suppliers.length === 0 && (
-                          <SelectItem value="_empty" disabled>Nenhum fornecedor cadastrado</SelectItem>
-                        )}
-                        {suppliers.map(s => (
-                          <SelectItem key={s.id} value={s.id}>
-                            {s.company_name || s.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  )}
                 </div>
               </div>
+              </>
             )}
 
             {formData.format === "MP" && (
@@ -1020,6 +1054,23 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                 </div>
               </div>
             </details>
+
+            {isEditing && formData.format === 'MP' && paRelationships.length > 0 && (
+              <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
+                <h3 className="text-sm font-semibold text-slate-800 tracking-tight">Produtos Acabáveis Gerados (PA)</h3>
+                <p className="text-xs text-slate-500">
+                  Estes são os produtos de venda gerados automaticamente pelo sistema a partir desta Matéria-Prima.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                  {paRelationships.map((rel: any) => (
+                    <div key={rel.id} className="flex flex-col p-3 border rounded-lg bg-slate-50 border-slate-100">
+                      <span className="font-medium text-slate-700 text-sm">{rel.pa_variant?.sku}</span>
+                      <span className="text-xs text-slate-500">{rel.pa_variant?.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             </TabsContent>
             
             {isEditing && (formData.format === 'MP' || formData.format === 'Insumo') && (

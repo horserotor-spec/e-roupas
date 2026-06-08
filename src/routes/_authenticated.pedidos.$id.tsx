@@ -277,6 +277,7 @@ function EditOrderPage() {
         item.sku = p.sku || "";
         item.list_price = p.price;
         item.unit_price = p.price;
+        item.unit_cost = p.cost_price || 0;
       }
     }
 
@@ -289,14 +290,8 @@ function EditOrderPage() {
     const dp = Number(item.discount_percent || 0);
     const custSum = (item.customizations || []).reduce((acc: number, c: any) => acc + (Number(c.price || 0) * Number(c.quantity || 1)), 0);
     
-    if (field !== "unit_price") {
+    if (field === "list_price" || field === "discount_percent" || field === "customizations") {
       item.unit_price = lp - (lp * (dp / 100)) + custSum;
-    } else {
-      // Auto-calc discount if unit price changes manually (ignoring customizations for the discount calc to avoid confusion)
-      const up = Number(item.unit_price || 0) - custSum;
-      if (lp > 0) {
-        item.discount_percent = ((lp - up) / lp) * 100;
-      }
     }
 
     newItems[index] = item;
@@ -315,14 +310,32 @@ function EditOrderPage() {
   // Calculations
   const numItems = items.length;
   const sumQuantities = items.reduce((acc, item) => acc + getItemQuantity(item), 0);
-  const itemsTotalList = items.reduce((acc, item) => acc + (Number(item.list_price || 0) * getItemQuantity(item)), 0);
-  const itemsTotalNet = items.reduce((acc, item) => acc + (Number(item.unit_price || 0) * getItemQuantity(item)), 0);
-  const itemsDiscountTotal = itemsTotalList - itemsTotalNet;
   
-  const saleDiscount = Number(formData.discount || 0);
+  const getCustSum = (item: any) => (item.customizations || []).reduce((acc: number, c: any) => acc + (Number(c.price || 0) * Number(c.quantity || 1)), 0);
+
+  // itemsTotalNet is the sum of the manual or calculated UNIT price
+  const itemsTotalNet = items.reduce((acc, item) => acc + (Number(item.unit_price || 0) * getItemQuantity(item)), 0);
+
+  // itemsDiscountTotal is strictly the explicit discount_percent applied to list_price
+  const itemsDiscountTotal = items.reduce((acc, item) => {
+    const lp = Number(item.list_price || 0);
+    const dp = Number(item.discount_percent || 0);
+    return acc + (lp * (dp / 100) * getItemQuantity(item));
+  }, 0);
+
+  const saleDiscount = itemsTotalNet * (Number(formData.discount || 0) / 100);
   const otherExpenses = Number(formData.other_expenses || 0);
   const freight = Number(formData.freight_cost || 0);
   const finalTotal = itemsTotalNet - saleDiscount + otherExpenses + freight;
+
+  const totalCost = items.reduce((acc, item) => {
+    const baseCost = Number(item.unit_cost || 0);
+    const custCostSum = (item.customizations || []).reduce((sum: number, c: any) => sum + (Number(c.cost || 0) * Number(c.quantity || 1)), 0);
+    return acc + ((baseCost + custCostSum) * getItemQuantity(item));
+  }, 0);
+  
+  const liquidRevenue = itemsTotalNet - saleDiscount;
+  const grossMarginPct = (totalCost > 0 && liquidRevenue > 0) ? ((liquidRevenue - totalCost) / liquidRevenue) * 100 : (finalTotal > 0 ? 100 : 0);
 
   useEffect(() => {
     if (loadingOrder) return;
@@ -434,6 +447,7 @@ function EditOrderPage() {
               size,
               gender: item.gender,
               quantity,
+              unit_cost: item.unit_cost,
               list_price: item.list_price,
               discount_percent: item.discount_percent,
               unit_price: item.unit_price,
@@ -455,7 +469,7 @@ function EditOrderPage() {
         id,
         ...formData,
         items_discount: itemsDiscountTotal,
-        estimated_total: itemsTotalList,
+        estimated_total: itemsTotalNet,
         final_total: finalTotal,
         items: explodedItems,
         payments: payments.map(p => ({
@@ -518,20 +532,51 @@ function EditOrderPage() {
             <Link to="/pedidos" className="text-muted-foreground hover:text-foreground">
               <ArrowLeft className="size-5" />
             </Link>
-            <h1 className="text-xl font-semibold text-slate-800">Pedido de venda - {formData.code}</h1>
+            <h1 className="text-xl font-semibold text-slate-800">
+              {formData.status === "orcamento" ? "Orçamento -" : "Pedido de venda -"} {formData.code}
+            </h1>
+            {formData.status === "orcamento" && (
+              <div className="ml-4 px-3 py-1 bg-slate-100 rounded-md border text-xs flex items-center gap-2">
+                <span className="text-muted-foreground font-medium uppercase tracking-wider text-[10px]">Margem Bruta</span>
+                <span className={`font-bold ${grossMarginPct < 15 ? "text-red-600" : "text-emerald-600"}`}>
+                  {grossMarginPct.toFixed(1)}%
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" className="h-9 px-4 rounded-full border-blue-600 text-blue-600 hover:bg-blue-50" onClick={() => handlePrint("pedido")}>
-              <Printer className="size-4 mr-2" /> Imprimir Pedido
+            {formData.status === "orcamento" && (
+              <Button 
+                variant="outline" 
+                className="h-7 px-3 text-xs rounded-full border-primary text-primary hover:bg-primary/5" 
+                onClick={() => {
+                  setFormData({ ...formData, status: "atendimento" });
+                  toast.info("Clique em Salvar Alterações para confirmar a transformação em pedido.");
+                }}
+              >
+                Transformar em Pedido
+              </Button>
+            )}
+            
+            <Button variant="outline" className="h-7 px-3 text-xs rounded-full border-emerald-600 text-emerald-600 hover:bg-emerald-50" onClick={() => {
+              const url = `${window.location.origin}/print/${id}`;
+              const text = `Olá! Segue o link para visualizar o ${formData.status === "orcamento" ? "orçamento" : "pedido"} ${formData.code}:\n\n${url}`;
+              window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+            }}>
+              WhatsApp
             </Button>
-            <Button variant="outline" className="h-9 px-4 rounded-full border-purple-600 text-purple-600 hover:bg-purple-50" onClick={() => handlePrint("etiqueta")}>
-              <Tag className="size-4 mr-2" /> Etiqueta de Envio
+
+            <Button variant="outline" className="h-7 px-3 text-xs rounded-full border-blue-600 text-blue-600 hover:bg-blue-50" onClick={() => handlePrint("pedido")}>
+              <Printer className="size-3.5 mr-1.5" /> Imprimir Pedido
+            </Button>
+            <Button variant="outline" className="h-7 px-3 text-xs rounded-full border-purple-600 text-purple-600 hover:bg-purple-50" onClick={() => handlePrint("etiqueta")}>
+              <Tag className="size-3.5 mr-1.5" /> Etiqueta de Envio
             </Button>
             <Link to="/pedidos">
-              <Button variant="outline" className="h-9 px-6 rounded-full border-green-600 text-green-700 hover:bg-green-50">Cancelar</Button>
+              <Button variant="outline" className="h-7 px-4 text-xs rounded-full border-green-600 text-green-700 hover:bg-green-50">Cancelar</Button>
             </Link>
-            <Button onClick={handleSubmit} disabled={updateMutation.isPending} className="h-9 px-8 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-sm">
-              {updateMutation.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+            <Button onClick={handleSubmit} disabled={updateMutation.isPending} className="h-7 px-5 text-xs rounded-full bg-green-600 hover:bg-green-700 text-white shadow-sm">
+              {updateMutation.isPending && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
               Salvar Alterações
             </Button>
           </div>
@@ -716,9 +761,9 @@ function EditOrderPage() {
                         </div>
                       </td>
                       <td className="px-2 py-2 text-center font-semibold text-slate-600 bg-slate-50/50">{qtyTotal}</td>
-                      <td className="px-2 py-2"><Input type="number" step="0.01" className="h-8 text-right text-xs bg-white" value={item.list_price || ""} onChange={e => updateItem(idx, "list_price", parseFloat(e.target.value))} /></td>
-                      <td className="px-2 py-2"><Input type="number" step="0.01" className="h-8 text-right text-xs bg-white" value={item.discount_percent || ""} onChange={e => updateItem(idx, "discount_percent", parseFloat(e.target.value))} /></td>
-                      <td className="px-2 py-2"><Input type="number" step="0.01" className="h-8 text-right text-xs font-medium text-slate-700 bg-white" value={item.unit_price || ""} onChange={e => updateItem(idx, "unit_price", parseFloat(e.target.value))} /></td>
+                      <td className="px-2 py-2"><Input type="number" step="0.01" className="h-8 text-right text-xs bg-white min-w-[90px] w-full" value={item.list_price || ""} onChange={e => updateItem(idx, "list_price", parseFloat(e.target.value))} /></td>
+                      <td className="px-2 py-2"><Input type="number" step="0.01" className="h-8 text-right text-xs bg-white min-w-[80px] w-full" value={item.discount_percent || ""} onChange={e => updateItem(idx, "discount_percent", parseFloat(e.target.value))} /></td>
+                      <td className="px-2 py-2"><Input type="number" step="0.01" className="h-8 text-right text-xs font-medium text-slate-700 bg-white min-w-[90px] w-full" value={item.unit_price || ""} onChange={e => updateItem(idx, "unit_price", parseFloat(e.target.value))} /></td>
                       <td className="px-2 py-2 text-right font-bold text-slate-900 bg-slate-50/30">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(qtyTotal * Number(item.unit_price || 0))}</td>
                       <td className="px-2 py-2 text-center">
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600" onClick={() => removeItem(idx)}><Trash2 className="size-3.5" /></Button>
@@ -736,57 +781,44 @@ function EditOrderPage() {
         {/* TOTAIS */}
         <section>
           <h2 className="text-sm font-semibold text-slate-700 mb-4">Totais</h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-x-6 gap-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-8 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Nº de itens</Label>
-              <div className="h-9 px-3 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">{numItems}</div>
+              <Label className="text-[10px] text-muted-foreground uppercase tracking-wider truncate" title="Soma das quantidades">Soma Qtds</Label>
+              <div className="h-9 px-2 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">{sumQuantities}</div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Soma das quantidades</Label>
-              <div className="h-9 px-3 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">{sumQuantities}</div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground text-blue-600">Desconto</Label>
+              <Label className="text-[10px] text-blue-600 uppercase tracking-wider truncate" title="Desconto total do pedido">Desconto</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">R$</span>
-                <Input type="number" step="0.01" className="h-9 pl-8" value={formData.discount || ""} onChange={e => setFormData({...formData, discount: parseFloat(e.target.value) || 0})} />
+                <Input type="number" step="0.01" className="h-9 pr-7 text-xs" value={formData.discount || ""} onChange={e => setFormData({...formData, discount: parseFloat(e.target.value) || 0})} />
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">%</span>
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground text-blue-600">Prazo de entrega</Label>
-              <Input type="number" className="h-9" value={formData.delivery_days || ""} onChange={e => setFormData({...formData, delivery_days: parseInt(e.target.value) || 0})} />
+              <Label className="text-[10px] text-blue-600 uppercase tracking-wider truncate" title="Prazo de entrega (dias)">Prazo (dias)</Label>
+              <Input type="number" className="h-9 text-xs" value={formData.delivery_days || ""} onChange={e => setFormData({...formData, delivery_days: parseInt(e.target.value) || 0})} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Outras despesas</Label>
+              <Label className="text-[10px] text-blue-600 uppercase tracking-wider truncate" title="Outras despesas">Outras Desp.</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">R$</span>
-                <Input type="number" step="0.01" className="h-9 pl-8" value={formData.other_expenses || ""} onChange={e => setFormData({...formData, other_expenses: parseFloat(e.target.value) || 0})} />
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">R$</span>
+                <Input type="number" step="0.01" className="h-9 pl-7 text-xs" value={formData.other_expenses || ""} onChange={e => setFormData({...formData, other_expenses: parseFloat(e.target.value) || 0})} />
               </div>
             </div>
-            
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Desconto total da venda</Label>
-              <div className="h-9 px-3 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(saleDiscount)}</div>
+              <Label className="text-[10px] text-muted-foreground uppercase tracking-wider truncate" title="Desconto total dos itens">Desc. Itens</Label>
+              <div className="h-9 px-2 flex items-center bg-slate-100 rounded-md text-xs border text-slate-600 truncate">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(itemsDiscountTotal)}</div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Total de comissões</Label>
-              <div className="h-9 px-3 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(0)}</div>
+              <Label className="text-[10px] text-muted-foreground uppercase tracking-wider truncate" title="Desconto total da venda">Desc. Venda</Label>
+              <div className="h-9 px-2 flex items-center bg-slate-100 rounded-md text-xs border text-slate-600 truncate">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(itemsDiscountTotal + saleDiscount)}</div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Desconto total dos itens</Label>
-              <div className="h-9 px-3 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(itemsDiscountTotal)}</div>
+              <Label className="text-[10px] text-muted-foreground uppercase tracking-wider truncate" title="Total dos itens">Total Itens</Label>
+              <div className="h-9 px-2 flex items-center font-medium bg-slate-100 rounded-md text-xs border text-slate-800 truncate">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(itemsTotalNet)}</div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Valor do Frete</Label>
-              <div className="h-9 px-3 flex items-center bg-slate-100 rounded-md text-sm border text-slate-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(formData.freight_cost || 0)}</div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Total dos itens</Label>
-              <div className="h-9 px-3 flex items-center font-medium bg-slate-100 rounded-md text-sm border text-slate-800">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(itemsTotalList)}</div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-bold text-slate-800">Total da venda</Label>
-              <div className="h-9 px-3 flex items-center font-bold bg-green-50 rounded-md text-sm border border-green-200 text-green-800">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(finalTotal)}</div>
+              <Label className="text-[10px] font-bold text-slate-800 uppercase tracking-wider truncate" title="Total da venda">Total Venda</Label>
+              <div className="h-9 px-2 flex items-center font-bold bg-green-50 rounded-md text-xs border border-green-200 text-green-800 truncate">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(finalTotal)}</div>
             </div>
           </div>
         </section>
@@ -1098,21 +1130,25 @@ function EditOrderPage() {
                       <td className="border border-gray-300 p-2 align-top text-center font-bold">{qtyTotal}</td>
                       <td className="border border-gray-300 p-2 align-top">
                         <div className="font-semibold">{item.product_name}</div>
-                        <div className="mt-1.5 flex flex-wrap gap-2">
-                          <div className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold text-green-700 bg-green-50 border border-green-300 uppercase">
-                            CÓD. ARTE: {item.art_code || "N/A"}
-                          </div>
-                          <div className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold text-slate-700 bg-white border border-slate-300 uppercase">
-                            CÓD. BASE: {item.sku || "N/A"}
-                          </div>
-                        </div>
                         {sizesEntries.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1">
-                            {sizesEntries.map(([sz, q]) => (
-                              <span key={sz} className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
-                                <strong>{sz}:</strong> {String(q)}
-                              </span>
-                            ))}
+                          <div className="mt-2 flex flex-col gap-1">
+                            {sizesEntries.map(([sz, q]) => {
+                              let itemSku = item.sku || "";
+                              if (itemSku.startsWith("PA-")) {
+                                itemSku = itemSku.replace("PA-", `${item.art_code}-`);
+                              } else {
+                                itemSku = `${item.art_code}-${itemSku}`;
+                              }
+                              const brandObj = brands.find(b => b.id === formData.brand_id);
+                              const brandCode = brandObj?.code || "CLI";
+                              const finalSku = `${itemSku}-${sz}-${brandCode}`.toUpperCase();
+                              
+                              return (
+                                <div key={sz} className="text-[10px] text-slate-600 font-mono">
+                                  [{finalSku}] — <strong className="text-black">Qtd: {String(q)}</strong>
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
                       </td>

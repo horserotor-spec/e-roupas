@@ -20,7 +20,7 @@ const primaryFilters: { key: "todos" | "urgentes" | "atrasados" | OrderStatus; l
 ];
 
 const secondaryFilters: { key: OrderStatus; label: string }[] = [
-  { key: "orcamento", label: "Orçamento" },
+  { key: "atendimento", label: "Atendimento" },
   { key: "arte_criacao", label: "Arte/Criação" },
   { key: "aguardando_arte", label: "Ag. Arte" },
   { key: "confirmado", label: "Confirmado" },
@@ -39,7 +39,7 @@ const secondaryFilters: { key: OrderStatus; label: string }[] = [
 
 function isOverdue(deadline: string | null, status: OrderStatus) {
   if (!deadline) return false;
-  if (status === "entregue" || status === "finalizado") return false;
+  if (status === "entregue" || status === "finalizado" || status === "orcamento") return false;
   return new Date(deadline) < new Date();
 }
 
@@ -52,6 +52,9 @@ function PedidosPage() {
   const updateOrderMutation = useUpdateOrder();
 
   const filtered = orders.filter((o) => {
+    // Hide orcamentos from the general orders list
+    if (o.status === "orcamento") return false;
+    
     if (f === "urgentes" && !o.urgent) return false;
     if (f === "atrasados" && !isOverdue(o.deadline, o.status)) return false;
     if (f !== "todos" && f !== "urgentes" && f !== "atrasados" && o.status !== f) return false;
@@ -148,7 +151,7 @@ function PedidosPage() {
                     <div className="text-xs text-muted-foreground">{o.brand_code} · {o.owner_name}</div>
                   </td>
                   <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground text-xs">
-                    {o.items.map((i) => `${i.quantity}× ${i.product_name}`).join(" · ")}
+                    {o.items.map((i) => `${i.quantity}× ${i.product_name} (${i.sku || '-'} - Tam: ${i.size || '-'})`).join(" · ")}
                   </td>
                   <td className="px-4 py-3">
                     <Select 

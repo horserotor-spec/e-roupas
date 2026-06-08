@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useProducts, Product, useImportProducts, useCloneProduct, useDeleteProduct } from "@/lib/api/products";
-import { useState, useDeferredValue, useRef } from "react";
+import { useAllProductsStockSummary } from "@/lib/api/inventory";
+import { useState, useDeferredValue, useRef, useMemo } from "react";
 import { Search, Plus, Loader2, Edit2, Box, Download, Upload, Copy, Trash2, Columns3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -43,6 +44,23 @@ function ProductsPage() {
     setDrawerOpen(true);
   };
 
+  const { data: stockSummary = [] } = useAllProductsStockSummary();
+
+  const stockByProduct = useMemo(() => {
+    const acc: Record<string, number> = {};
+    stockSummary.forEach((s: any) => {
+      acc[s.product_id] = (acc[s.product_id] || 0) + Number(s.available_qty || 0);
+    });
+    return acc;
+  }, [stockSummary]);
+
+  const calculateTotalStock = (p: any) => {
+    if (p.format === "MP") {
+      return stockByProduct[p.id] || p.stock || 0;
+    }
+    return p.stock || 0;
+  };
+
   const handleExportCSV = () => {
     if (!products.length) {
       toast.info("Nenhum produto para exportar.");
@@ -53,6 +71,7 @@ function ProductsPage() {
       Nome: p.name,
       SKU: p.sku || '',
       Preço: p.price || 0,
+      Estoque: p.format === "PA" ? "Herdado do MP" : calculateTotalStock(p),
       "Preço Custo": p.cost_price || 0,
       Formato: p.format || 'MP',
       Unidade: p.unit || 'UN',
@@ -233,9 +252,7 @@ function ProductsPage() {
               </tr>
             )}
             {!isLoading && products.map((p) => {
-              const totalStock = p.format === "MP" && p.variations 
-                ? p.variations.reduce((acc, v) => acc + (v.stock || 0), 0)
-                : p.stock || 0;
+              const totalStock = calculateTotalStock(p);
 
               return (
               <tr key={p.id} className="hover:bg-muted/30 transition-colors group">
@@ -267,7 +284,7 @@ function ProductsPage() {
                 )}
                 {columns.stock && (
                   <td className="px-4 py-3 text-right number">
-                    {p.format === "MP" ? `${totalStock} (Acesso Variantes)` : (p.format === "PA" ? "-" : totalStock)}
+                    {p.format === "MP" ? `${totalStock} (Soma da Grade)` : (p.format === "PA" ? "— (Herdado do MP)" : totalStock)}
                   </td>
                 )}
                 {columns.status && (

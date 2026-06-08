@@ -457,6 +457,19 @@ export function useProductStockSummary(productId: string) {
   });
 }
 
+export function useAllProductsStockSummary() {
+  return useQuery({
+    queryKey: ["all_stock_summary"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vw_stock_summary")
+        .select("product_id, available_qty");
+      if (error) throw error;
+      return data;
+    }
+  });
+}
+
 export function useInventoryBatches(variantId?: string) {
   return useQuery({
     queryKey: ["inventory_batches", variantId],
@@ -789,6 +802,28 @@ export function useCreateInventoryEntryGrid() {
 
         if (movErr) console.error("Error logging movement", movErr);
         results.push(batch);
+      }
+
+      // Gerar Contas a Pagar (Módulo Financeiro)
+      let totalCost = 0;
+      for (const [size, qty] of entries) {
+        if (qty > 0) totalCost += (qty * payload.average_cost);
+      }
+      
+      if (totalCost > 0) {
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 30); // Padrão 30 dias, ideal seria ler do fornecedor
+
+        await supabase.from("financial_transactions").insert([{
+          type: 'pagar',
+          description: `Compra de Estoque (MP) - Lote ${payload.batch_code}`,
+          amount: totalCost,
+          original_amount: totalCost,
+          due_date: dueDate.toISOString().split('T')[0],
+          status: 'pendente',
+          supplier_id: payload.supplier_id,
+          cost_center: 'Estoque'
+        }]);
       }
 
       return results;

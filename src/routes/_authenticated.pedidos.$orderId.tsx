@@ -47,7 +47,24 @@ function OrderPage() {
     );
 
     if (existing) {
+      existing.totalQty += item.quantity || 0;
+      if (!existing.sizes[item.size]) existing.sizes[item.size] = 0;
+      existing.sizes[item.size] += item.quantity || 0;
+      existing.itemIds.push(item.id);
+    } else {
+      const sizes: Record<string, number> = {};
+      sizes[item.size] = item.quantity || 0;
+      groupedItems.push({
+        product_id: item.product_id,
+        product_name: item.product_name,
+        gender: item.gender,
+        model: item.model,
+        line: item.line,
+        fabric: item.fabric,
+        color: item.color,
+        sku: item.sku,
         unit_price: item.unit_price || 0,
+        list_price: item.list_price || 0,
         customizations: item.customizations || [],
         notes: item.notes,
         sizes,

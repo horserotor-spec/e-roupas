@@ -213,7 +213,7 @@ function ProducaoPage() {
                         </div>
                         
                         <div className="text-xs text-slate-500 mb-3 truncate">
-                          {order.items?.map(i => `${i.quantity}x ${i.product_name.split(' ')[0]}`).join(', ') || "Sem itens"}
+                          {order.items?.map(i => `${i.quantity}x ${i.product_name.split(' ')[0]} (${i.sku || '-'} - Tam: ${i.size || '-'})`).join(', ') || "Sem itens"}
                         </div>
 
                         <div className="flex flex-wrap gap-1 mb-3">

@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useDeferredValue } from "react";
-import { useQuotes, useQuoteKPIs, Quote } from "@/lib/api/quotes";
-import { quoteStatusLabel, quoteStatusTone, QuoteStatus } from "@/lib/constants";
+import { useState, useDeferredValue, useMemo } from "react";
+import { useOrders } from "@/lib/api/orders";
+import { statusLabel, statusTone } from "@/lib/constants";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Search, Plus, Loader2, FileText, TrendingUp, Clock, Percent, DollarSign } from "lucide-react";
@@ -16,8 +16,60 @@ function QuotesPage() {
   const deferredQ = useDeferredValue(q);
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  const { data: quotes = [], isLoading } = useQuotes(deferredQ);
-  const { data: kpis } = useQuoteKPIs();
+  const { data: allOrders = [], isLoading } = useOrders(deferredQ);
+
+  // Consider an order as "budget" if it was originally an orcamento
+  // For the list, we specifically want current orcamentos OR those that converted
+  // Let's assume the user just wants to see current orcamentos in this tab.
+  const quotes = useMemo(() => {
+    return allOrders.filter(o => o.status === "orcamento");
+  }, [allOrders]);
+
+  // If we want KPIs, we can compute them on the current quotes
+  const kpis = useMemo(() => {
+    const total = quotes.length;
+    const openTotal = quotes.reduce((acc, q) => acc + Number(q.final_total || 0), 0);
+    
+    // For margin
+    let totalMargin = 0;
+    let marginCount = 0;
+    
+    quotes.forEach(q => {
+      let cost = 0;
+      let hasCost = false;
+      let itemsNet = 0;
+
+      q.items.forEach(i => {
+        const baseCost = Number(i.unit_cost || 0);
+        const custCostSum = (i.customizations || []).reduce((acc: number, c: any) => acc + (Number(c.cost || 0) * Number(c.quantity || 1)), 0);
+        const itemCost = (baseCost + custCostSum) * i.quantity;
+        
+        itemsNet += (Number(i.unit_price || 0) * i.quantity);
+
+        if (itemCost > 0) {
+          hasCost = true;
+        }
+        cost += itemCost;
+      });
+
+      const saleDiscount = itemsNet * (Number(q.discount || 0) / 100);
+      const liquidRevenue = itemsNet - saleDiscount;
+
+      if (hasCost && liquidRevenue > 0) {
+        const margin = ((liquidRevenue - cost) / liquidRevenue) * 100;
+        totalMargin += margin;
+        marginCount++;
+      }
+    });
+
+    const avgMargin = marginCount > 0 ? totalMargin / marginCount : 0;
+
+    return {
+      totalOpen: total,
+      openTotal,
+      avgMargin,
+    };
+  }, [quotes]);
 
   const filtered = statusFilter === "all"
     ? quotes
@@ -30,7 +82,7 @@ function QuotesPage() {
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">COMERCIAL</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">Orçamentos</h1>
         </div>
-        <Link to="/orcamentos/novo">
+        <Link to="/pedidos/novo">
           <Button className="h-9 inline-flex items-center gap-1.5 px-3">
             <Plus className="size-4" /> Novo Orçamento
           </Button>
@@ -38,34 +90,20 @@ function QuotesPage() {
       </div>
 
       {/* KPI CARDS */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
         <KpiCard
           icon={<DollarSign className="size-4" />}
-          label="Em aberto"
-          value={`R$ ${(kpis?.openTotal || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-          hint={`${kpis?.totalOpen || 0} orçamentos`}
+          label="Valor em aberto"
+          value={`R$ ${(kpis.openTotal || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+          hint={`${kpis.totalOpen || 0} orçamentos ativos`}
           color="text-blue-600 bg-blue-500/10"
-        />
-        <KpiCard
-          icon={<Percent className="size-4" />}
-          label="Taxa de conversão"
-          value={`${(kpis?.conversionRate || 0).toFixed(1)}%`}
-          hint={`${kpis?.totalConverted || 0} de ${kpis?.totalQuotes || 0}`}
-          color="text-green-600 bg-green-500/10"
         />
         <KpiCard
           icon={<TrendingUp className="size-4" />}
           label="Margem bruta média"
-          value={`${(kpis?.avgMargin || 0).toFixed(1)}%`}
+          value={`${(kpis.avgMargin || 0).toFixed(1)}%`}
           hint="Sobre orçamentos com custo"
-          color={`${(kpis?.avgMargin || 0) < 15 ? "text-red-600 bg-red-500/10" : "text-emerald-600 bg-emerald-500/10"}`}
-        />
-        <KpiCard
-          icon={<Clock className="size-4" />}
-          label="Tempo de fechamento"
-          value={`${(kpis?.avgClosingDays || 0).toFixed(0)} dias`}
-          hint="Média orçamento → pedido"
-          color="text-purple-600 bg-purple-500/10"
+          color={`${(kpis.avgMargin || 0) < 15 ? "text-red-600 bg-red-500/10" : "text-emerald-600 bg-emerald-500/10"}`}
         />
       </div>
 
@@ -78,28 +116,6 @@ function QuotesPage() {
             placeholder="Buscar por código ou cliente..."
             className="h-9 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm outline-none focus:border-primary"
           />
-        </div>
-        <div className="flex gap-1.5 flex-wrap">
-          {[
-            { value: "all", label: "Todos" },
-            { value: "rascunho", label: "Rascunho" },
-            { value: "enviado", label: "Enviado" },
-            { value: "negociacao", label: "Negociação" },
-            { value: "aprovado", label: "Aprovado" },
-            { value: "rejeitado", label: "Rejeitado" },
-          ].map(f => (
-            <button
-              key={f.value}
-              onClick={() => setStatusFilter(f.value)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                statusFilter === f.value
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted/60 text-muted-foreground hover:bg-muted"
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -128,38 +144,48 @@ function QuotesPage() {
                 </td>
               </tr>
             )}
-            {!isLoading && filtered.map((quote) => (
-              <tr key={quote.id} className="hover:bg-muted/30 transition-colors group">
-                <td className="px-4 py-3">
-                  <Link to="/orcamentos/$id" params={{ id: quote.id }} className="font-mono text-xs font-semibold text-primary hover:underline">
-                    {quote.code}
-                  </Link>
-                </td>
-                <td className="px-4 py-3 font-medium">{quote.client_name}</td>
-                <td className="px-4 py-3 text-center text-muted-foreground">{quote.items?.length || 0}</td>
-                <td className="px-4 py-3 text-right number font-medium">
-                  {quote.final_total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <MarginBadge margin={quote.gross_margin_pct} />
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <StatusBadge tone={quoteStatusTone[quote.status]}>
-                    {quoteStatusLabel[quote.status]}
-                  </StatusBadge>
-                </td>
-                <td className="px-4 py-3 text-right text-xs text-muted-foreground">
-                  {new Date(quote.created_at).toLocaleDateString("pt-BR")}
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <Link to="/orcamentos/$id" params={{ id: quote.id }}>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                      <FileText className="size-4" />
-                    </Button>
-                  </Link>
-                </td>
-              </tr>
-            ))}
+            {!isLoading && filtered.map((quote) => {
+              // calculate margin inline
+              let cost = 0;
+              quote.items.forEach(i => cost += ((i.unit_cost || 0) * i.quantity));
+              let marginPct = 0;
+              if (cost > 0 && quote.final_total > 0) {
+                marginPct = ((quote.final_total - cost) / quote.final_total) * 100;
+              }
+
+              return (
+                <tr key={quote.id} className="hover:bg-muted/30 transition-colors group">
+                  <td className="px-4 py-3">
+                    <Link to="/pedidos/$id" params={{ id: quote.id }} className="font-mono text-xs font-semibold text-primary hover:underline">
+                      {quote.code}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 font-medium">{quote.client_name}</td>
+                  <td className="px-4 py-3 text-center text-muted-foreground">{quote.items?.length || 0}</td>
+                  <td className="px-4 py-3 text-right number font-medium">
+                    {quote.final_total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <MarginBadge margin={marginPct} />
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <StatusBadge tone={statusTone[quote.status]}>
+                      {statusLabel[quote.status]}
+                    </StatusBadge>
+                  </td>
+                  <td className="px-4 py-3 text-right text-xs text-muted-foreground">
+                    {new Date(quote.created_at).toLocaleDateString("pt-BR")}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <Link to="/pedidos/$id" params={{ id: quote.id }}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                        <FileText className="size-4" />
+                      </Button>
+                    </Link>
+                  </td>
+                </tr>
+              );
+            })}
             {!isLoading && filtered.length === 0 && (
               <tr>
                 <td colSpan={8} className="px-4 py-12 text-center text-sm text-muted-foreground">

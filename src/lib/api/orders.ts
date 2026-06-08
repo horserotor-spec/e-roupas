@@ -207,27 +207,55 @@ export async function allocateStockAndCreateProcesses(orderId: string) {
       // Se for PA (Produto Acabável) ou se o produto pai tiver modelagem, tecido e cor definidos
       if (prod.model_id && prod.fabric_id && prod.color_id) {
         
-        // 2. Tenta encontrar a variante física da MP principal
-        // Primeiro precisamos achar o produto MP correspondente
-        const { data: mainMp } = await supabase
-          .from("products")
+        // NOVO FLUXO ARQUITETURAL: Tenta resolver via product_relationships (PA -> MP)
+        const { data: paVariant } = await supabase
+          .from("product_variations")
           .select("id")
-          .eq("format", "MP")
-          .eq("model_id", prod.model_id)
-          .eq("fabric_id", prod.fabric_id)
-          .eq("color_id", prod.color_id)
-          .eq("active", true)
+          .eq("product_id", item.product_id)
+          .eq("size", item.size)
           .maybeSingle();
 
-        if (mainMp) {
-          const { data: v } = await supabase
-            .from("product_variants")
+        if (paVariant) {
+          const { data: rel } = await supabase
+            .from("product_relationships")
+            .select("mp_variant_id")
+            .eq("pa_variant_id", paVariant.id)
+            .eq("relationship_type", "MP_PA")
+            .maybeSingle();
+
+          if (rel && rel.mp_variant_id) {
+            const { data: v } = await supabase
+              .from("product_variations")
+              .select("id")
+              .eq("id", rel.mp_variant_id)
+              .eq("active", true)
+              .maybeSingle();
+            variant = v;
+          }
+        }
+
+        // FALLBACK LEGADO: Se não encontrou relação direta, busca via características
+        if (!variant) {
+          const { data: mainMp } = await supabase
+            .from("products")
             .select("id")
-            .eq("product_id", mainMp.id)
-            .eq("size", item.size)
+            .eq("format", "MP")
+            .eq("model_id", prod.model_id)
+            .eq("fabric_id", prod.fabric_id)
+            .eq("color_id", prod.color_id)
             .eq("active", true)
             .maybeSingle();
-          variant = v;
+
+          if (mainMp) {
+            const { data: v } = await supabase
+              .from("product_variants")
+              .select("id")
+              .eq("product_id", mainMp.id)
+              .eq("size", item.size)
+              .eq("active", true)
+              .maybeSingle();
+            variant = v;
+          }
         }
 
         // 3. Se não achou variante ou se o estoque disponível da variante principal for insuficiente, 
@@ -596,6 +624,33 @@ export function useCreateOrder() {
           .insert(paymentsWithOrderId);
           
         if (paymentsError) throw paymentsError;
+
+        // Gerar Contas a Receber no Módulo Financeiro
+        if (orderData.status === "confirmado" || orderData.status === "aguardando_financeiro" || orderData.status === "em_producao") {
+          const financialTransactions = payments.map((p, idx) => {
+             // Simplificação: distribuímos os vencimentos com 30 dias de diferença se for parcelado, senão hoje.
+             // Na vida real, seria capturado a data exata da parcela.
+             const isParcelado = String(p.installments).toLowerCase().includes('x');
+             const parcelsCount = isParcelado ? parseInt(String(p.installments).replace(/\D/g, '')) || 1 : 1;
+             
+             const today = new Date();
+             today.setMonth(today.getMonth() + idx); // Apenas um exemplo de parcelamento
+             
+             return {
+               type: 'receber',
+               description: `Recebimento - Pedido ${finalCode} (${p.installments})`,
+               amount: Number(p.amount),
+               original_amount: Number(p.amount),
+               due_date: today.toISOString().split('T')[0],
+               status: 'pendente',
+               payment_method: p.method,
+               order_id: newOrder.id,
+               cost_center: 'Comercial'
+             };
+          });
+          
+          await supabase.from("financial_transactions").insert(financialTransactions);
+        }
       }
 
       // Generate Accounts Payable for Commission
