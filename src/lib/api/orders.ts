@@ -890,6 +890,9 @@ export function useUpdateOrder() {
       await supabase.from("financial_transactions").delete().eq("order_id", id).eq("type", "pagar").ilike("description", "%Serviço - Corte - Pedido%");
       await supabase.from("financial_transactions").delete().eq("order_id", id).eq("type", "pagar").ilike("description", "%Serviço - Costura - Pedido%");
 
+      // Verificar se o pedido está em status de produção/Kanban para gerar as novas contas
+      const isProductionStatus = ["liberado_producao", "separacao", "corte", "costura", "bordado", "impressao", "prensa", "qualidade", "expedicao", "entregue", "finalizado"].includes(data.status || "");
+
       // Buscar categorias de Corte e Costura
       const { data: catCorte } = await supabase.from("financial_categories").select("id").eq("name", "Corte").maybeSingle();
       const { data: catCostura } = await supabase.from("financial_categories").select("id").eq("name", "Costura").maybeSingle();
@@ -900,7 +903,7 @@ export function useUpdateOrder() {
       const orderCode = data.code;
 
       // Sincronizar Corte
-      if (data.corte_faction && data.corte_grid && data.corte_unit_price) {
+      if (isProductionStatus && data.corte_faction && data.corte_grid && data.corte_unit_price) {
         const qtyTotal = Object.values(data.corte_grid || {}).reduce((acc, v) => acc + (Number(v) || 0), 0);
         const amount = qtyTotal * Number(data.corte_unit_price || 0);
 
@@ -951,7 +954,7 @@ export function useUpdateOrder() {
       }
 
       // Sincronizar Costura
-      if (data.costura_faction && data.costura_grid && data.costura_unit_price) {
+      if (isProductionStatus && data.costura_faction && data.costura_grid && data.costura_unit_price) {
         const qtyTotal = Object.values(data.costura_grid || {}).reduce((acc, v) => acc + (Number(v) || 0), 0);
         const amount = qtyTotal * Number(data.costura_unit_price || 0);
 

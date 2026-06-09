@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { formatCurrency } from "@/lib/utils";
-import { ArrowUpToLine, CheckCircle2, Search, Calendar as CalIcon, Plus, Filter, X, Loader2 } from "lucide-react";
+import { ArrowUpToLine, CheckCircle2, Search, Calendar as CalIcon, Plus, Filter, X, Loader2, Edit2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -18,10 +18,22 @@ export const Route = createFileRoute("/_authenticated/financeiro/pagar")({
   component: ContasPagar,
 });
 
+const OPERATIONAL_EXPENSE_TYPES = [
+  "CMV",
+  "Gerais e Administrativas",
+  "Aluguel, Condomínio e IPTU",
+  "Propaganda e Marketing",
+  "Pessoal",
+  "Investimento",
+  "Pro labore",
+  "Utilidades",
+  "Simples Nacional / Impostos",
+  "Despesas Financeiras"
+];
+
 function ContasPagar() {
   const { user } = useAuth();
   const [transactions, setTransactions] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Filtros
@@ -30,16 +42,19 @@ function ContasPagar() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  // Modal Nova Despesa
+  // Modal Nova/Editar Despesa
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingTx, setEditingTx] = useState<any | null>(null);
+  
   const [formData, setFormData] = useState({
     description: "",
     amount: "",
     due_date: new Date().toISOString().split("T")[0],
-    category_id: "",
+    category_name: "Gerais e Administrativas",
     cost_center: "Geral",
     notes: "",
+    status: "pendente"
   });
 
   const loadData = async () => {
@@ -50,14 +65,6 @@ function ContasPagar() {
       .eq('type', 'pagar')
       .order('due_date', { ascending: true });
     if (txData) setTransactions(txData);
-
-    const { data: catData } = await supabase
-      .from('financial_categories')
-      .select('*')
-      .neq('type', 'receita') // Não carregar categorias de receita para contas a pagar
-      .order('name');
-    if (catData) setCategories(catData);
-
     setLoading(false);
   };
 
@@ -89,59 +96,126 @@ function ContasPagar() {
     }
   };
 
-  const handleCreateDespesa = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.description || !formData.amount || !formData.due_date || !formData.category_id) {
-      toast.error("Preencha todos os campos obrigatórios (*).");
-      return;
-    }
+  const handleEditClick = (tx: any) => {
+    setEditingTx(tx);
+    setFormData({
+      description: tx.description,
+      amount: String(tx.amount),
+      due_date: tx.due_date,
+      category_name: tx.financial_categories?.name || "Gerais e Administrativas",
+      cost_center: tx.cost_center || "Geral",
+      notes: tx.notes || "",
+      status: tx.status || "pendente"
+    });
+    setModalOpen(true);
+  };
 
-    setSaving(true);
-    const amt = parseFloat(formData.amount);
-
-    const { data: newTx, error } = await supabase
-      .from('financial_transactions')
-      .insert([{
-        type: 'pagar',
-        status: 'pendente',
-        description: formData.description,
-        amount: amt,
-        original_amount: amt,
-        due_date: formData.due_date,
-        category_id: formData.category_id,
-        cost_center: formData.cost_center,
-        notes: formData.notes,
-        created_by: user?.id || null,
-      }])
-      .select()
-      .single();
-
+  const handleDeleteClick = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir esta conta a pagar?")) return;
+    
+    const { error } = await supabase.from('financial_transactions').delete().eq('id', id);
+    
     if (error) {
-      toast.error("Erro ao cadastrar despesa: " + error.message);
+      toast.error("Erro ao excluir lançamento: " + error.message);
     } else {
-      toast.success("Despesa cadastrada com sucesso!");
+      toast.success("Lançamento excluído com sucesso!");
       
       // Log de Auditoria
       await supabase.from("audit_logs").insert([{
         user_id: user?.id || null,
         module: "Financeiro",
-        action: "Cadastro Manual de Despesa",
-        after_data: { ...formData, id: newTx.id }
+        action: "Exclusão de Lançamento Financeiro",
+        after_data: { id }
       }]);
 
-      // Reset form & reload
+      loadData();
+    }
+  };
+
+  const resolveCategory = async (name: string) => {
+    let type = "custo_fixo";
+    if (name === "Simples Nacional / Impostos") type = "imposto";
+    else if (name === "Despesas Financeiras") type = "financeiro";
+    else if (name === "CMV") type = "custo_variavel";
+    
+    const { data: existing } = await supabase
+      .from("financial_categories")
+      .select("id")
+      .eq("name", name)
+      .maybeSingle();
+      
+    if (existing) return existing.id;
+    
+    const { data: created } = await supabase
+      .from("financial_categories")
+      .insert([{ name, type }])
+      .select("id")
+      .single();
+      
+    return created?.id;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.description || !formData.amount || !formData.due_date || !formData.category_name) {
+      toast.error("Preencha todos os campos obrigatórios (*).");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const amt = parseFloat(formData.amount);
+      const categoryId = await resolveCategory(formData.category_name);
+
+      const payload = {
+        type: 'pagar',
+        status: formData.status,
+        description: formData.description,
+        amount: amt,
+        original_amount: amt,
+        due_date: formData.due_date,
+        category_id: categoryId,
+        cost_center: formData.cost_center,
+        notes: formData.notes,
+        payment_date: formData.status === 'pago' ? new Date().toISOString().split("T")[0] : null
+      };
+
+      if (editingTx) {
+        // Atualizar
+        const { error } = await supabase
+          .from('financial_transactions')
+          .update(payload)
+          .eq('id', editingTx.id);
+
+        if (error) throw error;
+        toast.success("Despesa atualizada com sucesso!");
+      } else {
+        // Criar novo
+        const { error } = await supabase
+          .from('financial_transactions')
+          .insert([{ ...payload, created_by: user?.id || null }]);
+
+        if (error) throw error;
+        toast.success("Despesa cadastrada com sucesso!");
+      }
+
       setFormData({
         description: "",
         amount: "",
         due_date: new Date().toISOString().split("T")[0],
-        category_id: "",
+        category_name: "Gerais e Administrativas",
         cost_center: "Geral",
         notes: "",
+        status: "pendente"
       });
+      setEditingTx(null);
       setModalOpen(false);
       loadData();
+    } catch (error: any) {
+      toast.error("Erro ao salvar despesa: " + error.message);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const getDynamicStatus = (t: any) => {
@@ -208,7 +282,7 @@ function ContasPagar() {
           <p className="text-muted-foreground mt-1">Gestão de saídas, insumos, fornecedores, custos fixos e taxas.</p>
         </div>
         <div>
-          <Button onClick={() => setModalOpen(true)} className="bg-slate-900 hover:bg-slate-800 text-white font-semibold">
+          <Button onClick={() => { setEditingTx(null); setModalOpen(true); }} className="bg-slate-900 hover:bg-slate-800 text-white font-semibold">
             <Plus className="size-4 mr-1.5" /> Nova Despesa
           </Button>
         </div>
@@ -329,23 +403,38 @@ function ContasPagar() {
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {dStatus !== 'pago' && dStatus !== 'cancelado' && (
-                          <div className="flex justify-end gap-1.5">
+                        <div className="flex justify-end gap-1.5 items-center">
+                          {dStatus !== 'pago' && dStatus !== 'cancelado' && (
                             <Button 
                               size="sm" 
                               onClick={() => handleQuickQuitar(t.id)} 
-                              className="bg-slate-900 hover:bg-slate-800 text-white h-7 px-3 text-[11px] font-semibold"
+                              className="bg-slate-900 hover:bg-slate-800 text-white h-7 px-2.5 text-[10px] font-semibold flex items-center"
                             >
                               <ArrowUpToLine className="size-3 mr-1" /> Quitar
                             </Button>
-                          </div>
-                        )}
-                        {dStatus === 'pago' && (
-                          <span className="text-[11px] text-slate-500 font-bold flex items-center justify-end gap-1">
-                            <CheckCircle2 className="size-3.5 text-slate-400" />
-                            em {t.payment_date && new Date(t.payment_date + 'T12:00:00').toLocaleDateString('pt-BR')}
-                          </span>
-                        )}
+                          )}
+                          {dStatus === 'pago' && (
+                            <span className="text-[10px] text-slate-500 font-bold flex items-center gap-1 mr-2">
+                              ✓ {t.payment_date && new Date(t.payment_date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                            </span>
+                          )}
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => handleEditClick(t)} 
+                            className="h-7 px-2 text-[10px] flex items-center gap-1"
+                          >
+                            <Edit2 className="size-3" /> Editar
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={() => handleDeleteClick(t.id)} 
+                            className="h-7 px-2 text-[10px] text-red-500 hover:bg-red-50 flex items-center gap-1"
+                          >
+                            <Trash2 className="size-3" /> Excluir
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -363,13 +452,18 @@ function ContasPagar() {
         )}
       </div>
 
-      {/* Modal Nova Despesa */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+      {/* Modal Nova/Editar Despesa */}
+      <Dialog open={modalOpen} onOpenChange={(open) => {
+        setModalOpen(open);
+        if (!open) setEditingTx(null);
+      }}>
         <DialogContent className="sm:max-w-md bg-white">
-          <form onSubmit={handleCreateDespesa} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <DialogHeader>
-              <DialogTitle className="text-lg font-bold text-slate-850">Lançamento de Despesa Manual</DialogTitle>
-              <DialogDescription className="text-xs">Registre despesas de custos fixos, insumos ou outros pagamentos.</DialogDescription>
+              <DialogTitle className="text-lg font-bold text-slate-850">
+                {editingTx ? "Editar Lançamento de Despesa" : "Lançamento de Despesa Manual"}
+              </DialogTitle>
+              <DialogDescription className="text-xs">Registre ou edite despesas de custos fixos, insumos ou outros pagamentos.</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-3 py-2 text-xs">
@@ -414,14 +508,14 @@ function ContasPagar() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <Label className="text-xs font-semibold">Categoria *</Label>
-                  <Select value={formData.category_id} onValueChange={v => setFormData({ ...formData, category_id: v })} required>
+                  <Label className="text-xs font-semibold">Tipo (CMV/Despesa DRE) *</Label>
+                  <Select value={formData.category_name} onValueChange={v => setFormData({ ...formData, category_name: v })} required>
                     <SelectTrigger className="h-9 text-xs">
                       <SelectValue placeholder="Selecione..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map(c => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      {OPERATIONAL_EXPENSE_TYPES.map(c => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -449,6 +543,21 @@ function ContasPagar() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">Status de Pagamento *</Label>
+                  <Select value={formData.status} onValueChange={v => setFormData({ ...formData, status: v })} required>
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pendente">Pendente</SelectItem>
+                      <SelectItem value="pago">Pago</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <div className="space-y-1">
                 <Label htmlFor="notes" className="text-xs font-semibold">Observações</Label>
                 <Textarea 
@@ -462,12 +571,12 @@ function ContasPagar() {
             </div>
 
             <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={() => setModalOpen(false)} className="h-9 text-xs">
+              <Button type="button" variant="outline" onClick={() => { setModalOpen(false); setEditingTx(null); }} className="h-9 text-xs">
                 Cancelar
               </Button>
               <Button type="submit" disabled={saving} className="bg-slate-900 hover:bg-slate-800 text-white h-9 text-xs font-semibold">
                 {saving && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
-                Salvar Lançamento
+                {editingTx ? "Salvar Alterações" : "Salvar Lançamento"}
               </Button>
             </DialogFooter>
           </form>

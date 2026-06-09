@@ -2,31 +2,62 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { formatCurrency } from "@/lib/utils";
-import { ArrowDownToLine, CheckCircle2, Search, Calendar as CalIcon, Filter, X, Loader2 } from "lucide-react";
+import { ArrowDownToLine, CheckCircle2, Search, Calendar as CalIcon, Filter, X, Loader2, Plus, Edit2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/financeiro/receber")({
   head: () => ({ meta: [{ title: "Contas a Receber · Financeiro" }] }),
   component: ContasReceber,
 });
 
+const REVENUE_CATEGORIES = [
+  "Venda de Roupas",
+  "Private Label",
+  "Dropshipping",
+  "Serviços",
+  "Receitas Financeiras"
+];
+
 function ContasReceber() {
+  const { user } = useAuth();
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Filtros
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("Todos");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
+  // Modal Nova/Editar Receita
+  const [modalOpen, setModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editingTx, setEditingTx] = useState<any | null>(null);
+
+  const [formData, setFormData] = useState({
+    description: "",
+    amount: "",
+    due_date: new Date().toISOString().split("T")[0],
+    category_name: "Venda de Roupas",
+    cost_center: "Comercial",
+    payment_method: "PIX",
+    notes: "",
+    status: "pendente"
+  });
+
   const loadData = async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('financial_transactions')
-      .select('*, orders(code, client_id, clients(name))')
+      .select('*, financial_categories(*), orders(code, client_id, clients(name))')
       .eq('type', 'receber')
       .order('due_date', { ascending: true });
     if (data) setTransactions(data);
@@ -48,7 +79,139 @@ function ContasReceber() {
       toast.error("Erro ao realizar a baixa.");
     } else {
       toast.success("Recebimento confirmado com sucesso!");
+      
+      // Log de Auditoria
+      await supabase.from("audit_logs").insert([{
+        user_id: user?.id || null,
+        module: "Financeiro",
+        action: "Baixa de Conta a Receber",
+        after_data: { id, status: "recebido", payment_date: today }
+      }]);
+
       loadData();
+    }
+  };
+
+  const handleEditClick = (tx: any) => {
+    setEditingTx(tx);
+    setFormData({
+      description: tx.description,
+      amount: String(tx.amount),
+      due_date: tx.due_date,
+      category_name: tx.financial_categories?.name || "Venda de Roupas",
+      cost_center: tx.cost_center || "Comercial",
+      payment_method: tx.payment_method || "PIX",
+      notes: tx.notes || "",
+      status: tx.status || "pendente"
+    });
+    setModalOpen(true);
+  };
+
+  const handleDeleteClick = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este lançamento a receber?")) return;
+
+    const { error } = await supabase.from('financial_transactions').delete().eq('id', id);
+
+    if (error) {
+      toast.error("Erro ao excluir lançamento: " + error.message);
+    } else {
+      toast.success("Lançamento excluído com sucesso!");
+
+      // Log de Auditoria
+      await supabase.from("audit_logs").insert([{
+        user_id: user?.id || null,
+        module: "Financeiro",
+        action: "Exclusão de Lançamento a Receber",
+        after_data: { id }
+      }]);
+
+      loadData();
+    }
+  };
+
+  const resolveCategory = async (name: string) => {
+    let type = "receita";
+    if (name === "Receitas Financeiras") type = "financeiro";
+
+    const { data: existing } = await supabase
+      .from("financial_categories")
+      .select("id")
+      .eq("name", name)
+      .maybeSingle();
+
+    if (existing) return existing.id;
+
+    const { data: created } = await supabase
+      .from("financial_categories")
+      .insert([{ name, type }])
+      .select("id")
+      .single();
+
+    return created?.id;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.description || !formData.amount || !formData.due_date || !formData.category_name) {
+      toast.error("Preencha todos os campos obrigatórios (*).");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const amt = parseFloat(formData.amount);
+      const categoryId = await resolveCategory(formData.category_name);
+
+      const payload = {
+        type: 'receber',
+        status: formData.status,
+        description: formData.description,
+        amount: amt,
+        original_amount: amt,
+        due_date: formData.due_date,
+        category_id: categoryId,
+        cost_center: formData.cost_center,
+        payment_method: formData.payment_method,
+        notes: formData.notes,
+        payment_date: formData.status === 'recebido' ? new Date().toISOString().split("T")[0] : null
+      };
+
+      if (editingTx) {
+        // Atualizar
+        const { error } = await supabase
+          .from('financial_transactions')
+          .update(payload)
+          .eq('id', editingTx.id);
+
+        if (error) throw error;
+        toast.success("Título a receber atualizado com sucesso!");
+      } else {
+        // Criar novo
+        const { error } = await supabase
+          .from('financial_transactions')
+          .insert([{ ...payload, created_by: user?.id || null }]);
+
+        if (error) throw error;
+        toast.success("Título a receber cadastrado com sucesso!");
+      }
+
+      setFormData({
+        description: "",
+        amount: "",
+        due_date: new Date().toISOString().split("T")[0],
+        category_name: "Venda de Roupas",
+        cost_center: "Comercial",
+        payment_method: "PIX",
+        notes: "",
+        status: "pendente"
+      });
+      setEditingTx(null);
+      setModalOpen(false);
+      loadData();
+    } catch (error: any) {
+      toast.error("Erro ao salvar lançamento: " + error.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -116,6 +279,11 @@ function ContasReceber() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-800">Contas a Receber</h1>
           <p className="text-muted-foreground mt-1">Gestão de recebíveis, parcelas de vendas e conciliação.</p>
+        </div>
+        <div>
+          <Button onClick={() => { setEditingTx(null); setModalOpen(true); }} className="bg-slate-900 hover:bg-slate-800 text-white font-semibold">
+            <Plus className="size-4 mr-1.5" /> Nova Receita
+          </Button>
         </div>
       </div>
 
@@ -243,23 +411,38 @@ function ContasReceber() {
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {dStatus !== 'recebido' && dStatus !== 'cancelado' && (
-                          <div className="flex justify-end gap-1.5">
+                        <div className="flex justify-end gap-1.5 items-center">
+                          {dStatus !== 'recebido' && dStatus !== 'cancelado' && (
                             <Button 
                               size="sm" 
                               onClick={() => handleQuickBaixar(t.id)} 
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white h-7 px-3 text-[11px] font-semibold"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white h-7 px-2.5 text-[10px] font-semibold flex items-center"
                             >
                               <ArrowDownToLine className="size-3 mr-1" /> Baixar
                             </Button>
-                          </div>
-                        )}
-                        {dStatus === 'recebido' && (
-                          <span className="text-[11px] text-emerald-600 font-bold flex items-center justify-end gap-1">
-                            <CheckCircle2 className="size-3.5" />
-                            em {t.payment_date && new Date(t.payment_date + 'T12:00:00').toLocaleDateString('pt-BR')}
-                          </span>
-                        )}
+                          )}
+                          {dStatus === 'recebido' && (
+                            <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 mr-2">
+                              ✓ {t.payment_date && new Date(t.payment_date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                            </span>
+                          )}
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => handleEditClick(t)} 
+                            className="h-7 px-2 text-[10px] flex items-center gap-1"
+                          >
+                            <Edit2 className="size-3" /> Editar
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={() => handleDeleteClick(t.id)} 
+                            className="h-7 px-2 text-[10px] text-red-500 hover:bg-red-50 flex items-center gap-1"
+                          >
+                            <Trash2 className="size-3" /> Excluir
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -276,6 +459,144 @@ function ContasReceber() {
           </div>
         )}
       </div>
+
+      {/* Modal Nova/Editar Receita */}
+      <Dialog open={modalOpen} onOpenChange={(open) => {
+        setModalOpen(open);
+        if (!open) setEditingTx(null);
+      }}>
+        <DialogContent className="sm:max-w-md bg-white">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-bold text-slate-850">
+                {editingTx ? "Editar Lançamento a Receber" : "Lançamento de Receita Manual"}
+              </DialogTitle>
+              <DialogDescription className="text-xs">Registre ou edite receitas operacionais ou recebimentos avulsos.</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3 py-2 text-xs">
+              <div className="space-y-1">
+                <Label htmlFor="description" className="text-xs font-semibold">Descrição / Origem *</Label>
+                <Input 
+                  id="description"
+                  placeholder="Ex: Faturamento Lote Roupas ERP"
+                  value={formData.description}
+                  onChange={e => setFormData({ ...formData, description: e.target.value })}
+                  className="h-9"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label htmlFor="amount" className="text-xs font-semibold">Valor (R$) *</Label>
+                  <Input 
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    placeholder="0,00"
+                    value={formData.amount}
+                    onChange={e => setFormData({ ...formData, amount: e.target.value })}
+                    className="h-9"
+                    required
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="due_date" className="text-xs font-semibold">Vencimento *</Label>
+                  <Input 
+                    id="due_date"
+                    type="date"
+                    value={formData.due_date}
+                    onChange={e => setFormData({ ...formData, due_date: e.target.value })}
+                    className="h-9"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">Categoria de Receita *</Label>
+                  <Select value={formData.category_name} onValueChange={v => setFormData({ ...formData, category_name: v })} required>
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {REVENUE_CATEGORIES.map(c => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">Meio de Pagamento *</Label>
+                  <Select value={formData.payment_method} onValueChange={v => setFormData({ ...formData, payment_method: v })} required>
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PIX">PIX</SelectItem>
+                      <SelectItem value="Boleto">Boleto Bancário</SelectItem>
+                      <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
+                      <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                      <SelectItem value="Transferência">TED/DOC</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">Status de Recebimento *</Label>
+                  <Select value={formData.status} onValueChange={v => setFormData({ ...formData, status: v })} required>
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pendente">Pendente</SelectItem>
+                      <SelectItem value="recebido">Recebido</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">Centro de Custo</Label>
+                  <Select value={formData.cost_center} onValueChange={v => setFormData({ ...formData, cost_center: v })}>
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Comercial">Comercial</SelectItem>
+                      <SelectItem value="Financeiro">Financeiro</SelectItem>
+                      <SelectItem value="Geral">Geral</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="notes" className="text-xs font-semibold">Observações</Label>
+                <Textarea 
+                  id="notes"
+                  placeholder="Informações adicionais do título"
+                  value={formData.notes}
+                  onChange={e => setFormData({ ...formData, notes: e.target.value })}
+                  className="min-h-[60px]"
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => { setModalOpen(false); setEditingTx(null); }} className="h-9 text-xs">
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={saving} className="bg-slate-900 hover:bg-slate-800 text-white h-9 text-xs font-semibold">
+                {saving && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
+                {editingTx ? "Salvar Alterações" : "Salvar Lançamento"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

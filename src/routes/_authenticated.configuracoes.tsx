@@ -51,11 +51,35 @@ function Config() {
   const [loadingSgp, setLoadingSgp] = useState(true);
   const [savingSgp, setSavingSgp] = useState(false);
 
+  // Estados do CMV
+  const [cmvConfig, setCmvConfig] = useState({
+    saquinho: 0.50,
+    etiqueta: 0.30,
+    dtf: 1.50,
+    bordado: 2.00,
+    mp_default: 15.00
+  });
+  const [loadingCmv, setLoadingCmv] = useState(true);
+  const [savingCmv, setSavingCmv] = useState(false);
+
   useEffect(() => {
     getSgpSettings().then(data => {
       if (data) setSgpConfig(data);
       setLoadingSgp(false);
     });
+
+    // Buscar configurações de CMV
+    supabase
+      .from("system_settings")
+      .select("*")
+      .eq("key", "cmv_costs_config")
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data && data.value) {
+          setCmvConfig(prev => ({ ...prev, ...data.value }));
+        }
+        setLoadingCmv(false);
+      });
   }, []);
 
   const handleSaveSgp = async () => {
@@ -88,6 +112,24 @@ function Config() {
     }
   };
 
+  const handleSaveCmv = async () => {
+    setSavingCmv(true);
+    try {
+      const { error } = await supabase.from("system_settings").upsert({
+        key: "cmv_costs_config",
+        value: cmvConfig,
+        description: "Configurações de custo unitário para cálculo do CMV (Saquinho, Etiqueta, DTF, Bordado, MP)"
+      }, { onConflict: "key" });
+
+      if (error) throw error;
+      toast.success("Configurações do CMV salvas com sucesso!");
+    } catch (err: any) {
+      toast.error("Erro ao salvar: " + err.message);
+    } finally {
+      setSavingCmv(false);
+    }
+  };
+
   return (
     <div className="px-6 md:px-10 py-8 max-w-[1500px] mx-auto">
       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Sistema</p>
@@ -98,6 +140,7 @@ function Config() {
         <TabsList className="mb-4">
           <TabsTrigger value="permissoes">Usuários e Permissões</TabsTrigger>
           <TabsTrigger value="integracoes">Integrações</TabsTrigger>
+          <TabsTrigger value="cmv">CMV</TabsTrigger>
         </TabsList>
 
         <TabsContent value="permissoes">
@@ -237,6 +280,84 @@ function Config() {
                 <Button onClick={handleSaveSgp} disabled={loadingSgp || savingSgp} className="w-full">
                   {savingSgp && <Loader2 className="mr-2 size-4 animate-spin" />}
                   Testar e Salvar Conexão
+                </Button>
+              </CardFooter>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="cmv">
+          <div className="max-w-md">
+            <Card>
+              <CardHeader className="pb-4 border-b">
+                <CardTitle className="text-lg">Custos e Composição do CMV</CardTitle>
+                <CardDescription>Defina os custos unitários padrão para calcular o custo real de cada venda.</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-4">
+                {loadingCmv ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="cmv-saquinho">Custo do Saquinho de Camiseta (R$)</Label>
+                      <Input 
+                        id="cmv-saquinho"
+                        type="number" 
+                        step="0.01" 
+                        value={cmvConfig.saquinho} 
+                        onChange={e => setCmvConfig({...cmvConfig, saquinho: parseFloat(e.target.value) || 0})}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="cmv-etiqueta">Custo da Etiqueta (R$)</Label>
+                      <Input 
+                        id="cmv-etiqueta"
+                        type="number" 
+                        step="0.01" 
+                        value={cmvConfig.etiqueta} 
+                        onChange={e => setCmvConfig({...cmvConfig, etiqueta: parseFloat(e.target.value) || 0})}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="cmv-dtf">Custo de Aplicação de DTF (R$)</Label>
+                      <Input 
+                        id="cmv-dtf"
+                        type="number" 
+                        step="0.01" 
+                        value={cmvConfig.dtf} 
+                        onChange={e => setCmvConfig({...cmvConfig, dtf: parseFloat(e.target.value) || 0})}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="cmv-bordado">Custo de Aplicação de Bordado (R$)</Label>
+                      <Input 
+                        id="cmv-bordado"
+                        type="number" 
+                        step="0.01" 
+                        value={cmvConfig.bordado} 
+                        onChange={e => setCmvConfig({...cmvConfig, bordado: parseFloat(e.target.value) || 0})}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="cmv-mp">Custo da Matéria-Prima Consumida (R$ - Base)</Label>
+                      <Input 
+                        id="cmv-mp"
+                        type="number" 
+                        step="0.01" 
+                        value={cmvConfig.mp_default} 
+                        onChange={e => setCmvConfig({...cmvConfig, mp_default: parseFloat(e.target.value) || 0})}
+                        helperText="Usado como fallback caso a MP consumida não tenha custo médio registrado."
+                      />
+                    </div>
+                  </>
+                )}
+              </CardContent>
+              <CardFooter className="border-t pt-4 bg-muted/20">
+                <Button onClick={handleSaveCmv} disabled={loadingCmv || savingCmv} className="w-full">
+                  {savingCmv && <Loader2 className="mr-2 size-4 animate-spin" />}
+                  Salvar Configurações do CMV
                 </Button>
               </CardFooter>
             </Card>
