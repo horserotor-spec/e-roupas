@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useOrders, Order } from "@/lib/api/orders";
-import { Loader2, ArrowRight, Clock, Box, ShieldAlert, AlertTriangle, User, Search, Filter } from "lucide-react";
+import { Loader2, ArrowRight, Clock, Box, ShieldAlert, AlertTriangle, User, Search, Filter, Barcode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -99,6 +99,12 @@ function ProducaoPage() {
     const currentStatus = e.dataTransfer.getData("currentStatus") as OrderStatus;
     
     if (!orderId || currentStatus === stageId) return;
+
+    // REGRA DE OURO DA SPRINT 2.10: Não permite bypass/avançar de Separação sem bipagem física real
+    if (currentStatus === "separacao" && !allowUrgentMove) {
+      toast.error("Separação física obrigatória via scanner! Utilize o botão 'Modo Separação' no card do pedido.");
+      return;
+    }
 
     // Regras de validação
     const currentIndex = KANBAN_STAGES.findIndex(s => s.id === currentStatus);
@@ -223,6 +229,36 @@ function ProducaoPage() {
                             </span>
                           ))}
                         </div>
+
+                        {/* ATALHOS OPERACIONAIS DA SPRINT 2.10 */}
+                        {order.status === "separacao" && (
+                          <Link 
+                            to="/producao/separacao" 
+                            search={{ orderId: order.id }}
+                            onClick={(e) => e.stopPropagation()} // impede abrir o drawer geral
+                            className="w-full h-7 mt-1 mb-2.5 rounded bg-amber-500 hover:bg-amber-600 text-[10px] font-bold text-slate-950 flex items-center justify-center gap-1.5 uppercase transition-colors"
+                          >
+                            <Barcode className="size-3.5" /> Modo Separação
+                          </Link>
+                        )}
+
+                        {order.status === "prensa" && (
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const confirmText = `Deseja marcar a Prensa do pedido ${order.code} como ✔ Aplicado?`;
+                              if (window.confirm(confirmText)) {
+                                supabase.from("orders").update({ status: "qualidade" }).eq("id", order.id).then(() => {
+                                  queryClient.invalidateQueries({ queryKey: ["orders"] });
+                                  toast.success("Prensa confirmada!");
+                                });
+                              }
+                            }}
+                            className="w-full h-7 mt-1 mb-2.5 rounded bg-blue-600 hover:bg-blue-700 text-[10px] font-bold text-white flex items-center justify-center gap-1.5 uppercase transition-colors"
+                          >
+                            ✔ Aplicar Prensa (Visual)
+                          </button>
+                        )}
 
                         <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
                           <span className={cn("text-[10px] font-medium flex items-center gap-1", overdue ? "text-red-600 font-bold" : "text-slate-500")}>

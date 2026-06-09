@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { formatCurrency } from "@/lib/utils";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowUpRight, Flame, Clock, FileCheck2, UserPlus, Activity, Loader2 } from "lucide-react";
+import { ArrowUpRight, Flame, Clock, FileCheck2, UserPlus, Activity, Loader2, ShieldAlert } from "lucide-react";
 import { useOrders } from "@/lib/api/orders";
 import { useClients } from "@/lib/api/clients";
+import { useEffect, useState } from "react";
 import { quoteStatusLabel, quoteStatusTone } from "@/lib/constants";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -78,6 +79,14 @@ function Dashboard() {
   const options: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long' };
   const displayDate = new Date().toLocaleDateString('pt-BR', options);
 
+  // Carregar dados de erros evitados
+  const [avoidedErrors, setAvoidedErrors] = useState(0);
+  useEffect(() => {
+    supabase.from("separation_errors").select("*", { count: "exact", head: true }).then((res) => {
+      setAvoidedErrors(res.count || 0);
+    });
+  }, []);
+
   return (
     <div className="px-6 md:px-10 py-8 max-w-[1400px] mx-auto">
       <div className="flex items-end justify-between mb-8">
@@ -87,12 +96,13 @@ function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
         <KpiCard to="/pedidos" label="Pedidos do dia" value={today.length} hint="Criados hoje" icon={Activity} accent="primary" />
         <KpiCard to="/pedidos" label="Urgentes" value={urgent.length} hint="Prioridade alta" icon={Flame} accent="warning" />
         <KpiCard to="/pedidos" label="Aguardando arte" value={waitingArt.length} hint="Cliente / designer" icon={FileCheck2} accent="info" />
         <KpiCard to="/pedidos" label="Atrasados" value={overdue.length} hint="Prazo vencido" icon={Clock} accent="danger" />
         <KpiCard to="/crm" label="Clientes novos" value={newClients.length} hint="Últimos 60d" icon={UserPlus} accent="success" />
+        <KpiCard to="/producao" label="Erros Evitados" value={avoidedErrors} hint="Separação física" icon={ShieldAlert} accent="success" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-3">
@@ -182,7 +192,6 @@ function Dashboard() {
   );
 }
 
-import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 function FinanceWidget() {

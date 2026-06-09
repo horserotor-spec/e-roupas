@@ -407,55 +407,200 @@ export async function allocateStockAndCreateProcesses(orderId: string) {
 }
 
 export async function consumeStockForOrder(orderId: string) {
-  const { data: reservations, error } = await supabase
+  // A baixa de estoque real ocorre de forma física unitária no fluxo de bipagem de separação anti-erro (Sprint 2.10)
+  return;
+}
+
+export interface BipSeparationResult {
+  success: boolean;
+  message: string;
+  expected?: any;
+  biped?: any;
+}
+
+export async function bipSeparationItem(
+  orderId: string,
+  orderItemId: string,
+  barcodeBipado: string,
+  operatorId?: string
+): Promise<BipSeparationResult> {
+  // 1. Obter o item do pedido
+  const { data: item, error: itemError } = await supabase
+    .from("order_items")
+    .select(`
+      id,
+      product_id,
+      product_name,
+      sku,
+      size,
+      gender,
+      quantity,
+      quantity_separated,
+      products:product_id (
+        model_id,
+        fabric_id,
+        color_id,
+        models:model_id (name),
+        fabrics:fabric_id (name, code),
+        canonical_colors:color_id (name, code)
+      )
+    `)
+    .eq("id", orderItemId)
+    .single();
+
+  if (itemError || !item) {
+    return { success: false, message: "Item do pedido não encontrado." };
+  }
+
+  const prod = item.products as any;
+  const expectedModel = prod?.models?.name || "";
+  const expectedFabric = prod?.fabrics?.name || "";
+  const expectedColor = prod?.canonical_colors?.name || "";
+  const expectedSize = item.size || "";
+
+  // Barcode esperado gerado logicamente conforme a variação da MP associada (ex: MP-REG-PEL-PTO-G)
+  const fabricCode = (prod?.fabrics?.code || "GEN").toUpperCase();
+  const colorCode = (prod?.canonical_colors?.code || "GEN").toUpperCase();
+  const sizeCode = expectedSize.toUpperCase();
+  const expectedBarcode = `MP-REG-${fabricCode}-${colorCode}-${sizeCode}`;
+
+  // Normalizar bipagem
+  const cleanBiped = barcodeBipado.trim().toUpperCase();
+
+  // 2. Validar anti-erro
+  if (cleanBiped !== expectedBarcode) {
+    // Tenta identificar o que foi bipado com base na nomenclatura MP-REG-MALHA-COR-TAMANHO
+    const parts = cleanBiped.split('-');
+    let bipedDetails = cleanBiped;
+    if (parts.length >= 5) {
+      const bipedFabric = parts[2];
+      const bipedColor = parts[3];
+      const bipedSize = parts[4];
+      bipedDetails = `Regular / Malha: ${bipedFabric} / Cor: ${bipedColor} / Tam: ${bipedSize}`;
+    }
+
+    // Registrar erro no banco
+    await supabase.from("separation_errors").insert([{
+      order_id: orderId,
+      order_item_id: orderItemId,
+      expected_barcode: expectedBarcode,
+      biped_barcode: cleanBiped,
+      operator_id: operatorId || null
+    }]);
+
+    return {
+      success: false,
+      message: "🔴 MP INCORRETO",
+      expected: {
+        model: expectedModel,
+        fabric: expectedFabric,
+        color: expectedColor,
+        size: expectedSize,
+        barcode: expectedBarcode
+      },
+      biped: {
+        details: bipedDetails,
+        barcode: cleanBiped
+      }
+    };
+  }
+
+  // 3. Se correto: Executar baixa real de estoque do lote associado a reserva
+  const { data: reservations } = await supabase
     .from("stock_reservations")
-    .select("*")
-    .eq("order_id", orderId);
+    .select("id, batch_id, quantity")
+    .eq("order_item_id", orderItemId)
+    .limit(1);
 
-  if (error || !reservations || reservations.length === 0) return;
+  if (!reservations || reservations.length === 0) {
+    return { success: false, message: "Nenhuma reserva de estoque encontrada para este item." };
+  }
 
-  for (const res of reservations) {
-    const qtyToConsume = Number(res.quantity);
-    if (qtyToConsume <= 0) continue;
+  const reservation = reservations[0];
+  const qtyToConsume = 1; // 1 bip = 1 saída
 
-    // 1. Fetch batch to get current reserved
-    const { data: batch } = await supabase
-      .from("inventory_batches")
-      .select("quantity_available, quantity_reserved")
-      .eq("id", res.batch_id)
-      .single();
+  // Buscar lote
+  const { data: batch } = await supabase
+    .from("inventory_batches")
+    .select("quantity_available, quantity_reserved")
+    .eq("id", reservation.batch_id)
+    .single();
 
-    if (!batch) continue;
+  if (!batch) {
+    return { success: false, message: "Lote associado à reserva não encontrado." };
+  }
 
-    // 2. We logically return the reserved quantity to available because the inventory_movements 
-    // trigger will subtract it from available and total. This perfectly simulates consumption of reserved stock.
-    await supabase
-      .from("inventory_batches")
-      .update({
-        quantity_available: Number(batch.quantity_available) + qtyToConsume,
-        quantity_reserved: Math.max(0, Number(batch.quantity_reserved || 0) - qtyToConsume)
-      })
-      .eq("id", res.batch_id);
+  // Devolver logicamente 1 unidade da reserva para o disponível porque a trigger do inventory_movements vai subtrair de tudo
+  await supabase
+    .from("inventory_batches")
+    .update({
+      quantity_available: Number(batch.quantity_available) + qtyToConsume,
+      quantity_reserved: Math.max(0, Number(batch.quantity_reserved || 0) - qtyToConsume)
+    })
+    .eq("id", reservation.batch_id);
 
-    // 3. Insert movement (Consumption)
-    await supabase
-      .from("inventory_movements")
-      .insert([{
-        batch_id: res.batch_id,
-        movement_type: "consumo",
-        quantity: -qtyToConsume,
-        reference_type: "pedido",
-        reference_id: orderId,
-        notes: `Consumo FIFO automático após liberação de produção (Reserva ID: ${res.id})`
-      }]);
+  // Inserir movimento de consumo (saída de estoque real)
+  await supabase
+    .from("inventory_movements")
+    .insert([{
+      batch_id: reservation.batch_id,
+      movement_type: "consumo",
+      quantity: -qtyToConsume,
+      reference_type: "pedido",
+      reference_id: orderId,
+      notes: `Consumo físico unitário na separação anti-erro (Reserva ID: ${reservation.id})`
+    }]);
 
-    // 4. Delete the reservation now that it's consumed
+  // Atualizar a reserva decrementando 1 unidade ou excluindo se esgotar
+  const currentResQty = Number(reservation.quantity);
+  if (currentResQty <= qtyToConsume) {
+    await supabase.from("stock_reservations").delete().eq("id", reservation.id);
+  } else {
     await supabase
       .from("stock_reservations")
-      .delete()
-      .eq("id", res.id);
+      .update({ quantity: currentResQty - qtyToConsume })
+      .eq("id", reservation.id);
   }
+
+  // Incrementar quantidade separada do item
+  const newSeparated = (Number(item.quantity_separated) || 0) + qtyToConsume;
+  await supabase
+    .from("order_items")
+    .update({ quantity_separated: newSeparated })
+    .eq("id", orderItemId);
+
+  // Registrar log de separação
+  await supabase.from("separation_logs").insert([{
+    order_id: orderId,
+    order_item_id: orderItemId,
+    barcode: cleanBiped,
+    quantity: qtyToConsume,
+    operator_id: operatorId || null
+  }]);
+
+  // Gerar identidade única da peça (ex: ER-20260609-0042-01)
+  const { data: orderData } = await supabase.from("orders").select("code").eq("id", orderId).single();
+  const orderCode = orderData?.code || "ER-TEMP";
+  const pieceCode = `${orderCode}-${orderItemId.substring(0, 4)}-${newSeparated}`;
+
+  await supabase.from("piece_identities").insert([{
+    piece_code: pieceCode,
+    order_id: orderId,
+    order_item_id: orderItemId,
+    status: 'separado'
+  }]);
+
+  // Timeline
+  await supabase.from("order_timeline").insert([{
+    order_id: orderId,
+    user_id: operatorId || null,
+    event_type: "separacao_validada",
+    description: `Separação validada: 1 un. de ${item.product_name} (${expectedSize}) via barcode ${cleanBiped}.`
+  }]);
+
+  return { success: true, message: "🟢 MP VALIDADO" };
 }
+
 
 export function useOrders(search?: string) {
   return useQuery({
