@@ -1,9 +1,0 @@
-{
-  "outputDirectory": "dist/client",
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ]
-}
