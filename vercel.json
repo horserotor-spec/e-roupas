@@ -1,9 +1,9 @@
 {
-  "version": 2,
-  "builds": [
+  "outputDirectory": "dist/client",
+  "routes": [
     {
-      "src": "package.json",
-      "use": "vercel-nitro"
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
