@@ -12,7 +12,7 @@ import {
   useCreateColor, 
   useCreateSizeGrid,
   useCreateCategory,
-  useCreateSupplier
+  useCreateSupplierCRM
 } from "@/lib/api/inventory";
 
 // ─── QuickAdd Modelagem ───────────────────────────────────────────────────────
@@ -358,12 +358,12 @@ interface QuickAddFornecedorProps {
 }
 export function QuickAddFornecedor({ open, onOpenChange, onCreated }: QuickAddFornecedorProps) {
   const [name, setName] = useState("");
-  const mutation = useCreateSupplier();
+  const mutation = useCreateSupplierCRM();
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
     try {
-      const result = await mutation.mutateAsync({ name, active: true });
+      const result = await mutation.mutateAsync({ name });
       toast.success("Fornecedor cadastrado com sucesso!");
       onCreated(result.id, result.name);
       setName("");

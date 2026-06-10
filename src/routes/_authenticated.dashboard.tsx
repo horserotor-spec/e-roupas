@@ -44,6 +44,14 @@ function Dashboard() {
   const { data: orders = [], isLoading: loadingOrders } = useOrders();
   const { data: clients = [], isLoading: loadingClients } = useClients();
 
+  // Carregar dados de erros evitados
+  const [avoidedErrors, setAvoidedErrors] = useState(0);
+  useEffect(() => {
+    supabase.from("separation_errors").select("*", { count: "exact", head: true }).then((res) => {
+      setAvoidedErrors(res.count || 0);
+    });
+  }, []);
+
   if (loadingOrders || loadingClients) {
     return (
       <div className="flex h-full items-center justify-center p-8">
@@ -79,13 +87,7 @@ function Dashboard() {
   const options: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long' };
   const displayDate = new Date().toLocaleDateString('pt-BR', options);
 
-  // Carregar dados de erros evitados
-  const [avoidedErrors, setAvoidedErrors] = useState(0);
-  useEffect(() => {
-    supabase.from("separation_errors").select("*", { count: "exact", head: true }).then((res) => {
-      setAvoidedErrors(res.count || 0);
-    });
-  }, []);
+
 
   return (
     <div className="px-6 md:px-10 py-8 max-w-[1400px] mx-auto">

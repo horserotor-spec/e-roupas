@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Switch } from "../ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Product, ProductVariation, useCreateProduct, useUpdateProduct, useProductRelationships } from "@/lib/api/products";
-import { useModels, useFabrics, useColors, useSuppliers, useSizeGrids, useCategories, useDeleteModel, useDeleteFabric, useDeleteColor, useDeleteSizeGrid, useDeleteCategory, useCreateInventoryEntryGrid } from "@/lib/api/inventory";
+import { useModels, useFabrics, useColors, useSuppliersCRM, useSizeGrids, useCategories, useDeleteModel, useDeleteFabric, useDeleteColor, useDeleteSizeGrid, useDeleteCategory, useCreateInventoryEntryGrid } from "@/lib/api/inventory";
 import { QuickAddModelagem, QuickAddTecido, QuickAddCor, QuickAddGrade, QuickAddCategoria, QuickAddFornecedor } from "./QuickAddDialogs";
 import { ProductStockTab } from "./ProductStockTab";
 import { useSkuRules } from "@/lib/api/skuRules";
@@ -32,7 +32,7 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
   const { data: models = [] } = useModels();
   const { data: fabrics = [] } = useFabrics();
   const { data: colors = [] } = useColors();
-  const { data: suppliers = [] } = useSuppliers();
+  const { data: suppliers = [] } = useSuppliersCRM();
   const { data: sizeGrids = [] } = useSizeGrids();
   const { data: categories = [] } = useCategories();
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useInventoryBatches, useCreateInventoryEntryGrid, InventoryBatch, useProductVariants, useSuppliers } from "@/lib/api/inventory";
+import { useInventoryBatches, useCreateInventoryEntryGrid, InventoryBatch, useProductVariants, useSuppliersCRM } from "@/lib/api/inventory";
 import { useProducts } from "@/lib/api/products";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,7 +98,7 @@ export function InventoryBatchesTab() {
 function BatchFormDrawer({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
   const saveMutation = useCreateInventoryEntryGrid();
   const { data: products = [] } = useProducts();
-  const { data: suppliers = [] } = useSuppliers();
+  const { data: suppliers = [] } = useSuppliersCRM();
 
   const [productId, setProductId] = useState<string>("");
   const [supplierId, setSupplierId] = useState<string>("");
@@ -191,7 +191,7 @@ function BatchFormDrawer({ open, onOpenChange }: { open: boolean, onOpenChange: 
               <Label>Fornecedor de Origem *</Label>
               <Select value={supplierId} onValueChange={setSupplierId}>
                 <SelectTrigger><SelectValue placeholder="Selecione o fornecedor..." /></SelectTrigger>
-                <SelectContent>{suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                <SelectContent>{suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.company_name || s.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
 

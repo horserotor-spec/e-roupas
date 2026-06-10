@@ -10,6 +10,11 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_authenticated/producao/separacao")({
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      orderId: (search.orderId as string) || "",
+    };
+  },
   component: SeparationPage,
 });
 

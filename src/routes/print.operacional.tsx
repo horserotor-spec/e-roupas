@@ -5,6 +5,11 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
 export const Route = createFileRoute("/print/operacional")({
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      orderId: (search.orderId as string) || "",
+    };
+  },
   component: PrintOperacionalPage,
 });
 

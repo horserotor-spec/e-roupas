@@ -344,6 +344,30 @@ export function useSuppliersCRM() {
   });
 }
 
+export function useCreateSupplierCRM() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { name: string }) => {
+      const { data, error } = await supabase
+        .from("clients")
+        .insert([{ 
+          name: payload.name.trim(), 
+          entity_type: "fornecedor", 
+          entity_class: "pj", // Padrão PJ para fornecedores
+          active: true 
+        }])
+        .select()
+        .single();
+      if (error) throw error;
+      return data as CRMSupplier;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["suppliers_crm"] });
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+    },
+  });
+}
+
 export function useCreateModel() {
   const queryClient = useQueryClient();
   return useMutation({

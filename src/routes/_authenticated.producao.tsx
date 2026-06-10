@@ -100,9 +100,12 @@ function ProducaoPage() {
     
     if (!orderId || currentStatus === stageId) return;
 
-    // REGRA DE OURO DA SPRINT 2.10: Não permite bypass/avançar de Separação sem bipagem física real
-    if (currentStatus === "separacao" && !allowUrgentMove) {
-      toast.error("Separação física obrigatória via scanner! Utilize o botão 'Modo Separação' no card do pedido.");
+    const order = orders.find(o => o.id === orderId);
+    const hasBipedItems = order?.items?.some(item => (item.quantity_separated || 0) > 0);
+
+    // REGRA DE OURO DA SPRINT 2.10: Não permite bypass/avançar de Separação se já começou a bipar
+    if (currentStatus === "separacao" && hasBipedItems && !allowUrgentMove) {
+      toast.error("Separação iniciada! Complete a separação física via scanner no 'Modo Separação'.");
       return;
     }
 
