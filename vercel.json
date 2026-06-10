@@ -1,3 +1,4 @@
 {
-  "framework": "solidstart-1"
+  "framework": "solidstart-1",
+  "outputDirectory": ".vinxi"
 }
