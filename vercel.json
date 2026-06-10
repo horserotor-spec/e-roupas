@@ -1,3 +1,9 @@
 {
-  "outputDirectory": "dist/client"
+  "version": 2,
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/"
+    }
+  ]
 }
