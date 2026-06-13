@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useOrders, Order } from "@/lib/api/orders";
-import { Loader2, ArrowRight, Clock, Box, ShieldAlert, AlertTriangle, User, Search, Filter, Barcode } from "lucide-react";
+import { Loader2, ArrowRight, Clock, Box, ShieldAlert, AlertTriangle, User, Search, Filter, Barcode, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
