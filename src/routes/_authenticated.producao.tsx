@@ -163,18 +163,58 @@ function ProducaoPage() {
           }
         }
       }
-      toast.success(`Fixo concluído! ${countVars} vars, ${countBatches} lotes. Arraste para 'Confirmado' e depois 'Separação' para re-alocar o estoque!`);
+      toast.success(`Fixo concluído! ${countVars} vars, ${countBatches} lotes.`);
     } catch (e: any) {
       toast.error(e.message);
     }
   };
+
+  const forceFixSku = async () => {
+    try {
+      toast.info("Procurando MP errada...");
+      // Buscar modelos, tecidos e cores
+      const { data: models } = await supabase.from('models').select('id, name').ilike('name', '%CMS%');
+      const { data: fabrics } = await supabase.from('fabrics').select('id, name').ilike('name', '%MML%');
+      const { data: colors } = await supabase.from('colors').select('id, name').ilike('name', '%BCO%');
+      
+      const modelId = models?.[0]?.id;
+      const fabricId = fabrics?.[0]?.id;
+      const colorId = colors?.[0]?.id;
+      
+      if(!modelId || !fabricId || !colorId) {
+         return toast.error("Não encontrei as propriedades CMS, MML ou BCO no banco.");
+      }
+
+      // Tenta achar a MP errada pelo nome ou SKU
+      const { data: wrongMps } = await supabase.from('products').select('*').eq('format', 'MP');
+      const wrongMp = wrongMps?.find(p => p.sku?.includes('MP-CAM') || p.name?.includes('CAM'));
+      
+      if (wrongMp) {
+         await supabase.from('products').update({
+           model_id: modelId,
+           fabric_id: fabricId,
+           color_id: colorId,
+           sku: 'MP-CMS-MML-BCO'
+         }).eq('id', wrongMp.id);
+         toast.success("Produto editado à força com sucesso!");
+      } else {
+         toast.error("Não encontrei a MP-CAM-MEI-BRA");
+      }
+    } catch(e:any) {
+      toast.error(e.message);
+    }
+  }
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-50">
       {/* HEADER */}
       <div className="flex-shrink-0 bg-white border-b px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Kanban de Produção <Button variant="outline" size="sm" onClick={runFixMp} className="ml-2 bg-yellow-100 text-yellow-800 hover:bg-yellow-200">🔧 Corrigir Matéria-Prima (20 un)</Button></h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+            Kanban de Produção 
+            <Button variant="outline" size="sm" onClick={runFixMp} className="ml-2 bg-yellow-100 text-yellow-800 hover:bg-yellow-200">🔧 Corrigir Matéria-Prima (20 un)</Button>
+            <Button variant="outline" size="sm" onClick={forceFixSku} className="ml-2 bg-red-100 text-red-800 hover:bg-red-200">🔥 FORÇAR EDIÇÃO DA MP</Button>
+          </h1>
           <p className="text-sm text-muted-foreground flex items-center gap-4 mt-1">
             <span><strong className="text-slate-700">{total}</strong> na esteira</span>
             {atrasados > 0 && <span className="text-red-600 flex items-center gap-1"><AlertTriangle className="size-3" /> {atrasados} atrasados</span>}
