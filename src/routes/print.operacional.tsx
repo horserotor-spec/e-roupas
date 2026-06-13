@@ -3,6 +3,7 @@ import { useOrder } from "@/lib/api/orders";
 import { Loader2, Printer, Grid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import Barcode from "react-barcode";
 
 export const Route = createFileRoute("/print/operacional")({
   validateSearch: (search: Record<string, unknown>) => {
@@ -12,27 +13,6 @@ export const Route = createFileRoute("/print/operacional")({
   },
   component: PrintOperacionalPage,
 });
-
-// Componente simples para renderizar o código de barras da peça
-function SimpleBarcode({ value }: { value: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center">
-      <div className="flex h-3 w-full bg-white overflow-hidden justify-center items-end border-x border-black">
-        {value.split('').map((char, i) => {
-          const width = (char.charCodeAt(0) % 2) + 1;
-          const isSpace = i % 2 === 0;
-          return (
-            <div 
-              key={i} 
-              style={{ width: `${width}px`, height: '100%', backgroundColor: isSpace ? 'transparent' : 'black', marginLeft: isSpace ? '1px' : '0px' }} 
-            />
-          );
-        })}
-      </div>
-      <span className="font-mono text-[7px] font-bold mt-[1px] text-[6px] tracking-tight">{value}</span>
-    </div>
-  );
-}
 
 function PrintOperacionalPage() {
   const params = Route.useSearch() as { orderId?: string };
@@ -58,14 +38,15 @@ function PrintOperacionalPage() {
 
   // Gerar array de etiquetas para impressão correspondente a todas as peças do pedido
   const labelsToPrint: any[] = [];
-  order.items.forEach((item) => {
+  order.items.forEach((item: any) => {
     // Para cada item, gerar tantas etiquetas quanto a quantidade do item
     const qty = Number(item.quantity) || 0;
     for (let i = 0; i < qty; i++) {
-      // Determinar sigla das malhas/cores
-      const fabricSigla = (item.fabric?.substring(0, 3) || "MP").toUpperCase();
-      const colorSigla = (item.color?.substring(0, 3) || "PTO").toUpperCase();
-      const modelSigla = (item.model?.substring(0, 3) || "REG").toUpperCase();
+      // Determinar sigla das malhas/cores pelos códigos reais (se disponíveis)
+      const prod = item.products || {};
+      const fabricSigla = (prod.fabrics?.code || item.fabric?.substring(0, 3) || "GEN").toUpperCase();
+      const colorSigla = (prod.canonical_colors?.code || item.color?.substring(0, 3) || "GEN").toUpperCase();
+      const modelSigla = "REG"; // Fixo REG como combinado
       const sizeStr = (item.size || "G").toUpperCase();
       const artCode = (item.sku?.split('-')[0] || "ART").toUpperCase();
 
@@ -76,7 +57,7 @@ function PrintOperacionalPage() {
         fabric: fabricSigla,
         color: colorSigla,
         size: sizeStr,
-        barcode: `${artCode}-${modelSigla}-${fabricSigla}-${colorSigla}-${sizeStr}`
+        barcode: `${artCode}-REG-${fabricSigla}-${colorSigla}-${sizeStr}`
       });
     }
   });
@@ -191,9 +172,18 @@ function PrintOperacionalPage() {
                 <span className="font-bold border border-black px-[2px] text-[7px] leading-tight rounded-sm bg-black text-white">{lbl.size}</span>
               </div>
 
-              {/* Barcode Principal */}
-              <div className="mt-0.5">
-                <SimpleBarcode value={lbl.barcode} />
+              {/* Barcode Principal Legível por Leitor */}
+              <div className="mt-0.5 w-full flex justify-center overflow-hidden">
+                <Barcode 
+                  value={lbl.barcode} 
+                  width={0.8} 
+                  height={22} 
+                  fontSize={8} 
+                  displayValue={true} 
+                  margin={0}
+                  background="transparent"
+                  textMargin={0}
+                />
               </div>
             </div>
           );

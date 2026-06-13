@@ -458,11 +458,12 @@ export async function bipSeparationItem(
   const expectedColor = prod?.canonical_colors?.name || "";
   const expectedSize = item.size || "";
 
-  // Barcode esperado gerado logicamente conforme a variação da MP associada (ex: MP-REG-PEL-PTO-G)
+  // Barcode esperado gerado com o prefixo da arte, conforme a etiqueta operacional da peça
+  const artCode = (item.sku?.split('-')[0] || "ART").toUpperCase();
   const fabricCode = (prod?.fabrics?.code || "GEN").toUpperCase();
   const colorCode = (prod?.canonical_colors?.code || "GEN").toUpperCase();
   const sizeCode = expectedSize.toUpperCase();
-  const expectedBarcode = `MP-REG-${fabricCode}-${colorCode}-${sizeCode}`;
+  const expectedBarcode = `${artCode}-REG-${fabricCode}-${colorCode}-${sizeCode}`;
 
   // Normalizar bipagem
   const cleanBiped = barcodeBipado.trim().toUpperCase();
@@ -654,7 +655,8 @@ export function useOrder(id: string) {
           clients!orders_client_id_fkey(id, name, company_name),
           brands(id, name, code),
           seller:users!orders_seller_id_fkey(id, name),
-          salesperson:clients!orders_salesperson_id_fkey(id, name, commission_percent)
+          salesperson:clients!orders_salesperson_id_fkey(id, name, commission_percent),
+          order_items(*, products(model_id, fabric_id, color_id, models(code, name), fabrics(code, name), canonical_colors(code, name)))
         `)
         .eq("id", id)
         .single();
