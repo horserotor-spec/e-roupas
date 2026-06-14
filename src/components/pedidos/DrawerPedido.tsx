@@ -32,46 +32,30 @@ export function DrawerPedido({ order, open, onOpenChange }: DrawerPedidoProps) {
   const queryClient = useQueryClient();
   const [isAllocating, setIsAllocating] = useState(false);
 
-  if (!order) return null;
-
   const updateOrder = useUpdateOrder();
   const deleteOrder = useDeleteOrder();
   const { data: clients = [] } = useClients();
   const suppliers = clients.filter(c => c.entity_type === "fornecedor");
 
-  const handleForceAllocate = async () => {
-    if (!order) return;
-    setIsAllocating(true);
-    try {
-      await allocateStockAndCreateProcesses(order.id);
-      toast.success("Estoque recalculado com sucesso!");
-      queryClient.invalidateQueries({ queryKey: ["order_reservations", order.id] });
-    } catch (e: any) {
-      toast.error(e.message || "Erro ao alocar estoque.");
-    } finally {
-      setIsAllocating(false);
-    }
-  };
-
   // Buscar reservas de estoque para identificar itens em falta
   const { data: reservations = [] } = useQuery({
-    queryKey: ["order_reservations", order.id],
+    queryKey: ["order_reservations", order?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("stock_reservations")
         .select("*, inventory_batches(*)")
-        .eq("order_id", order.id);
+        .eq("order_id", order?.id);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!order.id,
+    enabled: !!order?.id,
   });
 
   // Buscar detalhes dos produtos e seus fornecedores de insumos (MP)
   const { data: productsDetails = [] } = useQuery({
-    queryKey: ["order_products_suppliers", order.id],
+    queryKey: ["order_products_suppliers", order?.id],
     queryFn: async () => {
-      const productIds = order.items?.map(i => i.product_id).filter(Boolean) || [];
+      const productIds = order?.items?.map(i => i.product_id).filter(Boolean) || [];
       if (productIds.length === 0) return [];
       
       const { data: prods, error } = await supabase
@@ -103,22 +87,22 @@ export function DrawerPedido({ order, open, onOpenChange }: DrawerPedidoProps) {
       }
       return results;
     },
-    enabled: !!order.items && order.items.length > 0,
+    enabled: !!order?.items && order.items.length > 0,
   });
 
   // Buscar transações financeiras (Contas a Pagar) do pedido para Corte e Costura
   const { data: prodPayments = [], refetch: refetchPayments } = useQuery({
-    queryKey: ["order_production_payments", order.id],
+    queryKey: ["order_production_payments", order?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("financial_transactions")
         .select("*")
-        .eq("order_id", order.id)
+        .eq("order_id", order?.id)
         .eq("type", "pagar");
       if (error) throw error;
       return data || [];
     },
-    enabled: !!order.id,
+    enabled: !!order?.id,
   });
 
   const [isSavingProd, setIsSavingProd] = useState(false);
@@ -153,6 +137,22 @@ export function DrawerPedido({ order, open, onOpenChange }: DrawerPedidoProps) {
       });
     }
   }, [order]);
+
+  if (!order) return null;
+
+  const handleForceAllocate = async () => {
+    if (!order?.id) return;
+    setIsAllocating(true);
+    try {
+      await allocateStockAndCreateProcesses(order.id);
+      toast.success("Estoque recalculado com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["order_reservations", order.id] });
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao alocar estoque.");
+    } finally {
+      setIsAllocating(false);
+    }
+  };
 
   const addSizeToGrid = (stage: 'corte' | 'costura', size: string) => {
     if (!size) return;
