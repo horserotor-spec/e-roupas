@@ -1,6 +1,6 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { formatCurrency } from "@/lib/utils";
-import { Order } from "@/lib/api/orders";
+import { Order, allocateStockAndCreateProcesses } from "@/lib/api/orders";
 import { statusLabel, statusTone } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -19,8 +19,9 @@ import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2, Save, Factory, X, MessageSquare, Phone } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+
 interface DrawerPedidoProps {
   order: Order | null;
   open: boolean;
@@ -28,12 +29,29 @@ interface DrawerPedidoProps {
 }
 
 export function DrawerPedido({ order, open, onOpenChange }: DrawerPedidoProps) {
+  const queryClient = useQueryClient();
+  const [isAllocating, setIsAllocating] = useState(false);
+
   if (!order) return null;
 
-    const updateOrder = useUpdateOrder();
+  const updateOrder = useUpdateOrder();
   const deleteOrder = useDeleteOrder();
   const { data: clients = [] } = useClients();
   const suppliers = clients.filter(c => c.entity_type === "fornecedor");
+
+  const handleForceAllocate = async () => {
+    if (!order) return;
+    setIsAllocating(true);
+    try {
+      await allocateStockAndCreateProcesses(order.id);
+      toast.success("Estoque recalculado com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["order_reservations", order.id] });
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao alocar estoque.");
+    } finally {
+      setIsAllocating(false);
+    }
+  };
 
   // Buscar reservas de estoque para identificar itens em falta
   const { data: reservations = [] } = useQuery({
@@ -246,9 +264,14 @@ export function DrawerPedido({ order, open, onOpenChange }: DrawerPedidoProps) {
 
             {/* Itens */}
             <div>
-              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                <Package className="size-4 text-muted-foreground" /> Itens do Pedido ({order.items?.length || 0})
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold flex items-center gap-2">
+                  <Package className="size-4 text-muted-foreground" /> Itens do Pedido ({order.items?.length || 0})
+                </h3>
+                <Button variant="outline" size="sm" onClick={handleForceAllocate} disabled={isAllocating} className="h-7 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200">
+                  {isAllocating ? "Recalculando..." : "🔄 Recalcular Estoque"}
+                </Button>
+              </div>
               <div className="space-y-3">
                 {order.items?.map((item) => {
                   const itemReservations = reservations.filter((r: any) => r.order_item_id === item.id);
