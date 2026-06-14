@@ -131,13 +131,18 @@ function PrintOperacionalPage() {
           /* Estilo A4 estruturado de 6 colunas e 16 linhas */
           .a4-sheet {
             display: grid;
-            grid-template-columns: repeat(6, 35mm);
-            grid-template-rows: repeat(16, 18.56mm);
+            grid-template-columns: repeat(6, 31mm);
+            grid-template-rows: repeat(16, 16.875mm);
+            column-gap: 2mm;
+            row-gap: 0mm;
+            padding: 13.5mm 7mm; /* Borda cima/baixo: 13.5mm, Borda esq/dir: 7mm */
             width: 210mm;
             height: 297mm;
+            max-height: 297mm;
+            overflow: hidden;
             box-sizing: border-box;
             background: white;
-            border: 1px dashed #ccc;
+            border: none;
           }
           .label-cell {
             box-sizing: border-box;
