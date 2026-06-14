@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/debug-estoque")({
   component: DebugEstoque,
@@ -12,12 +14,29 @@ export const Route = createFileRoute("/debug-estoque")({
 function DebugEstoque() {
   const [data, setData] = useState<any>({});
   const [loading, setLoading] = useState(false);
+
+  const [models, setModels] = useState<any[]>([]);
+  const [fabrics, setFabrics] = useState<any[]>([]);
+  const [colors, setColors] = useState<any[]>([]);
+
+  const [selModel, setSelModel] = useState<string>("");
+  const [selFabric, setSelFabric] = useState<string>("");
+  const [selColor, setSelColor] = useState<string>("");
   
   const load = async () => {
     try {
       const { data: mps } = await supabase.from('products').select('id, name, sku, format, model_id, fabric_id, color_id, model:product_models(name), fabric:fabrics(name), color:canonical_colors(name)').eq('format', 'MP');
       const { data: vars } = await supabase.from('product_variants').select('id, product_id, sku_internal, size, active, batches:inventory_batches(id, quantity_available, active)').in('product_id', mps?.map(m => m.id) || []);
       setData({ mps, vars });
+
+      const { data: m } = await supabase.from('product_models').select('*');
+      const { data: f } = await supabase.from('fabrics').select('*');
+      const { data: c } = await supabase.from('canonical_colors').select('*');
+      
+      if (m) setModels(m);
+      if (f) setFabrics(f);
+      if (c) setColors(c);
+
     } catch (e) {
       console.error(e);
     }
@@ -28,47 +47,28 @@ function DebugEstoque() {
   }, []);
 
   const runFix = async () => {
+    if (!selModel || !selFabric || !selColor) {
+      toast.error("Por favor, selecione Modelo, Malha e Cor primeiro!");
+      return;
+    }
+
     setLoading(true);
     try {
-      // 1. Procurar propriedades CMS, MML, BCO
-      const { data: models } = await supabase.from('models').select('id, name').ilike('name', '%CMS%');
-      const { data: fabrics } = await supabase.from('fabrics').select('id, name').ilike('name', '%MML%');
-      const { data: colors } = await supabase.from('colors').select('id, name').ilike('name', '%BCO%');
-      
-      let modelId = models?.[0]?.id;
-      let fabricId = fabrics?.[0]?.id;
-      let colorId = colors?.[0]?.id;
-      
-      // If not found in 'models', try 'product_models' which is the correct table name!
-      if (!modelId) {
-         const { data: pm } = await supabase.from('product_models').select('id, name').ilike('code', '%CMS%').maybeSingle();
-         if (!pm) {
-            const { data: pm2 } = await supabase.from('product_models').select('id, name').ilike('name', '%REGULAR%').maybeSingle();
-            modelId = pm2?.id;
-         } else { modelId = pm?.id; }
-      }
-      if (!fabricId) {
-         const { data: pf } = await supabase.from('fabrics').select('id, name').ilike('code', '%MML%').maybeSingle();
-         if (!pf) {
-            const { data: pf2 } = await supabase.from('fabrics').select('id, name').ilike('name', '%MEIA%').maybeSingle();
-            fabricId = pf2?.id;
-         } else { fabricId = pf?.id; }
-      }
-      if (!colorId) {
-         const { data: pc } = await supabase.from('canonical_colors').select('id, name').ilike('code', '%BCO%').maybeSingle();
-         if (!pc) {
-            const { data: pc2 } = await supabase.from('canonical_colors').select('id, name').ilike('name', '%BRANCO%').maybeSingle();
-            colorId = pc2?.id;
-         } else { colorId = pc?.id; }
-      }
-
-      if (!modelId || !fabricId || !colorId) throw new Error("Propriedades não encontradas no banco (CMS, MML, BCO)");
+      const modelId = selModel;
+      const fabricId = selFabric;
+      const colorId = selColor;
 
       // 2. Achar a MP que está errada
       const { data: wrongMps } = await supabase.from('products').select('*').eq('format', 'MP');
-      const wrongMp = wrongMps?.find(p => p.sku?.includes('MP-CAM') || p.name?.includes('CAM') || p.sku?.includes('MP-CMS'));
+      let wrongMp = wrongMps?.find(p => p.sku?.includes('MP-CAM') || p.name?.includes('CAM') || p.sku?.includes('MP-CMS'));
       
-      if (!wrongMp) throw new Error("MP não encontrada!");
+      if (!wrongMp) {
+         if (wrongMps && wrongMps.length > 0) {
+            wrongMp = wrongMps[0]; // Pega a primeira MP que achar se não bater o nome
+         } else {
+            throw new Error("MP não encontrada! Crie uma MP primeiro no sistema.");
+         }
+      }
 
       // 3. Atualizar a MP
       await supabase.from('products').update({
@@ -135,8 +135,42 @@ function DebugEstoque() {
     <div className="p-8 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Debug Estoque</h1>
-        <Button onClick={runFix} disabled={loading} className="bg-red-600 hover:bg-red-700">🔨 CLIQUE AQUI PARA CONSERTAR O ESTOQUE MAGICALMENTE</Button>
       </div>
+
+      <Card className="bg-yellow-50 border-yellow-200">
+        <CardHeader>
+           <CardTitle>Escolha Exatamente o que o Pedido Pede</CardTitle>
+           <p className="text-sm">O Pedido <strong>AUC001-CMS-MML-BCO-P-ER</strong> precisa de: Modelo=CMS, Malha=MML, Cor=BCO. Selecione-os abaixo e clique em Consertar.</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+           <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                 <Label>Modelo (CMS)</Label>
+                 <Select value={selModel} onValueChange={setSelModel}>
+                   <SelectTrigger className="bg-white"><SelectValue placeholder="Escolha..."/></SelectTrigger>
+                   <SelectContent>{models.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}</SelectContent>
+                 </Select>
+              </div>
+              <div className="space-y-2">
+                 <Label>Malha (MML)</Label>
+                 <Select value={selFabric} onValueChange={setSelFabric}>
+                   <SelectTrigger className="bg-white"><SelectValue placeholder="Escolha..."/></SelectTrigger>
+                   <SelectContent>{fabrics.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}</SelectContent>
+                 </Select>
+              </div>
+              <div className="space-y-2">
+                 <Label>Cor (BCO)</Label>
+                 <Select value={selColor} onValueChange={setSelColor}>
+                   <SelectTrigger className="bg-white"><SelectValue placeholder="Escolha..."/></SelectTrigger>
+                   <SelectContent>{colors.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                 </Select>
+              </div>
+           </div>
+
+           <Button onClick={runFix} disabled={loading} className="w-full bg-red-600 hover:bg-red-700">🔨 CLIQUE AQUI PARA CONSERTAR O ESTOQUE MAGICALMENTE</Button>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader><CardTitle>MPs encontradas no banco</CardTitle></CardHeader>
         <CardContent>
