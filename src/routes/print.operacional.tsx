@@ -35,7 +35,7 @@ function PrintOperacionalPage() {
   }
 
   // A4 layout para 96 etiquetas Colacril (31x17mm por etiqueta)
-  // Folha de 8 colunas por 12 linhas
+  // Folha de 6 colunas por 16 linhas
   const totalLabelsOnSheet = 96;
 
   // Gerar array de etiquetas para impressão correspondente a todas as peças do pedido
@@ -75,11 +75,11 @@ function PrintOperacionalPage() {
           <Grid className="size-5 text-primary" /> Configuração de Impressão de Etiquetas
         </h2>
         <p className="text-xs text-muted-foreground mb-4">
-          Layout: <strong>Colacril 31x17mm em Folha A4 (8 Colunas x 12 Linhas)</strong>. Clique na grade abaixo para escolher a partir de qual posição deseja iniciar a impressão:
+          Layout: <strong>Colacril 31x17mm em Folha A4 (6 Colunas x 16 Linhas)</strong>. Clique na grade abaixo para escolher a partir de qual posição deseja iniciar a impressão:
         </p>
 
         {/* GRADE CLICÁVEL DO A4 */}
-        <div className="grid grid-cols-8 gap-1 border border-slate-200 p-2 rounded-lg bg-slate-50 w-full max-w-[480px] mx-auto mb-6">
+        <div className="grid grid-cols-6 gap-1 border border-slate-200 p-2 rounded-lg bg-slate-50 w-full max-w-[400px] mx-auto mb-6">
           {Array.from({ length: totalLabelsOnSheet }).map((_, idx) => {
             const isSelected = startPosition === idx;
             return (
@@ -126,11 +126,11 @@ function PrintOperacionalPage() {
               page-break-after: always;
             }
           }
-          /* Estilo A4 estruturado de 8 colunas e 12 linhas */
+          /* Estilo A4 estruturado de 6 colunas e 16 linhas */
           .a4-sheet {
             display: grid;
-            grid-template-columns: repeat(8, 26.25mm);
-            grid-template-rows: repeat(12, 24.75mm);
+            grid-template-columns: repeat(6, 35mm);
+            grid-template-rows: repeat(16, 18.56mm);
             width: 210mm;
             height: 297mm;
             box-sizing: border-box;
