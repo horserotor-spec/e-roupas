@@ -136,74 +136,6 @@ function ProducaoPage() {
   const urgentes = activeOrders.filter(o => o.urgent).length;
   const total = activeOrders.length;
 
-  const runFixMp = async () => {
-    try {
-      toast.info("Iniciando correção de MP...");
-      const { data: mps } = await supabase.from('products').select('id, name, sku').eq('format', 'MP');
-      if (!mps) return toast.error("Nenhuma MP encontrada!");
-      const SIZES = ["PP", "P", "M", "G", "GG", "XG", "G1", "G2", "G3", "G4"];
-      let countVars = 0, countBatches = 0;
-      for (const mp of mps) {
-        for (const size of SIZES) {
-          const { data: existing } = await supabase.from('product_variants').select('id').eq('product_id', mp.id).eq('size', size).maybeSingle();
-          let varId = existing?.id;
-          if (!varId) {
-            const { data: n } = await supabase.from('product_variants').insert([{product_id: mp.id, size, sku: `${mp.sku}-${size}`, active: true}]).select('id').single();
-            if (n) { varId = n.id; countVars++; }
-          }
-          if (varId) {
-            const { data: b } = await supabase.from('inventory_batches').select('id').eq('product_variant_id', varId).maybeSingle();
-            if (!b) {
-              await supabase.from('inventory_batches').insert([{product_variant_id: varId, quantity_available: 20, active: true, batch_number: 'LOTE-FIX-MP'}]);
-              countBatches++;
-            } else {
-              await supabase.from('inventory_batches').update({ quantity_available: 20 }).eq('id', b.id);
-              countBatches++;
-            }
-          }
-        }
-      }
-      toast.success(`Fixo concluído! ${countVars} vars, ${countBatches} lotes.`);
-    } catch (e: any) {
-      toast.error(e.message);
-    }
-  };
-
-  const forceFixSku = async () => {
-    try {
-      toast.info("Procurando MP errada...");
-      // Buscar modelos, tecidos e cores
-      const { data: models } = await supabase.from('models').select('id, name').ilike('name', '%CMS%');
-      const { data: fabrics } = await supabase.from('fabrics').select('id, name').ilike('name', '%MML%');
-      const { data: colors } = await supabase.from('colors').select('id, name').ilike('name', '%BCO%');
-      
-      const modelId = models?.[0]?.id;
-      const fabricId = fabrics?.[0]?.id;
-      const colorId = colors?.[0]?.id;
-      
-      if(!modelId || !fabricId || !colorId) {
-         return toast.error("Não encontrei as propriedades CMS, MML ou BCO no banco.");
-      }
-
-      // Tenta achar a MP errada pelo nome ou SKU
-      const { data: wrongMps } = await supabase.from('products').select('*').eq('format', 'MP');
-      const wrongMp = wrongMps?.find(p => p.sku?.includes('MP-CAM') || p.name?.includes('CAM'));
-      
-      if (wrongMp) {
-         await supabase.from('products').update({
-           model_id: modelId,
-           fabric_id: fabricId,
-           color_id: colorId,
-           sku: 'MP-CMS-MML-BCO'
-         }).eq('id', wrongMp.id);
-         toast.success("Produto editado à força com sucesso!");
-      } else {
-         toast.error("Não encontrei a MP-CAM-MEI-BRA");
-      }
-    } catch(e:any) {
-      toast.error(e.message);
-    }
-  }
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-50">
@@ -212,8 +144,7 @@ function ProducaoPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
             Kanban de Produção 
-            <Button variant="outline" size="sm" onClick={runFixMp} className="ml-2 bg-yellow-100 text-yellow-800 hover:bg-yellow-200">🔧 Corrigir Matéria-Prima (20 un)</Button>
-            <Button variant="outline" size="sm" onClick={forceFixSku} className="ml-2 bg-red-100 text-red-800 hover:bg-red-200">🔥 FORÇAR EDIÇÃO DA MP</Button>
+            <Button variant="outline" size="sm" onClick={() => window.open('/debug-estoque', '_blank')} className="ml-2 bg-yellow-100 text-yellow-800 hover:bg-yellow-200">🔧 ABRIR PAINEL DE CORREÇÃO DE ESTOQUE</Button>
           </h1>
           <p className="text-sm text-muted-foreground flex items-center gap-4 mt-1">
             <span><strong className="text-slate-700">{total}</strong> na esteira</span>
