@@ -173,12 +173,10 @@ function PrintOperacionalPage() {
               
               {/* Dados Principais do Produto */}
               <div className="flex items-center justify-between text-[7px] font-medium leading-none">
-                <div className="flex gap-[2px]">
-                  <span className="font-bold">{lbl.model}</span>
-                  <span className="opacity-75">{lbl.fabric}</span>
-                  <span className="opacity-75">{lbl.color}</span>
+                <div className="flex gap-[2px] truncate mr-1">
+                  <span className="font-bold truncate">{lbl.barcode}</span>
                 </div>
-                <span className="font-bold border border-black px-[2px] text-[7px] leading-tight rounded-sm bg-black text-white">{lbl.size}</span>
+                <span className="font-bold border border-black px-[2px] text-[7px] leading-tight rounded-sm bg-black text-white flex-shrink-0">{lbl.size}</span>
               </div>
 
               {/* Barcode Principal Legível por Leitor */}
@@ -187,7 +185,7 @@ function PrintOperacionalPage() {
                   value={lbl.barcode} 
                   width={0.8} 
                   height={22} 
-                  fontSize={8} 
+                  fontSize={11} 
                   displayValue={true} 
                   margin={0}
                   background="transparent"
