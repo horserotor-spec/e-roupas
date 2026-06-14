@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as DebugEstoqueRouteImport } from './routes/debug-estoque'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PrintOperacionalRouteImport } from './routes/print.operacional'
@@ -47,6 +48,11 @@ import { Route as AuthenticatedCrmClientIdRouteImport } from './routes/_authenti
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DebugEstoqueRoute = DebugEstoqueRouteImport.update({
+  id: '/debug-estoque',
+  path: '/debug-estoque',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
@@ -234,6 +240,7 @@ const AuthenticatedCrmClientIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/debug-estoque': typeof DebugEstoqueRoute
   '/login': typeof LoginRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -269,6 +276,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/debug-estoque': typeof DebugEstoqueRoute
   '/login': typeof LoginRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -305,6 +313,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/debug-estoque': typeof DebugEstoqueRoute
   '/login': typeof LoginRoute
   '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
@@ -342,6 +351,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/debug-estoque'
     | '/login'
     | '/configuracoes'
     | '/dashboard'
@@ -377,6 +387,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/debug-estoque'
     | '/login'
     | '/configuracoes'
     | '/dashboard'
@@ -412,6 +423,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/debug-estoque'
     | '/login'
     | '/_authenticated/configuracoes'
     | '/_authenticated/dashboard'
@@ -449,6 +461,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  DebugEstoqueRoute: typeof DebugEstoqueRoute
   LoginRoute: typeof LoginRoute
   PrintIdRoute: typeof PrintIdRoute
   PrintOperacionalRoute: typeof PrintOperacionalRoute
@@ -462,6 +475,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/debug-estoque': {
+      id: '/debug-estoque'
+      path: '/debug-estoque'
+      fullPath: '/debug-estoque'
+      preLoaderRoute: typeof DebugEstoqueRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -794,6 +814,7 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  DebugEstoqueRoute: DebugEstoqueRoute,
   LoginRoute: LoginRoute,
   PrintIdRoute: PrintIdRoute,
   PrintOperacionalRoute: PrintOperacionalRoute,
