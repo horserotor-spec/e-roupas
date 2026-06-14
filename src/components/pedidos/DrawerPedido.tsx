@@ -113,11 +113,28 @@ export function DrawerPedido({ order, open, onOpenChange }: DrawerPedidoProps) {
     costura_faction: "",
     costura_start_date: "",
     costura_end_date: "",
-    corte_unit_price: 0,
-    costura_unit_price: 0,
+    acabamento_faction: "",
+    acabamento_start_date: "",
+    acabamento_end_date: "",
     corte_grid: {} as Record<string, number>,
-    costura_grid: {} as Record<string, number>
+    corte_unit_price: 0,
+    costura_grid: {} as Record<string, number>,
+    costura_unit_price: 0,
+    acabamento_grid: {} as Record<string, number>,
+    acabamento_unit_price: 0,
   });
+
+  const [addressForm, setAddressForm] = useState({
+    street: "", number: "", complement: "", neighborhood: "", city: "", state: "", zipcode: ""
+  });
+  const [deadlinesForm, setDeadlinesForm] = useState({
+    corte_deadline: "",
+    costura_deadline: "",
+    acabamento_deadline: ""
+  });
+  const [isEditingAddress, setIsEditingAddress] = useState(false);
+  const [isEditingDeadlines, setIsEditingDeadlines] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const SIZES = ["PP", "P", "M", "G", "GG", "XG", "G1", "G2", "G3", "G4", "2", "4", "6", "8", "10", "12", "14", "16"];
 
