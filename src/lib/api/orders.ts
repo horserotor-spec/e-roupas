@@ -437,6 +437,7 @@ export async function allocateStockAndCreateProcesses(orderId: string) {
       }
     }
   }
+}
 
 export async function consumeStockForOrder(orderId: string) {
   // A baixa de estoque real ocorre de forma física unitária no fluxo de bipagem de separação anti-erro (Sprint 2.10)
