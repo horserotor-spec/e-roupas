@@ -17,7 +17,7 @@ export const Route = createFileRoute("/print/operacional")({
 function PrintOperacionalPage() {
   const params = Route.useSearch() as { orderId?: string };
   const orderId = params.orderId || "";
-  const { data: order, isLoading } = useOrder(orderId);
+  const { data: order, isLoading, error } = useOrder(orderId);
   const [startPosition, setStartPosition] = useState<number>(0); // 0-indexed (0 a 95)
 
   if (isLoading) {
@@ -26,8 +26,10 @@ function PrintOperacionalPage() {
 
   if (!order) {
     return (
-      <div className="flex h-screen items-center justify-center text-slate-500 font-medium">
-        Pedido não encontrado. Certifique-se de passar o orderId na busca.
+      <div className="flex flex-col h-screen items-center justify-center text-slate-500 font-medium">
+        <p>Pedido não encontrado.</p>
+        <p className="text-sm mt-2">ID recebido: {orderId || "NENHUM"}</p>
+        {error && <p className="text-xs text-red-500 mt-2">Erro interno: {(error as any).message || String(error)}</p>}
       </div>
     );
   }

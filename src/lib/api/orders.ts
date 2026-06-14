@@ -684,13 +684,13 @@ export function useOrder(id: string) {
       const { data, error } = await supabase
         .from("orders")
         .select(`
-          *,
-          clients!orders_client_id_fkey(id, name, company_name),
-          brands(id, name, code),
-          seller:users!orders_seller_id_fkey(id, name),
-          salesperson:clients!orders_salesperson_id_fkey(id, name, commission_percent),
-          order_items(*, products(model_id, fabric_id, color_id, models(code, name), fabrics(code, name), canonical_colors(code, name)))
-        `)
+            *,
+            clients!orders_client_id_fkey(id, name, company_name),
+            brands(id, name, code),
+            seller:users!orders_seller_id_fkey(id, name),
+            salesperson:clients!orders_salesperson_id_fkey(id, name, commission_percent),
+            order_items(*, products(model_id, fabric_id, color_id))
+          `)
         .eq("id", id)
         .single();
 
