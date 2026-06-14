@@ -70,7 +70,7 @@ function PrintOperacionalPage() {
   const finalSheetLabels: (any | null)[] = Array(startPosition).fill(null).concat(labelsToPrint);
 
   return (
-    <div className="min-h-screen bg-slate-100 py-10 print:py-0 print:bg-white flex flex-col items-center">
+    <div className="min-h-screen print:min-h-0 print:h-auto print:block bg-slate-100 py-10 print:py-0 print:bg-white flex flex-col items-center">
       {/* SELETOR E TOOLBAR */}
       <div className="w-[210mm] bg-white border border-slate-200 shadow-sm rounded-xl p-6 mb-6 print:hidden">
         <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-2">
@@ -113,7 +113,7 @@ function PrintOperacionalPage() {
       <style>
         {`
           @media print {
-            body { margin: 0; padding: 0; background: white; }
+            body, html { margin: 0; padding: 0; background: white; height: 100%; }
             .print-hidden { display: none !important; }
             @page {
               size: A4 portrait;
@@ -125,7 +125,8 @@ function PrintOperacionalPage() {
               padding: 0 !important;
               box-shadow: none !important;
               border: none !important;
-              page-break-after: always;
+              page-break-after: avoid;
+              break-after: avoid;
             }
           }
           /* Estilo A4 estruturado de 6 colunas e 16 linhas */
