@@ -122,7 +122,6 @@ function PrintOperacionalPage() {
             .a4-sheet {
               width: 210mm !important;
               height: 297mm !important;
-              padding: 0 !important;
               box-shadow: none !important;
               border: none !important;
               page-break-after: avoid;
