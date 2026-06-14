@@ -244,7 +244,7 @@ export async function allocateStockAndCreateProcesses(orderId: string) {
 
           if (rel && rel.mp_variant_id) {
             const { data: v } = await supabase
-              .from("product_variants")
+              .from("product_variations")
               .select("id")
               .eq("id", rel.mp_variant_id)
               .eq("active", true)
@@ -276,47 +276,43 @@ export async function allocateStockAndCreateProcesses(orderId: string) {
             variant = v;
           }
         }
-      }
 
-      // FALLBACK DE EMERGENCIA: Se ainda não achou, tenta achar pela string do SKU (ex: AUC001-CMS-MML-BCO-P-ER)
-      if (!variant && item.sku) {
-         const parts = item.sku.split('-');
-         if (parts.length >= 4) {
-            // Esperado: [Arte, Modelo, Tecido, Cor, Tamanho, Extra] -> [AUC001, CMS, MML, BCO, P, ER]
-            const modelCode = parts[1];
-            const fabricCode = parts[2];
-            const colorCode = parts[3];
-            const sizeCode = item.size || parts[4]; // Usa o item.size se existir, senao pega do sku
-            
-            // Procura MP Variante que tenha sku interno igual a MP-{model}-{fabric}-{color}-{size}
-            const expectedSku = `MP-${modelCode}-${fabricCode}-${colorCode}-${sizeCode}`;
-            
-            const { data: v } = await supabase
-              .from("product_variants")
-              .select("id, product_id")
-              .ilike("sku_internal", expectedSku)
-              .eq("active", true)
-              .maybeSingle();
+        // FALLBACK DE EMERGENCIA: Se ainda não achou, tenta achar pela string do SKU (ex: AUC001-CMS-MML-BCO-P-ER)
+        if (!variant && item.sku) {
+           const parts = item.sku.split('-');
+           if (parts.length >= 4) {
+              const modelCode = parts[1];
+              const fabricCode = parts[2];
+              const colorCode = parts[3];
+              const sizeCode = item.size || parts[4]; // Usa o item.size se existir, senao pega do sku
               
-            if (v) {
-              variant = v;
-            } else {
-              // Tenta achar apenas pelas partes caso não tenha os tracinhos
-              const { data: vs } = await supabase
+              const expectedSku = `MP-${modelCode}-${fabricCode}-${colorCode}-${sizeCode}`;
+              
+              const { data: v } = await supabase
                 .from("product_variants")
-                .select("id, sku_internal, product_id")
-                .eq("size", sizeCode)
-                .eq("active", true);
+                .select("id, product_id")
+                .ilike("sku_internal", expectedSku)
+                .eq("active", true)
+                .maybeSingle();
                 
-              const found = vs?.find(x => x.sku_internal?.includes(modelCode) && x.sku_internal?.includes(fabricCode) && x.sku_internal?.includes(colorCode));
-              if (found) variant = found;
-            }
-         }
-      }
+              if (v) {
+                variant = v;
+              } else {
+                const { data: vs } = await supabase
+                  .from("product_variants")
+                  .select("id, sku_internal, product_id")
+                  .eq("size", sizeCode)
+                  .eq("active", true);
+                  
+                const found = vs?.find(x => x.sku_internal?.includes(modelCode) && x.sku_internal?.includes(fabricCode) && x.sku_internal?.includes(colorCode));
+                if (found) variant = found;
+              }
+           }
+        }
 
-      // 3. Se não achou variante ou se o estoque disponível da variante principal for insuficiente, 
-      // e se o cliente aceita mistura de tecidos, busca outra MP alternativa
-      if (mixFabricsAllowed) {
+        // 3. Se não achou variante ou se o estoque disponível da variante principal for insuficiente, 
+        // e se o cliente aceita mistura de tecidos, busca outra MP alternativa
+        if (mixFabricsAllowed) {
           let hasSufficientStock = false;
           if (variant) {
             const { data: sumStock } = await supabase
@@ -441,7 +437,6 @@ export async function allocateStockAndCreateProcesses(orderId: string) {
       }
     }
   }
-}
 
 export async function consumeStockForOrder(orderId: string) {
   // A baixa de estoque real ocorre de forma física unitária no fluxo de bipagem de separação anti-erro (Sprint 2.10)
