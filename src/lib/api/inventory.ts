@@ -572,12 +572,21 @@ export function useSaveProductVariant() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload: Partial<ProductVariant>) => {
-      if (payload.id) {
-        const { data, error } = await supabase.from("product_variants").update(payload).eq("id", payload.id).select().single();
+      const {
+        models,
+        lines,
+        fabrics,
+        canonical_colors,
+        products,
+        ...dataToSave
+      } = payload as any;
+
+      if (dataToSave.id) {
+        const { data, error } = await supabase.from("product_variants").update(dataToSave).eq("id", dataToSave.id).select().single();
         if (error) throw error;
         return data;
       } else {
-        const { data, error } = await supabase.from("product_variants").insert([payload]).select().single();
+        const { data, error } = await supabase.from("product_variants").insert([dataToSave]).select().single();
         if (error) throw error;
         return data;
       }
