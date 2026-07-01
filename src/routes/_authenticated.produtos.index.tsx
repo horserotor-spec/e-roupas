@@ -8,6 +8,7 @@ import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMe
 import { ProductFormDrawer } from "@/components/products/ProductFormDrawer";
 import { toast } from "sonner";
 import Papa from "papaparse";
+import { getProductDisplayName } from "@/lib/utils/product-display";
 
 export const Route = createFileRoute("/_authenticated/produtos/")({
   head: () => ({ meta: [{ title: "Produtos · e-roupas OS" }] }),
@@ -258,9 +259,11 @@ function ProductsPage() {
               <tr key={p.id} className="hover:bg-muted/30 transition-colors group">
                 <td className="px-4 py-3">
                   <div className="flex flex-col">
-                    <span className="font-medium text-slate-900">{p.name}</span>
+                    <span className="font-medium text-slate-900">{getProductDisplayName(p)}</span>
                     {p.sku && <span className="text-[10px] font-mono text-slate-500 mt-0.5">{p.sku}</span>}
-                    {p.technical_name && <span className="text-[10px] text-slate-400 mt-0.5">{p.technical_name}</span>}
+                    {p.technical_name && p.technical_name !== getProductDisplayName(p) && (
+                      <span className="text-[10px] text-slate-400 mt-0.5">{p.technical_name}</span>
+                    )}
                   </div>
                 </td>
                 {columns.category && (
