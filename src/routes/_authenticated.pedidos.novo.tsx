@@ -170,14 +170,17 @@ function NewOrderPage() {
   const [items, setItems] = useState<any[]>([]);
   const [payments, setPayments] = useState<OrderPayment[]>([{ amount: 0, payment_method: "PIX", installments: 1, due_date: new Date().toISOString().split("T")[0], status: "pendente", notes: "" }]);
   const [activeCustomizationIndex, setActiveCustomizationIndex] = useState<number | null>(null);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   const isDirty = 
-    formData.client_id !== "" || 
-    formData.brand_id !== "" || 
-    items.length > 0 || 
-    formData.discount > 0 || 
-    formData.other_expenses > 0 || 
-    formData.purchase_order !== "";
+    !isSubmitted && (
+      formData.client_id !== "" || 
+      formData.brand_id !== "" || 
+      items.length > 0 || 
+      formData.discount > 0 || 
+      formData.other_expenses > 0 || 
+      formData.purchase_order !== ""
+    );
 
   const blocker = useBlocker({
     shouldBlockFn: () => isDirty,
@@ -427,6 +430,7 @@ function NewOrderPage() {
     }
     
     try {
+      setIsSubmitted(true);
       await createMutation.mutateAsync({
         ...formData,
         items_discount: itemsDiscountTotal,
@@ -442,6 +446,7 @@ function NewOrderPage() {
       navigate({ to: "/pedidos" });
       return true;
     } catch (err: any) {
+      setIsSubmitted(false);
       toast.error("Erro ao salvar: " + err.message);
       return false;
     }
