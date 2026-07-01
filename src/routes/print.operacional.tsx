@@ -178,31 +178,29 @@ function PrintOperacionalPage() {
 
           return (
             <div key={idx} className="label-cell text-black">
-              {/* Pedido e Arte */}
-              <div className="flex justify-between items-center text-[7px] font-bold leading-none">
-                <span className="truncate max-w-[40px]">{lbl.orderCode.replace("ER-", "")}</span>
-                <span className="bg-slate-100 px-0.5 rounded text-[6px] truncate max-w-[32px]">{lbl.art}</span>
+              {/* Topo: Pedido e Tamanho Destacado */}
+              <div className="flex justify-between items-center text-[8px] font-bold leading-none">
+                <span>Ped: {lbl.orderCode}</span>
+                <span className="bg-black text-white text-[10px] px-1 py-0.5 rounded font-black tracking-wider flex items-center justify-center min-w-[16px] h-[14px] leading-none">
+                  {lbl.size}
+                </span>
               </div>
               
-              {/* Dados Principais do Produto */}
-              <div className="flex items-center justify-between text-[7px] font-medium leading-none">
-                <div className="flex gap-[2px] truncate mr-1">
-                  <span className="font-bold truncate">{lbl.barcode}</span>
-                </div>
-                <span className="font-bold border border-black px-[2px] text-[7px] leading-tight rounded-sm bg-black text-white flex-shrink-0">{lbl.size}</span>
+              {/* Código Completo com a Arte */}
+              <div className="text-[7.5px] font-bold text-center leading-none truncate max-w-full my-0.5">
+                {lbl.barcode}
               </div>
 
-              {/* Barcode Principal Legível por Leitor */}
-              <div className="mt-0.5 w-full flex justify-center overflow-hidden">
+              {/* Barcode Principal Legível */}
+              <div className="w-full flex justify-center overflow-hidden">
                 <Barcode 
                   value={lbl.barcode} 
-                  width={0.8} 
-                  height={22} 
-                  fontSize={11} 
-                  displayValue={true} 
+                  width={0.9} 
+                  height={28} 
+                  fontSize={8} 
+                  displayValue={false} 
                   margin={0}
                   background="transparent"
-                  textMargin={0}
                 />
               </div>
             </div>
