@@ -85,6 +85,7 @@ function EditOrderPage() {
   const { data: products } = useProducts();
   const [brands, setBrands] = useState<{id: string, name: string, code: string}[]>([]);
 
+  const [loadingOrder, setLoadingOrder] = useState(true);
   const [initialLoaded, setInitialLoaded] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
 
@@ -145,7 +146,6 @@ function EditOrderPage() {
   const [items, setItems] = useState<Partial<OrderItem>[]>([]);
   const [activeCustomizationIndex, setActiveCustomizationIndex] = useState<number | null>(null);
   const [printLayout, setPrintLayout] = useState<"none" | "pedido" | "etiqueta">("none");
-  const [loadingOrder, setLoadingOrder] = useState(true);
 
   const [payments, setPayments] = useState<any[]>([]);
   const [installmentsCount, setInstallmentsCount] = useState(1);
