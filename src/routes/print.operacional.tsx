@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useOrder } from "@/lib/api/orders";
 import { Loader2, Printer, Grid } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Barcode from "react-barcode";
 
 export const Route = createFileRoute("/print/operacional")({
@@ -20,6 +20,19 @@ function PrintOperacionalPage() {
   const { data: order, isLoading, error } = useOrder(orderId);
   const [startPosition, setStartPosition] = useState<number>(0); // 0-indexed (0 a 95)
 
+  useEffect(() => {
+    const html = document.documentElement;
+    const isDark = html.classList.contains("dark");
+    if (isDark) {
+      html.classList.remove("dark");
+    }
+    return () => {
+      if (isDark) {
+        html.classList.add("dark");
+      }
+    };
+  }, []);
+
   if (isLoading) {
     return <div className="flex h-screen items-center justify-center"><Loader2 className="size-8 animate-spin text-primary" /></div>;
   }
@@ -34,9 +47,9 @@ function PrintOperacionalPage() {
     );
   }
 
-  // A4 layout para 96 etiquetas Colacril (31x17mm por etiqueta)
-  // Folha de 6 colunas por 16 linhas
-  const totalLabelsOnSheet = 96;
+  // A4 layout para 65 etiquetas (38,1x21,2mm por etiqueta)
+  // Folha de 5 colunas por 13 linhas
+  const totalLabelsOnSheet = 65;
 
   // Gerar array de etiquetas para impressão correspondente a todas as peças do pedido
   const labelsToPrint: any[] = [];
@@ -77,18 +90,18 @@ function PrintOperacionalPage() {
           <Grid className="size-5 text-primary" /> Configuração de Impressão de Etiquetas
         </h2>
         <p className="text-xs text-muted-foreground mb-4">
-          Layout: <strong>Colacril 31x17mm em Folha A4 (6 Colunas x 16 Linhas)</strong>. Clique na grade abaixo para escolher a partir de qual posição deseja iniciar a impressão:
+          Layout: <strong>38,1x21,2mm em Folha A4 (5 Colunas x 13 Linhas)</strong>. Clique na grade abaixo para escolher a partir de qual posição deseja iniciar a impressão:
         </p>
 
         {/* GRADE CLICÁVEL DO A4 */}
-        <div className="grid grid-cols-6 gap-1 border border-slate-200 p-2 rounded-lg bg-slate-50 w-full max-w-[400px] mx-auto mb-6">
+        <div className="grid grid-cols-5 gap-1 border border-slate-200 p-2 rounded-lg bg-slate-50 w-full max-w-[400px] mx-auto mb-6">
           {Array.from({ length: totalLabelsOnSheet }).map((_, idx) => {
             const isSelected = startPosition === idx;
             return (
               <button
                 key={idx}
                 onClick={() => setStartPosition(idx)}
-                className={`aspect-[31/17] border text-[8px] flex items-center justify-center font-bold rounded transition-colors ${
+                className={`aspect-[381/212] border text-[8px] flex items-center justify-center font-bold rounded transition-colors ${
                   isSelected 
                     ? "bg-primary text-white border-primary shadow-sm" 
                     : "bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-700 border-slate-200"
@@ -128,14 +141,14 @@ function PrintOperacionalPage() {
               break-after: avoid;
             }
           }
-          /* Estilo A4 estruturado de 6 colunas e 16 linhas */
+          /* Estilo A4 estruturado de 5 colunas e 13 linhas (38,1x21,2mm) */
           .a4-sheet {
             display: grid;
-            grid-template-columns: repeat(6, 31mm);
-            grid-template-rows: repeat(16, 16.875mm);
-            column-gap: 2mm;
+            grid-template-columns: repeat(5, 38.1mm);
+            grid-template-rows: repeat(13, 21.2mm);
+            column-gap: 2.65mm;
             row-gap: 0mm;
-            padding: 13.5mm 7mm; /* Borda cima/baixo: 13.5mm, Borda esq/dir: 7mm */
+            padding: 10.9mm 4.49mm; /* Borda cima/baixo: 10.90mm, Borda esq/dir: 4.49mm */
             width: 210mm;
             height: 297mm;
             max-height: 297mm;
