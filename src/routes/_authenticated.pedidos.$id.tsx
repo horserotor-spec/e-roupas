@@ -95,27 +95,6 @@ function EditOrderPage() {
   }, [loadingOrder, initialLoaded]);
 
   useEffect(() => {
-    if (initialLoaded) {
-      setIsDirty(true);
-    }
-  }, [formData, items, payments]);
-
-  const blocker = useBlocker({
-    shouldBlockFn: () => isDirty,
-  });
-
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isDirty) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isDirty]);
-
-  useEffect(() => {
     supabase.from("brands").select("id, name, code").then(({ data }) => {
       if (data) setBrands(data);
     });
@@ -170,6 +149,27 @@ function EditOrderPage() {
 
   const [payments, setPayments] = useState<any[]>([]);
   const [installmentsCount, setInstallmentsCount] = useState(1);
+
+  useEffect(() => {
+    if (initialLoaded) {
+      setIsDirty(true);
+    }
+  }, [formData, items, payments]);
+
+  const blocker = useBlocker({
+    shouldBlockFn: () => isDirty,
+  });
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
 
   useEffect(() => {
     if (formData.client_id && clients && !loadingOrder) {
