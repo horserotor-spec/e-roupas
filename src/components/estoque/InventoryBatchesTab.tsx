@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { useAdjustInventoryBatch } from "@/lib/api/inventory";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { getProductDisplayName } from "@/lib/utils/product-display";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 
@@ -180,7 +181,7 @@ function BatchFormDrawer({ open, onOpenChange }: { open: boolean, onOpenChange: 
                 <SelectContent>
                   {mpProducts.map(p => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.name} {p.sku ? `[${p.sku}]` : ''}
+                      {getProductDisplayName(p)} {p.sku ? `[${p.sku}]` : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
