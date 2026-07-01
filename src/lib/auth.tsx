@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, type ReactNode } from "react";
 import { supabase } from "./supabase";
 
 export interface User {
@@ -26,6 +26,7 @@ const Ctx = createContext<AuthCtx | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const userIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -65,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           
           if (profileErr || !profile) {
+            userIdRef.current = null;
             setUser(null);
             return;
           }
@@ -74,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (profile.status === 'Bloqueado' || profile.status === 'Inativo' || profile.status === 'Desligado') {
           console.warn(`User is ${profile.status}, denying access.`);
           await supabase.auth.signOut();
+          userIdRef.current = null;
           setUser(null);
           return;
         }
@@ -115,6 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (mounted) {
+          userIdRef.current = profile.id;
           setUser({
             id: profile.id,
             name: profile.name,
@@ -136,17 +140,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
+        userIdRef.current = session.user.id;
         fetchProfile(session.user.id);
       } else {
+        userIdRef.current = null;
         if (mounted) setLoading(false);
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
+        if (userIdRef.current === session.user.id) {
+          if (event === "USER_UPDATED") {
+            fetchProfile(session.user.id);
+          }
+          return;
+        }
+        userIdRef.current = session.user.id;
         setLoading(true);
         fetchProfile(session.user.id);
       } else {
+        userIdRef.current = null;
         setUser(null);
         setLoading(false);
       }
