@@ -3,6 +3,7 @@ import { useOrder } from "@/lib/api/orders";
 import { Loader2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
+import { useEffect } from "react";
 
 export const Route = createFileRoute("/print/etiqueta/$id")({
   component: PrintEtiquetaPage,
@@ -35,6 +36,19 @@ function PrintEtiquetaPage() {
   const { id } = Route.useParams();
   const { loading: authLoading } = useAuth();
   const { data: order, isLoading, error } = useOrder(id);
+
+  useEffect(() => {
+    const html = document.documentElement;
+    const isDark = html.classList.contains("dark");
+    if (isDark) {
+      html.classList.remove("dark");
+    }
+    return () => {
+      if (isDark) {
+        html.classList.add("dark");
+      }
+    };
+  }, []);
 
   if (authLoading || isLoading) {
     return <div className="flex h-screen items-center justify-center"><Loader2 className="size-8 animate-spin text-primary" /></div>;
