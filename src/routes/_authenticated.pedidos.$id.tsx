@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Link, useParams } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link, useParams, useBlocker } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ import { useCreateProductFromBOM } from "@/lib/api/products";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+import { getProductDisplayName } from "@/lib/utils/product-display";
 
 const ADULTO_SIZES = ["PP", "P", "M", "G", "GG", "XG", "G1", "G2", "G3", "G4"];
 const INFANTIL_SIZES = ["2", "4", "6", "8", "10", "12", "14", "16"];
@@ -26,7 +27,9 @@ export function SearchableCombobox({ items, value, onChange, placeholder, minCha
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
-  const displayItems = search.length >= minChars ? items : [];
+  const displayItems = search.length >= minChars 
+    ? items.filter(item => item.name.toLowerCase().includes(search.toLowerCase()))
+    : [];
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -37,7 +40,7 @@ export function SearchableCombobox({ items, value, onChange, placeholder, minCha
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0" align="start">
-        <Command>
+        <Command shouldFilter={false}>
           <CommandInput placeholder={`Digite ${minChars} letras...`} onValueChange={setSearch} value={search} />
           <CommandList>
             {search.length < minChars && <div className="p-4 text-center text-sm text-muted-foreground">Digite pelo menos {minChars} letras para buscar.</div>}
@@ -47,7 +50,7 @@ export function SearchableCombobox({ items, value, onChange, placeholder, minCha
                 {displayItems.map((item) => (
                   <CommandItem
                     key={item.id}
-                    value={item.name}
+                    value={item.id}
                     onSelect={() => {
                       onChange(item.id);
                       setOpen(false);
@@ -81,6 +84,36 @@ function EditOrderPage() {
   const carriers = (clients || []).filter((c: any) => c.entity_type === "transportadora");
   const { data: products } = useProducts();
   const [brands, setBrands] = useState<{id: string, name: string, code: string}[]>([]);
+
+  const [initialLoaded, setInitialLoaded] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    if (!loadingOrder && !initialLoaded) {
+      setInitialLoaded(true);
+    }
+  }, [loadingOrder, initialLoaded]);
+
+  useEffect(() => {
+    if (initialLoaded) {
+      setIsDirty(true);
+    }
+  }, [formData, items, payments]);
+
+  const blocker = useBlocker({
+    shouldBlockFn: () => isDirty,
+  });
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
 
   useEffect(() => {
     supabase.from("brands").select("id, name, code").then(({ data }) => {
@@ -308,7 +341,7 @@ function EditOrderPage() {
     if (field === "product_id" && products) {
       const p = products.find(prod => prod.id === value);
       if (p) {
-        item.product_name = p.name;
+        item.product_name = getProductDisplayName(p);
         item.sku = p.sku || "";
         item.list_price = p.price;
         item.unit_price = p.price;
@@ -440,10 +473,10 @@ function EditOrderPage() {
     setInstallmentsCount(prev => prev - 1);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (): Promise<boolean> => {
     if (!formData.client_id || !formData.brand_id) {
       toast.error("Cliente e Marca são obrigatórios.");
-      return;
+      return false;
     }
 
     const explodedItems: any[] = [];
@@ -496,7 +529,7 @@ function EditOrderPage() {
 
     if (explodedItems.length === 0) {
       toast.error("O pedido deve conter pelo menos um item com quantidade na grade.");
-      return;
+      return false;
     }
     
     try {
@@ -514,8 +547,11 @@ function EditOrderPage() {
       });
       toast.success("Pedido atualizado com sucesso!");
       navigate({ to: "/pedidos" });
+      setIsDirty(false);
+      return true;
     } catch (err: any) {
       toast.error("Erro ao salvar: " + err.message);
+      return false;
     }
   };
 
@@ -712,7 +748,7 @@ function EditOrderPage() {
                       <td className="px-2 py-2 text-slate-400 bg-slate-100/50 text-center">{idx + 1}</td>
                       <td className="px-2 py-2">
                         <SearchableCombobox
-                          items={(products || []).map(p => ({ id: p.id, name: p.name }))}
+                          items={(products || []).map(p => ({ id: p.id, name: getProductDisplayName(p) }))}
                           value={item.product_id || ""}
                           onChange={(v) => updateItem(idx, "product_id", v)}
                           placeholder="Selecione..."
@@ -1353,6 +1389,50 @@ function EditOrderPage() {
           </div>
         </div>
       )}
+
+      <Dialog open={blocker.state === "blocked"} onOpenChange={(open) => { if (!open) blocker.reset(); }}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Alterações não salvas</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 text-sm text-muted-foreground">
+            Você tem alterações não salvas no pedido. O que deseja fazer?
+          </div>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                const dest = blocker.location?.href || "/pedidos";
+                window.open(dest, "_blank");
+                blocker.reset();
+              }}
+            >
+              Abrir link em outra aba
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                blocker.proceed();
+              }}
+            >
+              Descartar e Sair
+            </Button>
+            <Button
+              className="bg-primary text-white hover:bg-primary/90"
+              onClick={async () => {
+                const saved = await handleSubmit();
+                if (saved) {
+                  blocker.proceed();
+                } else {
+                  blocker.reset();
+                }
+              }}
+            >
+              Salvar e Sair
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
