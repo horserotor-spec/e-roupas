@@ -86,28 +86,6 @@ function NewOrderPage() {
   const { data: products } = useProducts();
   const { data: suppliers } = useSuppliers();
 
-  const isDirty = 
-    formData.client_id !== "" || 
-    formData.brand_id !== "" || 
-    items.length > 0 || 
-    formData.discount > 0 || 
-    formData.other_expenses > 0 || 
-    formData.purchase_order !== "";
-
-  const blocker = useBlocker({
-    shouldBlockFn: () => isDirty,
-  });
-
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isDirty) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isDirty]);
   const carriers = (clients || []).filter(c => c.entity_type === "transportadora");
   const [brands, setBrands] = useState<{id: string, name: string, code: string}[]>([]);
   const [installmentsCount, setInstallmentsCount] = useState(1);
@@ -192,6 +170,29 @@ function NewOrderPage() {
   const [items, setItems] = useState<any[]>([]);
   const [payments, setPayments] = useState<OrderPayment[]>([{ amount: 0, payment_method: "PIX", installments: 1, due_date: new Date().toISOString().split("T")[0], status: "pendente", notes: "" }]);
   const [activeCustomizationIndex, setActiveCustomizationIndex] = useState<number | null>(null);
+
+  const isDirty = 
+    formData.client_id !== "" || 
+    formData.brand_id !== "" || 
+    items.length > 0 || 
+    formData.discount > 0 || 
+    formData.other_expenses > 0 || 
+    formData.purchase_order !== "";
+
+  const blocker = useBlocker({
+    shouldBlockFn: () => isDirty,
+  });
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
 
   const addItem = () => {
     setItems([...items, {
