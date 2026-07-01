@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useOrder } from "@/lib/api/orders";
 import { Loader2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useEffect } from "react";
 
 export const Route = createFileRoute("/print/$id")({
   component: PrintPage,
@@ -10,6 +11,19 @@ export const Route = createFileRoute("/print/$id")({
 function PrintPage() {
   const { id } = Route.useParams();
   const { data: order, isLoading } = useOrder(id);
+
+  useEffect(() => {
+    const html = document.documentElement;
+    const isDark = html.classList.contains("dark");
+    if (isDark) {
+      html.classList.remove("dark");
+    }
+    return () => {
+      if (isDark) {
+        html.classList.add("dark");
+      }
+    };
+  }, []);
 
   if (isLoading) {
     return <div className="flex h-screen items-center justify-center"><Loader2 className="size-8 animate-spin text-primary" /></div>;
