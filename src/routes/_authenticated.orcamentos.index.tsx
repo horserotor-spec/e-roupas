@@ -82,7 +82,7 @@ function QuotesPage() {
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">COMERCIAL</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">Orçamentos</h1>
         </div>
-        <Link to="/pedidos/novo">
+        <Link to="/pedidos/novo" search={{ type: "orcamento" }}>
           <Button className="h-9 inline-flex items-center gap-1.5 px-3">
             <Plus className="size-4" /> Novo Orçamento
           </Button>

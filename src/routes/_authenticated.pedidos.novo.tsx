@@ -74,11 +74,17 @@ export function SearchableCombobox({ items, value, onChange, placeholder, minCha
 }
 
 export const Route = createFileRoute("/_authenticated/pedidos/novo")({
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      type: (search.type as string) || "pedido",
+    };
+  },
   head: () => ({ meta: [{ title: "Novo Pedido · e-roupas OS" }] }),
   component: NewOrderPage,
 });
 
 function NewOrderPage() {
+  const { type = "pedido" } = Route.useSearch() as { type?: string };
   const navigate = useNavigate();
   const createMutation = useCreateOrder();
   const createProductMutation = useCreateProductFromBOM();
@@ -137,7 +143,7 @@ function NewOrderPage() {
     notes: "",
     internal_notes: "",
     mix_fabrics_allowed: false,
-    status: "orcamento",
+    status: type === "orcamento" ? "orcamento" : "atendimento",
     seller_id: "",
     items: [],
   });

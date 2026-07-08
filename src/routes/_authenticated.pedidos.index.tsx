@@ -68,7 +68,7 @@ function PedidosPage() {
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Núcleo do ERP</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">Pedidos</h1>
         </div>
-        <Link to="/pedidos/novo" className="h-9 inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90">
+        <Link to="/pedidos/novo" search={{ type: "pedido" }} className="h-9 inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90">
           <Plus className="size-4" /> Novo pedido
         </Link>
       </div>
