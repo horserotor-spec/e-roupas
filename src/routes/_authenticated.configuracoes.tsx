@@ -136,61 +136,11 @@ function Config() {
       <h1 className="mt-1 text-3xl font-semibold tracking-tight">Configurações Gerais</h1>
       <p className="text-sm text-muted-foreground mt-1">Gerencie permissões, integrações e dados fundamentais do sistema.</p>
 
-      <Tabs defaultValue="permissoes" className="mt-6">
+      <Tabs defaultValue="integracoes" className="mt-6">
         <TabsList className="mb-4">
-          <TabsTrigger value="permissoes">Usuários e Permissões</TabsTrigger>
           <TabsTrigger value="integracoes">Integrações</TabsTrigger>
           <TabsTrigger value="cmv">CMV</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="permissoes">
-          <div className="rounded-2xl border border-border bg-card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
-                  <tr>
-                    <th className="text-left font-medium px-4 py-2.5 sticky left-0 bg-muted/40">Usuário</th>
-                    <th className="text-left font-medium px-4 py-2.5">Cargo</th>
-                    {modules.map((m) => (
-                      <th key={m} className="text-left font-medium px-3 py-2.5 capitalize">{m}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {users.map((u) => (
-                    <tr key={u.id} className="hover:bg-muted/30">
-                      <td className="px-4 py-3 sticky left-0 bg-card">
-                        <div className="flex items-center gap-2">
-                          <div className="size-7 rounded-full grid place-items-center text-white text-[10px] font-semibold" style={{ background: u.avatarColor }}>
-                            {u.name.split(" ").map((p) => p[0]).slice(0, 2).join("")}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="font-medium truncate">{u.name}</div>
-                            <div className="text-[11px] text-muted-foreground truncate">{u.email}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-xs">{u.role}</td>
-                      {modules.map((m) => {
-                        const lvl = u.permissions[m];
-                        return (
-                          <td key={m} className="px-3 py-3">
-                            <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-medium ${levelTone[lvl]}`}>
-                              {levelLabel[lvl]}
-                            </span>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <div className="mt-4 text-xs text-muted-foreground">
-            Níveis: sem acesso · visualização · operação · aprovação · administração. Editor visual de permissões chega na Sprint 2.
-          </div>
-        </TabsContent>
 
         <TabsContent value="integracoes">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
