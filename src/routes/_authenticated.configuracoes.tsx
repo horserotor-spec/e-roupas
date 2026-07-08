@@ -10,7 +10,7 @@ import { useState, useEffect } from "react";
 import { getSgpSettings, SgpSettings } from "@/lib/api/sgp";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { Loader2, Link2, Unlink, AlertTriangle } from "lucide-react";
+import { Loader2, Link2, Unlink, AlertTriangle, Trash2, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/configuracoes")({
   head: () => ({ meta: [{ title: "Configurações · e-roupas OS" }] }),
@@ -52,13 +52,12 @@ function Config() {
   const [savingSgp, setSavingSgp] = useState(false);
 
   // Estados do CMV
-  const [cmvConfig, setCmvConfig] = useState({
-    saquinho: 0.50,
-    etiqueta: 0.30,
-    dtf: 1.50,
-    bordado: 2.00,
-    mp_default: 15.00
-  });
+  interface CmvItem {
+    id: string;
+    key: string;
+    value: number;
+  }
+  const [cmvItems, setCmvItems] = useState<CmvItem[]>([]);
   const [loadingCmv, setLoadingCmv] = useState(true);
   const [savingCmv, setSavingCmv] = useState(false);
 
@@ -76,7 +75,21 @@ function Config() {
       .maybeSingle()
       .then(({ data }) => {
         if (data && data.value) {
-          setCmvConfig(prev => ({ ...prev, ...data.value }));
+          const items = Object.entries(data.value).map(([k, v]) => ({
+            id: Math.random().toString(),
+            key: k,
+            value: Number(v) || 0
+          }));
+          setCmvItems(items);
+        } else {
+          // Defaults fallback
+          setCmvItems([
+            { id: "1", key: "saquinho", value: 0.50 },
+            { id: "2", key: "etiqueta", value: 0.30 },
+            { id: "3", key: "dtf", value: 1.50 },
+            { id: "4", key: "bordado", value: 2.00 },
+            { id: "5", key: "mp_default", value: 15.00 }
+          ]);
         }
         setLoadingCmv(false);
       });
@@ -115,9 +128,16 @@ function Config() {
   const handleSaveCmv = async () => {
     setSavingCmv(true);
     try {
+      const valueObj: Record<string, number> = {};
+      cmvItems.forEach(item => {
+        if (item.key.trim()) {
+          valueObj[item.key.trim().toLowerCase().replace(/\s+/g, "_")] = item.value;
+        }
+      });
+
       const { error } = await supabase.from("system_settings").upsert({
         key: "cmv_costs_config",
-        value: cmvConfig,
+        value: valueObj,
         description: "Configurações de custo unitário para cálculo do CMV (Saquinho, Etiqueta, DTF, Bordado, MP)"
       }, { onConflict: "key" });
 
@@ -237,7 +257,7 @@ function Config() {
         </TabsContent>
 
         <TabsContent value="cmv">
-          <div className="max-w-md">
+          <div className="max-w-xl">
             <Card>
               <CardHeader className="pb-4 border-b">
                 <CardTitle className="text-lg">Custos e Composição do CMV</CardTitle>
@@ -249,59 +269,62 @@ function Config() {
                     <Loader2 className="size-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : (
-                  <>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="cmv-saquinho">Custo do Saquinho de Camiseta (R$)</Label>
-                      <Input 
-                        id="cmv-saquinho"
-                        type="number" 
-                        step="0.01" 
-                        value={cmvConfig.saquinho} 
-                        onChange={e => setCmvConfig({...cmvConfig, saquinho: parseFloat(e.target.value) || 0})}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="cmv-etiqueta">Custo da Etiqueta (R$)</Label>
-                      <Input 
-                        id="cmv-etiqueta"
-                        type="number" 
-                        step="0.01" 
-                        value={cmvConfig.etiqueta} 
-                        onChange={e => setCmvConfig({...cmvConfig, etiqueta: parseFloat(e.target.value) || 0})}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="cmv-dtf">Custo de Aplicação de DTF (R$)</Label>
-                      <Input 
-                        id="cmv-dtf"
-                        type="number" 
-                        step="0.01" 
-                        value={cmvConfig.dtf} 
-                        onChange={e => setCmvConfig({...cmvConfig, dtf: parseFloat(e.target.value) || 0})}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="cmv-bordado">Custo de Aplicação de Bordado (R$)</Label>
-                      <Input 
-                        id="cmv-bordado"
-                        type="number" 
-                        step="0.01" 
-                        value={cmvConfig.bordado} 
-                        onChange={e => setCmvConfig({...cmvConfig, bordado: parseFloat(e.target.value) || 0})}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="cmv-mp">Custo da Matéria-Prima Consumida (R$ - Base)</Label>
-                      <Input 
-                        id="cmv-mp"
-                        type="number" 
-                        step="0.01" 
-                        value={cmvConfig.mp_default} 
-                        onChange={e => setCmvConfig({...cmvConfig, mp_default: parseFloat(e.target.value) || 0})}
-                        helperText="Usado como fallback caso a MP consumida não tenha custo médio registrado."
-                      />
-                    </div>
-                  </>
+                  <div className="space-y-4">
+                    {cmvItems.map((item, idx) => (
+                      <div key={item.id} className="flex items-center gap-3">
+                        <div className="flex-1 space-y-1.5">
+                          <Label>Nome do Custo (Chave)</Label>
+                          <Input 
+                            value={item.key} 
+                            placeholder="Ex: saquinho, etiqueta..."
+                            onChange={e => {
+                              const updated = [...cmvItems];
+                              updated[idx].key = e.target.value;
+                              setCmvItems(updated);
+                            }}
+                          />
+                        </div>
+                        <div className="w-32 space-y-1.5">
+                          <Label>Valor (R$)</Label>
+                          <Input 
+                            type="number" 
+                            step="0.01" 
+                            value={item.value || ""} 
+                            onChange={e => {
+                              const updated = [...cmvItems];
+                              updated[idx].value = parseFloat(e.target.value) || 0;
+                              setCmvItems(updated);
+                            }}
+                          />
+                        </div>
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="icon" 
+                          className="mt-6 text-muted-foreground hover:text-destructive shrink-0"
+                          onClick={() => {
+                            setCmvItems(cmvItems.filter((_, i) => i !== idx));
+                          }}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
+                    ))}
+
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className="w-full flex items-center gap-1.5 mt-2"
+                      onClick={() => {
+                        setCmvItems([
+                          ...cmvItems, 
+                          { id: Math.random().toString(), key: "novo_custo", value: 0 }
+                        ]);
+                      }}
+                    >
+                      <Plus className="size-4" /> Adicionar Novo Custo
+                    </Button>
+                  </div>
                 )}
               </CardContent>
               <CardFooter className="border-t pt-4 bg-muted/20">
