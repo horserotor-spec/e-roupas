@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { getProductDisplayName } from "@/lib/utils/product-display";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
 
 export function InventoryBatchesTab() {
   const { data: batches = [], isLoading } = useInventoryBatches();
@@ -118,7 +119,33 @@ function BatchFormDrawer({ open, onOpenChange }: { open: boolean, onOpenChange: 
     if (open) {
       setProductId("");
       setSupplierId("");
-      setBatchCode(`LT-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`);
+      setBatchCode("");
+      
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      const prefix = `LT-${year}${month}${day}-`;
+
+      supabase
+        .from("inventory_batches")
+        .select("batch_code")
+        .like("batch_code", `${prefix}%`)
+        .then(({ data }) => {
+          let nextSeq = 1;
+          if (data && data.length > 0) {
+            const seqs = data.map((item) => {
+              const parts = item.batch_code.split("-");
+              const seqStr = parts[parts.length - 1];
+              return parseInt(seqStr) || 0;
+            });
+            nextSeq = Math.max(...seqs) + 1;
+          }
+          setBatchCode(`${prefix}${String(nextSeq).padStart(2, "0")}`);
+        })
+        .catch(() => {
+          setBatchCode(`${prefix}01`);
+        });
       setAverageCost(0);
       setQualityNotes("");
       setGrid({
