@@ -1221,32 +1221,16 @@ function NewOrderPage() {
         </Dialog>
 
         <Dialog open={blocker.status === "blocked"} onOpenChange={(open) => { if (!open) blocker.reset(); }}>
-          <DialogContent className="sm:max-w-[550px]">
-            <DialogHeader>
-              <DialogTitle>Alterações não salvas</DialogTitle>
+          <DialogContent className="sm:max-w-[380px] p-6 text-center">
+            <DialogHeader className="text-center sm:text-center">
+              <DialogTitle className="text-center w-full">Alterações não salvas</DialogTitle>
             </DialogHeader>
-            <div className="py-4 text-sm text-muted-foreground">
+            <div className="py-2 text-sm text-muted-foreground text-center">
               Você tem alterações não salvas no pedido. O que deseja fazer?
             </div>
-            <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+            <DialogFooter className="flex flex-col gap-2 sm:flex-col sm:justify-center w-full mt-4">
               <Button
-                variant="outline"
-                onClick={() => blocker.reset()}
-              >
-                Continuar Editando
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => {
-                  isSubmittedRef.current = true;
-                  setIsSubmitted(true);
-                  blocker.proceed();
-                }}
-              >
-                Descartar e Sair
-              </Button>
-              <Button
-                className="bg-green-600 hover:bg-green-700 text-white"
+                className="w-full bg-green-600 hover:bg-green-700 text-white"
                 onClick={async () => {
                   const saved = await handleSubmit();
                   if (saved) {
@@ -1257,6 +1241,24 @@ function NewOrderPage() {
                 }}
               >
                 Salvar e Sair
+              </Button>
+              <Button
+                variant="destructive"
+                className="w-full"
+                onClick={() => {
+                  isSubmittedRef.current = true;
+                  setIsSubmitted(true);
+                  blocker.proceed();
+                }}
+              >
+                Descartar e Sair
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => blocker.reset()}
+              >
+                Continuar Editando
               </Button>
             </DialogFooter>
           </DialogContent>
