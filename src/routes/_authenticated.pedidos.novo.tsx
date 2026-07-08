@@ -1228,7 +1228,10 @@ function NewOrderPage() {
               <Button
                 variant="secondary"
                 onClick={() => {
-                  blocker.proceed();
+                  setIsSubmitted(true);
+                  setTimeout(() => {
+                    blocker.proceed();
+                  }, 0);
                 }}
               >
                 Descartar e Sair

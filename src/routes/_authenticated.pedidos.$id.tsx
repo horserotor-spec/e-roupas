@@ -1526,7 +1526,10 @@ function EditOrderPage() {
             <Button
               variant="secondary"
               onClick={() => {
-                blocker.proceed();
+                setIsDirty(false);
+                setTimeout(() => {
+                  blocker.proceed();
+                }, 0);
               }}
             >
               Descartar e Sair
