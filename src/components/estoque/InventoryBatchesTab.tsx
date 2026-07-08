@@ -4,6 +4,7 @@ import { useProducts } from "@/lib/api/products";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
@@ -239,7 +240,7 @@ function BatchFormDrawer({ open, onOpenChange }: { open: boolean, onOpenChange: 
 
             <div className="space-y-2">
               <Label>Custo Médio Unitário (R$)</Label>
-              <Input type="number" step="0.01" value={averageCost || ""} onChange={e => setAverageCost(parseFloat(e.target.value) || 0)} />
+              <CurrencyInput value={averageCost} onChange={setAverageCost} />
             </div>
 
             <div className="space-y-2">

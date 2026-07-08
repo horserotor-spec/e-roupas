@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { useState, useEffect } from "react";
 import { getSgpSettings, SgpSettings } from "@/lib/api/sgp";
 import { supabase } from "@/lib/supabase";
@@ -286,13 +287,11 @@ function Config() {
                         </div>
                         <div className="w-32 space-y-1.5">
                           <Label>Valor (R$)</Label>
-                          <Input 
-                            type="number" 
-                            step="0.01" 
-                            value={item.value || ""} 
-                            onChange={e => {
+                          <CurrencyInput 
+                            value={item.value} 
+                            onChange={val => {
                               const updated = [...cmvItems];
-                              updated[idx].value = parseFloat(e.target.value) || 0;
+                              updated[idx].value = val;
                               setCmvItems(updated);
                             }}
                           />
