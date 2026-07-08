@@ -133,8 +133,9 @@ export function useSuppliers(search?: string) {
     queryKey: ["suppliers_inventory", search],
     queryFn: async () => {
       let query = supabase
-        .from("suppliers")
+        .from("clients")
         .select("*")
+        .eq("entity_type", "fornecedor")
         .eq("active", true)
         .order("name");
 
@@ -153,9 +154,17 @@ export function useCreateSupplier() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload: Partial<Supplier>) => {
+      const dataToSave = {
+        ...payload,
+        entity_type: "fornecedor",
+        entity_class: (payload as any).cnpj && (payload as any).cnpj.replace(/\D/g, "").length === 14 ? "pj" : "pf"
+      };
+      const { lead_time_days, whatsapp, cnpj, ...cleaned } = dataToSave as any;
+      if (cnpj) cleaned.document = cnpj;
+
       const { data, error } = await supabase
-        .from("suppliers")
-        .insert([payload])
+        .from("clients")
+        .insert([cleaned])
         .select()
         .single();
       
@@ -164,6 +173,7 @@ export function useCreateSupplier() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["suppliers_inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
     },
   });
 }
@@ -172,19 +182,27 @@ export function useSaveSupplier() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload: Partial<Supplier>) => {
-      if (payload.id) {
-        const { data, error } = await supabase.from("suppliers").update(payload).eq("id", payload.id).select().single();
+      const dataToSave = {
+        ...payload,
+        entity_type: "fornecedor",
+        entity_class: (payload as any).cnpj && (payload as any).cnpj.replace(/\D/g, "").length === 14 ? "pj" : "pf"
+      };
+      const { lead_time_days, whatsapp, cnpj, ...cleaned } = dataToSave as any;
+      if (cnpj) cleaned.document = cnpj;
+
+      if (cleaned.id) {
+        const { data, error } = await supabase.from("clients").update(cleaned).eq("id", cleaned.id).select().single();
         if (error) throw error;
         return data;
       } else {
-        const { data, error } = await supabase.from("suppliers").insert([payload]).select().single();
+        const { data, error } = await supabase.from("clients").insert([cleaned]).select().single();
         if (error) throw error;
         return data;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["suppliers_inventory"] });
-      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
     },
   });
 }

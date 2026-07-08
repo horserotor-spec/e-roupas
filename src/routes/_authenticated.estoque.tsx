@@ -33,7 +33,7 @@ function EstoquePage() {
     <div className="px-6 md:px-10 py-8 max-w-[1400px] mx-auto min-h-[calc(100vh-64px)] flex flex-col">
       <div className="flex items-end justify-between mb-8 flex-wrap gap-3">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Operação Logística</p>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Estoque</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">Estoque Inteligente</h1>
         </div>
       </div>
