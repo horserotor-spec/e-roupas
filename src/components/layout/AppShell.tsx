@@ -3,9 +3,11 @@ import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { useAuth } from "@/lib/auth";
 import { Loader2 } from "lucide-react";
+import { useState } from "react";
 
 export function AppShell() {
   const { loading, user } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   if (loading) {
     return (
@@ -21,10 +23,10 @@ export function AppShell() {
   }
 
   return (
-    <div className="min-h-screen flex w-full bg-background">
-      <Sidebar />
+    <div className="min-h-screen flex w-full bg-background relative overflow-x-hidden">
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 min-w-0 flex flex-col">
-        <TopBar />
+        <TopBar onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 min-w-0">
           <Outlet />
         </main>

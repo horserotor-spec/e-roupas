@@ -3,6 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFo
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { CurrencyInput } from "../ui/currency-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
@@ -790,7 +791,6 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
               </div>
             )}
 
-            {formData.format !== "Serviço" && (
               <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
                 <h3 className="text-sm font-semibold text-slate-800 tracking-tight">Preços & Controle de Estoque</h3>
                 
@@ -798,20 +798,18 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label className="text-xs text-slate-500">Preço de Venda (R$)</Label>
-                      <Input 
-                        type="number" step="0.01" min="0"
-                        value={formData.price || ""} 
-                        onChange={e => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                      <CurrencyInput 
+                        value={formData.price || 0} 
+                        onChange={v => setFormData({ ...formData, price: v })}
                         placeholder="0,00"
                         className="h-9"
                       />
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs text-slate-500">Preço de Custo (R$)</Label>
-                      <Input 
-                        type="number" step="0.01" min="0"
-                        value={formData.cost_price || ""} 
-                        onChange={e => setFormData({ ...formData, cost_price: parseFloat(e.target.value) || 0 })}
+                      <CurrencyInput 
+                        value={formData.cost_price || 0} 
+                        onChange={v => setFormData({ ...formData, cost_price: v })}
                         placeholder="0,00"
                         className="h-9"
                       />
@@ -844,7 +842,6 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                   )}
                 </div>
               </div>
-            )}
 
             <details className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4 group">
               <summary className="text-sm font-semibold text-slate-800 cursor-pointer list-none flex items-center justify-between">

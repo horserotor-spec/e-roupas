@@ -28,11 +28,59 @@ function OrderPage() {
   
   const { data: order, isLoading: isLoadingOrder } = useOrder(orderId);
   const { data: items = [], isLoading: isLoadingItems } = useOrderItems(orderId);
-    const { data: timeline = [], isLoading: isLoadingTimeline } = useOrderTimeline(orderId);
+  const { data: timeline = [], isLoading: isLoadingTimeline } = useOrderTimeline(orderId);
   const updateOrder = useUpdateOrder();
   const deleteOrder = useDeleteOrder();
   const navigate = useNavigate();
   const overrideStock = useOverrideStockBatch();
+
+  const { data: isFirstPurchase = false } = useQuery({
+    queryKey: ["order_client_first_purchase", order?.client_id, order?.id],
+    queryFn: async () => {
+      if (!order?.client_id) return false;
+      
+      const { data: clientData } = await supabase
+        .from("clients")
+        .select("document, entity_type")
+        .eq("id", order.client_id)
+        .maybeSingle();
+        
+      if (!clientData || clientData.entity_type !== "cliente") {
+        return false;
+      }
+        
+      const document = clientData.document;
+      
+      let clientIds = [order.client_id];
+      if (document && document !== "—" && document.trim() !== "") {
+        const { data: siblingClients } = await supabase
+          .from("clients")
+          .select("id")
+          .eq("document", document);
+        if (siblingClients && siblingClients.length > 0) {
+          clientIds = siblingClients.map(c => c.id);
+        }
+      }
+      
+      const { data: otherOrders, error } = await supabase
+        .from("orders")
+        .select("id, created_at")
+        .in("client_id", clientIds);
+        
+      if (error || !otherOrders) return true;
+      
+      const currentOrder = otherOrders.find(o => o.id === order.id);
+      if (!currentOrder) {
+        return otherOrders.length === 0;
+      }
+      
+      const currentCreatedAt = new Date(currentOrder.created_at);
+      const hasPriorOrder = otherOrders.some(o => o.id !== order.id && new Date(o.created_at) < currentCreatedAt);
+      
+      return !hasPriorOrder;
+    },
+    enabled: !!order?.client_id && !!order?.id,
+  });
 
   const SIZES = ["2", "4", "6", "8", "10", "12", "14", "16", "PP", "P", "M", "G", "GG", "XG", "G1", "G2", "G3", "G4"];
   const groupedItems: any[] = [];
@@ -157,8 +205,13 @@ function OrderPage() {
               </span>
             )}
           </div>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight">
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight flex items-center gap-2">
             <Link to="/crm" className="hover:text-primary">{order.client_name}</Link>
+            {isFirstPurchase && (
+              <span className="inline-flex items-center rounded-full bg-blue-100 text-blue-800 border border-blue-200 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider">
+                PRIMEIRA COMPRA
+              </span>
+            )}
           </h1>
           <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1"><Calendar className="size-3.5" /> Prazo {order.deadline ? new Date(order.deadline).toLocaleDateString("pt-BR") : '—'}</span>

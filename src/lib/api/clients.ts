@@ -43,7 +43,7 @@ export function useClients(search?: string) {
         .order("name");
 
       if (search) {
-        query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,document.ilike.%${search}%,company_name.ilike.%${search}%,phone.ilike.%${search}%`);
+        query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,document.ilike.%${search}%,company_name.ilike.%${search}%,phone.ilike.%${search}%,entity_type.ilike.%${search}%`);
       }
 
       const { data: clientsData, error: clientsErr } = await query;

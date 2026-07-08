@@ -685,11 +685,12 @@ export function useOrder(id: string) {
         .from("orders")
         .select(`
             *,
-            clients!orders_client_id_fkey(id, name, company_name),
+            clients!orders_client_id_fkey(*),
             brands(id, name, code),
             seller:users!orders_seller_id_fkey(id, name),
             salesperson:clients!orders_salesperson_id_fkey(id, name, commission_percent),
-            order_items(*, products(model_id, fabric_id, color_id))
+            order_items(*, products(model_id, fabric_id, color_id)),
+            order_payments(*)
           `)
         .eq("id", id)
         .single();
@@ -697,7 +698,7 @@ export function useOrder(id: string) {
       if (error) throw error;
       if (!data) return null;
 
-      return {
+       return {
         ...data,
         status: data.status as OrderStatus,
         urgent: data.priority === "alta",
@@ -705,6 +706,7 @@ export function useOrder(id: string) {
         client_name: data.clients?.company_name || data.clients?.name || "Cliente não informado",
         owner_name: data.seller?.name || "—",
         salesperson_name: data.salesperson?.name || null,
+        payment_method: data.payment_method || data.order_payments?.[0]?.payment_method || "PIX",
         items: data.order_items || [],
         payments: data.order_payments || [],
       } as Order;
@@ -732,6 +734,9 @@ export function useCreateOrder() {
   return useMutation({
     mutationFn: async (payload: OrderPayload) => {
       const { items, payments, ...orderData } = payload;
+      if (payments && payments.length > 0) {
+        orderData.payment_method = payments[0].payment_method;
+      }
       
       // Sanitize orderData
       delete (orderData as any).order_items;
@@ -891,6 +896,9 @@ export function useUpdateOrder() {
   return useMutation({
     mutationFn: async (payload: { id: string } & Partial<OrderPayload>) => {
       const { items, payments, id, ...orderData } = payload;
+      if (payments && payments.length > 0) {
+        orderData.payment_method = payments[0].payment_method;
+      }
 
       // Sanitize orderData
       delete (orderData as any).order_items;

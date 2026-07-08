@@ -150,8 +150,10 @@ function PedidosPage() {
                     <div className="font-medium truncate">{o.client_name}</div>
                     <div className="text-xs text-muted-foreground">{o.brand_code} · {o.owner_name}</div>
                   </td>
-                  <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground text-xs">
-                    {o.items.map((i) => `${i.quantity}× ${i.product_name} (${i.sku || '-'} - Tam: ${i.size || '-'})`).join(" · ")}
+                  <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground text-xs max-w-[300px]">
+                    <div className="line-clamp-2 whitespace-normal break-words">
+                      {o.items.map((i) => `${i.quantity}× ${i.product_name} (${i.sku || '-'} - Tam: ${i.size || '-'})`).join(" · ")}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <Select 

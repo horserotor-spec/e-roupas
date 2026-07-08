@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, Link, useParams, useBlocker } from "@tans
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,7 +24,7 @@ import { getProductDisplayName } from "@/lib/utils/product-display";
 const ADULTO_SIZES = ["PP", "P", "M", "G", "GG", "XG", "G1", "G2", "G3", "G4"];
 const INFANTIL_SIZES = ["2", "4", "6", "8", "10", "12", "14", "16"];
 
-export function SearchableCombobox({ items, value, onChange, placeholder, minChars = 3 }: { items: {id: string, name: string}[], value: string, onChange: (v: string) => void, placeholder: string, minChars?: number }) {
+export function SearchableCombobox({ items, value, onChange, placeholder, minChars = 1 }: { items: {id: string, name: string}[], value: string, onChange: (v: string) => void, placeholder: string, minChars?: number }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -41,9 +42,9 @@ export function SearchableCombobox({ items, value, onChange, placeholder, minCha
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0" align="start">
         <Command shouldFilter={false}>
-          <CommandInput placeholder={`Digite ${minChars} letras...`} onValueChange={setSearch} value={search} />
+          <CommandInput placeholder={`Digite ${minChars} letra...`} onValueChange={setSearch} value={search} />
           <CommandList>
-            {search.length < minChars && <div className="p-4 text-center text-sm text-muted-foreground">Digite pelo menos {minChars} letras para buscar.</div>}
+            {search.length < minChars && <div className="p-4 text-center text-sm text-muted-foreground">Digite pelo menos {minChars} letra para buscar.</div>}
             {search.length >= minChars && displayItems.length === 0 && <CommandEmpty>Nenhum resultado.</CommandEmpty>}
             {search.length >= minChars && (
               <CommandGroup>
@@ -637,12 +638,15 @@ function EditOrderPage() {
               WhatsApp
             </Button>
 
+
             <Button variant="outline" className="h-7 px-3 text-xs rounded-full border-blue-600 text-blue-600 hover:bg-blue-50" onClick={() => handlePrint("pedido")}>
               <Printer className="size-3.5 mr-1.5" /> Imprimir Pedido
             </Button>
-            <Button variant="outline" className="h-7 px-3 text-xs rounded-full border-purple-600 text-purple-600 hover:bg-purple-50" onClick={() => handlePrint("etiqueta")}>
-              <Tag className="size-3.5 mr-1.5" /> Etiqueta de Envio
-            </Button>
+            {formData.status !== "orcamento" && (
+              <Button variant="outline" className="h-7 px-3 text-xs rounded-full border-purple-600 text-purple-600 hover:bg-purple-50" onClick={() => handlePrint("etiqueta")}>
+                <Tag className="size-3.5 mr-1.5" /> Etiqueta de Envio
+              </Button>
+            )}
             <Link to="/pedidos">
               <Button variant="outline" className="h-7 px-4 text-xs rounded-full border-green-600 text-green-700 hover:bg-green-50">Cancelar</Button>
             </Link>
@@ -721,75 +725,74 @@ function EditOrderPage() {
           </div>
           
           <div className="bg-white border rounded-lg overflow-x-auto overflow-y-visible mb-3">
-            <table className="w-full text-sm text-left whitespace-nowrap">
+            <table className="w-full text-sm text-left">
               <thead className="bg-slate-50 border-b text-[10px] text-slate-500 uppercase tracking-wider">
                 <tr>
                   <th className="px-2 py-3 font-medium w-8 text-center">#</th>
-                  <th className="px-2 py-3 font-medium min-w-[150px]">Descrição</th>
-                  <th className="px-2 py-3 font-medium w-28">Cód. Arte</th>
-                  <th className="px-2 py-3 font-medium w-32">Código Base</th>
-                  <th className="px-2 py-3 font-medium w-28">Gênero</th>
-                  <th className="px-2 py-3 font-medium w-24 text-center">Pers.</th>
-                  <th className="px-2 py-3 font-medium w-28">Grade</th>
+                  <th className="px-2 py-3 font-medium min-w-[280px]">Produto / Identificação</th>
                   <th className="px-2 py-3 font-medium min-w-[320px]">Quantidades por Tamanho</th>
                   <th className="px-2 py-3 font-medium w-16 text-center bg-slate-100/30">Qtd</th>
-                  <th className="px-2 py-3 font-medium w-28 text-right">Lista</th>
-                  <th className="px-2 py-3 font-medium w-20 text-right">Desc%</th>
-                  <th className="px-2 py-3 font-medium w-28 text-right font-semibold">Unit</th>
-                  <th className="px-2 py-3 font-medium w-32 text-right font-bold">Total</th>
+                  <th className="px-2 py-3 font-medium w-[290px] text-right">Valores (Tabela / Desc / Unit / Total)</th>
                   <th className="px-2 py-3 font-medium w-10 text-center"></th>
                 </tr>
               </thead>
               <tbody className="divide-y text-xs">
-                {items.map((item, idx) => {
+                {loadingOrder && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                      <div className="flex justify-center items-center gap-2">
+                        <Loader2 className="size-4 animate-spin" /> Carregando pedidos...
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                {!loadingOrder && items.map((item, idx) => {
                   const qtyTotal = getItemQuantity(item);
                   return (
                     <tr key={idx} className="hover:bg-slate-50/50">
-                      <td className="px-2 py-2 text-slate-400 bg-slate-100/50 text-center">{idx + 1}</td>
-                      <td className="px-2 py-2">
-                        <SearchableCombobox
-                          items={(products || []).map(p => ({ id: p.id, name: getProductDisplayName(p) }))}
-                          value={item.product_id || ""}
-                          onChange={(v) => updateItem(idx, "product_id", v)}
-                          placeholder="Selecione..."
-                        />
-                      </td>
-                      <td className="px-2 py-2"><Input className="h-8 text-xs font-mono border-green-500/50 bg-green-50/30 placeholder:text-green-600/40" placeholder="ex: CLV003" value={item.art_code || ""} onChange={e => updateItem(idx, "art_code", e.target.value.toUpperCase())} /></td>
-                      <td className="px-2 py-2"><Input className="h-8 text-xs font-mono" value={item.sku || ""} onChange={e => updateItem(idx, "sku", e.target.value)} /></td>
-                      <td className="px-2 py-2">
-                        <Select value={item.gender || "Unissex"} onValueChange={(v) => updateItem(idx, "gender", v)}>
-                          <SelectTrigger className="h-8 border-transparent hover:border-input bg-transparent shadow-none p-1 text-xs"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Masculino">Masculino</SelectItem>
-                            <SelectItem value="Feminino">Feminino</SelectItem>
-                            <SelectItem value="Unissex">Unissex</SelectItem>
-                            <SelectItem value="Infantil">Infantil</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </td>
-                      <td className="px-2 py-2 text-center">
-                        <div className="flex flex-col gap-1 items-center justify-center">
-                          <Button variant="outline" size="sm" onClick={() => setActiveCustomizationIndex(idx)} className="h-7 text-[10px] border-dashed text-blue-600 hover:text-blue-700 hover:bg-blue-50 w-full px-1">
-                            <Wand2 className="size-3 mr-1" /> {(item.customizations || []).length} pr.
-                          </Button>
-                          {(item.customizations || []).length > 0 && (
-                            <Button variant="ghost" size="sm" onClick={() => handleSaveSku(idx)} disabled={createProductMutation.isPending} className="h-5 text-[9px] text-green-600 hover:bg-green-50 w-full px-1">
-                              <Save className="size-2.5 mr-1" /> SKU
+                      <td className="px-2 py-2 text-slate-400 bg-slate-100/50 text-center align-top pt-3">{idx + 1}</td>
+                      <td className="px-2 py-2 space-y-2 align-top">
+                        <div>
+                          <SearchableCombobox
+                            items={(products || []).map(p => ({ id: p.id, name: getProductDisplayName(p) }))}
+                            value={item.product_id || ""}
+                            onChange={(v) => updateItem(idx, "product_id", v)}
+                            placeholder="Selecione..."
+                          />
+                        </div>
+                        <div className="flex gap-2 flex-wrap items-center">
+                          <Input className="h-8 text-xs font-mono border-green-500/50 bg-green-50/30 placeholder:text-green-600/40 w-24" placeholder="Cód. Arte" value={item.art_code || ""} onChange={e => updateItem(idx, "art_code", e.target.value.toUpperCase())} />
+                          <Input className="h-8 text-xs font-mono w-28" placeholder="Código Base" value={item.sku || ""} onChange={e => updateItem(idx, "sku", e.target.value)} />
+                          <Select value={item.gender || "Unissex"} onValueChange={(v) => updateItem(idx, "gender", v)}>
+                            <SelectTrigger className="h-8 border bg-white shadow-sm p-1 px-2 text-xs w-24"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Masculino">Masculino</SelectItem>
+                              <SelectItem value="Feminino">Feminino</SelectItem>
+                              <SelectItem value="Unissex">Unissex</SelectItem>
+                              <SelectItem value="Infantil">Infantil</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Select value={item.grid_type || "adulto"} onValueChange={(v) => updateItem(idx, "grid_type", v)}>
+                            <SelectTrigger className="h-8 border bg-white shadow-sm p-1 px-2 text-xs w-20"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="adulto">Adulto</SelectItem>
+                              <SelectItem value="infantil">Infantil</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <div className="flex gap-1 items-center">
+                            <Button variant="outline" size="sm" onClick={() => setActiveCustomizationIndex(idx)} className="h-8 text-[10px] border text-blue-600 hover:bg-blue-50 px-2">
+                              <Wand2 className="size-3 mr-1" /> {(item.customizations || []).length} pers.
                             </Button>
-                          )}
+                            {(item.customizations || []).length > 0 && (
+                              <Button variant="ghost" size="sm" onClick={() => handleSaveSku(idx)} disabled={createProductMutation.isPending} className="h-6 text-[9px] text-green-600 hover:bg-green-50 px-1.5">
+                                <Save className="size-2.5 mr-1" /> SKU
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </td>
-                      <td className="px-2 py-2">
-                        <Select value={item.grid_type || "adulto"} onValueChange={(v) => updateItem(idx, "grid_type", v)}>
-                          <SelectTrigger className="h-8 border-transparent hover:border-input bg-transparent shadow-none p-1 text-xs"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="adulto">Adulto</SelectItem>
-                            <SelectItem value="infantil">Infantil</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </td>
-                      <td className="px-2 py-2">
-                        <div className="flex flex-wrap gap-1 items-end">
+                      <td className="px-2 py-2 align-top">
+                        <div className="flex flex-wrap gap-1 items-end mt-1">
                           {(item.active_sizes || []).map((sz: string) => (
                             <div key={sz} className="flex flex-col items-center gap-0.5 relative group">
                               <span className="text-[9px] font-bold text-slate-500 uppercase">{sz}</span>
@@ -831,12 +834,30 @@ function EditOrderPage() {
                           </Popover>
                         </div>
                       </td>
-                      <td className="px-2 py-2 text-center font-semibold text-slate-600 bg-slate-50/50">{qtyTotal}</td>
-                      <td className="px-2 py-2"><Input type="number" step="0.01" className="h-8 text-right text-xs bg-white min-w-[90px] w-full" value={item.list_price || ""} onChange={e => updateItem(idx, "list_price", parseFloat(e.target.value))} /></td>
-                      <td className="px-2 py-2"><Input type="number" step="0.01" className="h-8 text-right text-xs bg-white min-w-[80px] w-full" value={item.discount_percent || ""} onChange={e => updateItem(idx, "discount_percent", parseFloat(e.target.value))} /></td>
-                      <td className="px-2 py-2"><Input type="number" step="0.01" className="h-8 text-right text-xs font-medium text-slate-700 bg-white min-w-[90px] w-full" value={item.unit_price || ""} onChange={e => updateItem(idx, "unit_price", parseFloat(e.target.value))} /></td>
-                      <td className="px-2 py-2 text-right font-bold text-slate-900 bg-slate-50/30">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(qtyTotal * Number(item.unit_price || 0))}</td>
-                      <td className="px-2 py-2 text-center">
+                      <td className="px-2 py-2 text-center font-semibold text-slate-600 bg-slate-50/50 align-top pt-4">{qtyTotal}</td>
+                      <td className="px-2 py-2 space-y-1 align-top text-right w-[290px]">
+                        <div className="flex gap-1.5 justify-end items-center flex-nowrap">
+                          <div className="flex flex-col items-end">
+                            <span className="text-[9px] text-muted-foreground uppercase">Tabela</span>
+                            <CurrencyInput className="h-8 text-right text-xs bg-white w-20 px-1" value={item.list_price || 0} onChange={v => updateItem(idx, "list_price", v)} />
+                          </div>
+                          <div className="flex flex-col items-end">
+                            <span className="text-[9px] text-muted-foreground uppercase">Desc (%)</span>
+                            <Input type="number" step="0.01" className="h-8 text-right text-xs bg-white w-14 px-1" value={item.discount_percent || ""} onChange={e => updateItem(idx, "discount_percent", parseFloat(e.target.value))} />
+                          </div>
+                          <div className="flex flex-col items-end">
+                            <span className="text-[9px] text-muted-foreground uppercase">Unit (R$)</span>
+                            <CurrencyInput className="h-8 text-right text-xs font-medium text-slate-700 bg-white w-20 px-1" value={item.unit_price || 0} onChange={v => updateItem(idx, "unit_price", v)} />
+                          </div>
+                        </div>
+                        <div className="flex justify-end items-center pt-1.5 border-t border-dashed mt-1.5">
+                          <div className="flex items-center gap-1.5 text-xs pr-1">
+                            <span className="text-[9px] text-muted-foreground uppercase font-bold">Total:</span>
+                            <span className="font-bold text-slate-900">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(qtyTotal * Number(item.unit_price || 0))}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-2 py-2 text-center align-top pt-4">
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600" onClick={() => removeItem(idx)}><Trash2 className="size-3.5" /></Button>
                       </td>
                     </tr>
@@ -938,7 +959,7 @@ function EditOrderPage() {
                 {payments.map((p, idx) => (
                   <tr key={idx} className="hover:bg-slate-50/50">
                     <td className="px-4 py-2 text-center text-slate-400 bg-slate-100/50">{idx + 1}</td>
-                    <td className="px-4 py-2"><Input type="number" step="0.01" className="h-8" value={p.amount || ""} onChange={e => updatePaymentAmount(idx, parseFloat(e.target.value) || 0)} /></td>
+                    <td className="px-4 py-2"><CurrencyInput className="h-8 text-right px-1" value={p.amount || 0} onChange={v => updatePaymentAmount(idx, v)} /></td>
                     <td className="px-4 py-2">
                       <Select value={p.payment_method || ""} onValueChange={(v) => updatePaymentField(idx, "payment_method", v)}>
                         <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
@@ -1088,10 +1109,7 @@ function EditOrderPage() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground text-blue-600">Frete Cobrado</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">R$</span>
-                <Input type="number" step="0.01" className="h-9 pl-8" value={formData.freight_cost || ""} onChange={e => setFormData({...formData, freight_cost: parseFloat(e.target.value) || 0})} />
-              </div>
+              <CurrencyInput className="h-9 bg-white" value={formData.freight_cost || 0} onChange={v => setFormData({...formData, freight_cost: v})} />
             </div>
           </div>
         </section>
@@ -1179,19 +1197,19 @@ function EditOrderPage() {
                       </div>
                       
                       <div className="w-20">
-                        <Input type="number" step="0.01" placeholder="Custo" value={cust.cost} onChange={e => {
+                        <CurrencyInput placeholder="Custo" value={cust.cost || 0} onChange={v => {
                           const newC = [...(items[activeCustomizationIndex].customizations || [])];
-                          newC[cIdx].cost = parseFloat(e.target.value) || 0;
+                          newC[cIdx].cost = v;
                           updateItem(activeCustomizationIndex, "customizations", newC);
-                        }} className="h-8 text-xs text-center" />
+                        }} className="h-8 text-xs text-center px-1" />
                       </div>
                       
                       <div className="w-20">
-                        <Input type="number" step="0.01" placeholder="Venda" value={cust.price} onChange={e => {
+                        <CurrencyInput placeholder="Venda" value={cust.price || 0} onChange={v => {
                           const newC = [...(items[activeCustomizationIndex].customizations || [])];
-                          newC[cIdx].price = parseFloat(e.target.value) || 0;
+                          newC[cIdx].price = v;
                           updateItem(activeCustomizationIndex, "customizations", newC);
-                        }} className="h-8 text-xs text-center font-medium text-blue-600" />
+                        }} className="h-8 text-xs text-center font-medium text-blue-600 px-1" />
                       </div>
                       
                       <div className="w-16">
@@ -1246,15 +1264,43 @@ function EditOrderPage() {
           <div className="grid grid-cols-2 gap-8 mb-8 text-sm">
             <div>
               <h3 className="font-bold border-b border-gray-300 mb-2 uppercase text-xs">Dados do Cliente</h3>
-              <p><strong>Nome:</strong> {clients?.find(c => c.id === formData.client_id)?.name}</p>
-              <p><strong>Empresa:</strong> {clients?.find(c => c.id === formData.client_id)?.company_name || "-"}</p>
-              <p><strong>Marca (Brand):</strong> {brands?.find(b => b.id === formData.brand_id)?.name}</p>
+              {(() => {
+                const clientObj = clients?.find(c => c.id === formData.client_id);
+                return (
+                  <>
+                    <p><strong>Nome:</strong> {clientObj?.name || "-"}</p>
+                    {clientObj?.company_name && clientObj.company_name !== clientObj.name && (
+                      <p><strong>Razão Social:</strong> {clientObj.company_name}</p>
+                    )}
+                    {clientObj?.document && (
+                      <p><strong>CPF/CNPJ:</strong> {clientObj.document}</p>
+                    )}
+                    {(clientObj?.phone || clientObj?.landline_phone) && (
+                      <p><strong>Telefone:</strong> {clientObj.phone || clientObj.landline_phone}</p>
+                    )}
+                    {clientObj?.email && (
+                      <p><strong>Email:</strong> {clientObj.email}</p>
+                    )}
+                    {(clientObj?.street || clientObj?.city) && (
+                      <p className="text-[11px] text-gray-600 mt-1.5 border-t border-dashed pt-1 leading-normal">
+                        <strong>Endereço:</strong> {clientObj.street}{clientObj.number ? `, ${clientObj.number}` : ""}
+                        {clientObj.complement ? ` - ${clientObj.complement}` : ""}
+                        {clientObj.neighborhood ? ` - ${clientObj.neighborhood}` : ""}
+                        {clientObj.city ? ` - ${clientObj.city}/${clientObj.state || ""}` : ""}
+                        {clientObj.zip_code ? ` - CEP: ${clientObj.zip_code}` : ""}
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
+              <p className="mt-1"><strong>Marca (Brand):</strong> {brands?.find(b => b.id === formData.brand_id)?.name || "-"}</p>
             </div>
             <div>
               <h3 className="font-bold border-b border-gray-300 mb-2 uppercase text-xs">Informações Comerciais</h3>
               <p><strong>Vendedor:</strong> {formData.seller_id || "Não informado"}</p>
               <p><strong>Previsão Entrega:</strong> {formData.expected_date ? new Date(formData.expected_date).toLocaleDateString("pt-BR") : "-"}</p>
               <p><strong>Frete:</strong> {formData.freight_payer} | <strong>Transp:</strong> {formData.carrier_name || "Correios/Retirada"}</p>
+              <p><strong>Forma de Pagamento:</strong> {payments?.[0]?.payment_method || formData.payment_method || "PIX"}</p>
             </div>
           </div>
 
@@ -1322,7 +1368,7 @@ function EditOrderPage() {
             </table>
           </div>
 
-          <div className="grid grid-cols-2 gap-8 mb-8">
+          <div className="grid grid-cols-2 gap-8 mb-6">
             <div className="text-sm">
               <h3 className="font-bold border-b border-gray-300 mb-2 uppercase text-xs">Observações Impressas</h3>
               <p className="whitespace-pre-wrap">{formData.notes || "Nenhuma observação."}</p>
@@ -1332,6 +1378,38 @@ function EditOrderPage() {
               <div className="flex justify-between border-b border-gray-200 py-1"><span className="text-gray-600">Descontos:</span> <span>- R$ {saleDiscount.toLocaleString("pt-BR", {minimumFractionDigits:2})}</span></div>
               <div className="flex justify-between border-b border-gray-200 py-1"><span className="text-gray-600">Frete/Outros:</span> <span>+ R$ {(freight + otherExpenses).toLocaleString("pt-BR", {minimumFractionDigits:2})}</span></div>
               <div className="flex justify-between py-2 text-lg font-bold"><span>Total Final:</span> <span>R$ {finalTotal.toLocaleString("pt-BR", {minimumFractionDigits:2})}</span></div>
+            </div>
+          </div>
+
+          <div className="mb-8">
+            <h3 className="font-bold border-b border-gray-300 mb-2 uppercase text-xs">Forma de Pagamento / Parcelas</h3>
+            <table className="w-full text-xs text-left border-collapse border border-gray-300">
+              <thead>
+                <tr className="bg-gray-50 text-gray-700">
+                  <th className="border border-gray-300 p-1.5 font-bold w-12 text-center">#</th>
+                  <th className="border border-gray-300 p-1.5 font-bold">Valor (R$)</th>
+                  <th className="border border-gray-300 p-1.5 font-bold">Forma</th>
+                  <th className="border border-gray-300 p-1.5 font-bold">Data Venc.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(payments || []).map((p, idx) => (
+                  <tr key={idx} className="text-gray-800">
+                    <td className="border border-gray-300 p-1.5 text-center">{idx + 1}</td>
+                    <td className="border border-gray-300 p-1.5 font-medium">R$ {Number(p.amount || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+                    <td className="border border-gray-300 p-1.5">{p.payment_method || "PIX"}</td>
+                    <td className="border border-gray-300 p-1.5">{p.due_date ? p.due_date.split("-").reverse().join("/") : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-12 flex justify-between gap-8 pt-8 mb-6">
+            <div className="w-[45%] text-center border-t border-gray-400 pt-2 text-xs">
+              Assinatura do Vendedor / Responsável
+            </div>
+            <div className="w-[45%] text-center border-t border-gray-400 pt-2 text-xs">
+              De acordo do Cliente (Ok / Assinatura)
             </div>
           </div>
           

@@ -48,6 +48,20 @@ function ProducaoPage() {
   // Mover pedido
   const moveOrderMutation = useMutation({
     mutationFn: async ({ orderId, newStatus, oldStatus }: { orderId: string; newStatus: OrderStatus; oldStatus: OrderStatus }) => {
+      let ipAddress = "IP desconhecido";
+      try {
+        const res = await fetch("https://api.ipify.org?format=json");
+        const data = await res.json();
+        if (data && data.ip) {
+          ipAddress = data.ip;
+        }
+      } catch (err) {
+        console.error("Falha ao obter IP", err);
+      }
+
+      const now = new Date();
+      const localTime = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) + " - " + now.toLocaleDateString("pt-BR");
+
       // 1. Update order
       const { error: updateError } = await supabase
         .from("orders")
@@ -63,8 +77,8 @@ function ProducaoPage() {
           order_id: orderId,
           user_id: user?.id,
           event_type: "status_change",
-          description: `Movido de ${statusLabel[oldStatus]} para ${statusLabel[newStatus]} via Kanban.`,
-          // Aqui no futuro poderia gravar um payload json com tempos, etc.
+          description: `Movido de ${statusLabel[oldStatus]} para ${statusLabel[newStatus]} via Kanban. (IP: ${ipAddress}, Hora: ${localTime})`,
+          metadata: { ip: ipAddress, timestamp: now.toISOString() }
         }]);
 
       return true;
@@ -265,10 +279,7 @@ function ProducaoPage() {
                               e.stopPropagation();
                               const confirmText = `Deseja marcar a Prensa do pedido ${order.code} como ✔ Aplicado?`;
                               if (window.confirm(confirmText)) {
-                                supabase.from("orders").update({ status: "qualidade" }).eq("id", order.id).then(() => {
-                                  queryClient.invalidateQueries({ queryKey: ["orders"] });
-                                  toast.success("Prensa confirmada!");
-                                });
+                                moveOrderMutation.mutate({ orderId: order.id, newStatus: "qualidade", oldStatus: "prensa" });
                               }
                             }}
                             className="w-full h-7 mt-1 mb-2.5 rounded bg-blue-600 hover:bg-blue-700 text-[10px] font-bold text-white flex items-center justify-center gap-1.5 uppercase transition-colors"

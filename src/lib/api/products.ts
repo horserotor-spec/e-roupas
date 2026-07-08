@@ -104,7 +104,7 @@ export function useProducts(search?: string) {
         .order("created_at", { ascending: false });
 
       if (search) {
-        query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%`);
+        query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%,technical_name.ilike.%${search}%,brand.ilike.%${search}%,category.ilike.%${search}%`);
       }
 
       const { data, error } = await query;

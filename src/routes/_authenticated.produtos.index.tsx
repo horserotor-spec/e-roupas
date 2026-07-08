@@ -300,14 +300,16 @@ function ProductsPage() {
                   </td>
                 )}
                 <td className="px-4 py-3 text-right">
-                  <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="icon" onClick={() => {
-                      cloneMutation.mutateAsync(p.id).then((cloned) => {
-                        if (cloned) { setEditingProduct(cloned); setDrawerOpen(true); toast.success("Produto clonado! Edite e salve."); }
-                      }).catch((e: any) => toast.error("Erro ao clonar: " + e.message));
-                    }} disabled={cloneMutation.isPending} className="h-8 w-8 text-muted-foreground hover:text-purple-600" title="Clonar Produto">
-                      <Copy className="size-4" />
-                    </Button>
+                  <div className="flex items-center justify-end gap-1">
+                    {p.format === "MP" && (
+                      <Button variant="ghost" size="icon" onClick={() => {
+                        cloneMutation.mutateAsync(p.id).then((cloned) => {
+                          if (cloned) { setEditingProduct(cloned); setDrawerOpen(true); toast.success("Produto clonado! Edite e salve."); }
+                        }).catch((e: any) => toast.error("Erro ao clonar: " + e.message));
+                      }} disabled={cloneMutation.isPending} className="h-8 w-8 text-muted-foreground hover:text-purple-600" title="Clonar Produto">
+                        <Copy className="size-4" />
+                      </Button>
+                    )}
                     <Button variant="ghost" size="icon" onClick={() => openEditProduct(p)} className="h-8 w-8 text-muted-foreground hover:text-primary" title="Editar">
                       <Edit2 className="size-4" />
                     </Button>

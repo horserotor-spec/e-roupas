@@ -3,6 +3,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,7 +27,7 @@ import { getProductDisplayName } from "@/lib/utils/product-display";
 const ADULTO_SIZES = ["PP", "P", "M", "G", "GG", "XG", "G1", "G2", "G3", "G4"];
 const INFANTIL_SIZES = ["2", "4", "6", "8", "10", "12", "14", "16"];
 
-export function SearchableCombobox({ items, value, onChange, placeholder, minChars = 3 }: { items: {id: string, name: string}[], value: string, onChange: (v: string) => void, placeholder: string, minChars?: number }) {
+export function SearchableCombobox({ items, value, onChange, placeholder, minChars = 1 }: { items: {id: string, name: string}[], value: string, onChange: (v: string) => void, placeholder: string, minChars?: number }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -44,9 +45,9 @@ export function SearchableCombobox({ items, value, onChange, placeholder, minCha
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0" align="start">
         <Command shouldFilter={false}>
-          <CommandInput placeholder={`Digite ${minChars} letras...`} onValueChange={setSearch} value={search} />
+          <CommandInput placeholder={`Digite ${minChars} letra...`} onValueChange={setSearch} value={search} />
           <CommandList>
-            {search.length < minChars && <div className="p-4 text-center text-sm text-muted-foreground">Digite pelo menos {minChars} letras para buscar.</div>}
+            {search.length < minChars && <div className="p-4 text-center text-sm text-muted-foreground">Digite pelo menos {minChars} letra para buscar.</div>}
             {search.length >= minChars && displayItems.length === 0 && <CommandEmpty>Nenhum resultado.</CommandEmpty>}
             {search.length >= minChars && (
               <CommandGroup>
@@ -587,22 +588,14 @@ function NewOrderPage() {
           </div>
           
           <div className="bg-white border rounded-lg overflow-x-auto overflow-y-visible mb-3">
-            <table className="w-full min-w-[1200px] text-sm text-left whitespace-nowrap">
+            <table className="w-full text-sm text-left">
               <thead className="bg-slate-50 border-b text-[10px] text-slate-500 uppercase tracking-wider">
                 <tr>
                   <th className="px-2 py-3 font-medium w-8 text-center">#</th>
-                  <th className="px-2 py-3 font-medium min-w-[180px]">Descrição</th>
-                  <th className="px-2 py-3 font-medium w-24">Cód. Arte *</th>
-                  <th className="px-2 py-3 font-medium w-28">Cód. Base (PA)</th>
-                  <th className="px-2 py-3 font-medium w-24">Gênero</th>
-                  <th className="px-2 py-3 font-medium w-20 text-center">Pers.</th>
-                  <th className="px-2 py-3 font-medium w-24">Grade</th>
-                  <th className="px-2 py-3 font-medium min-w-[280px]">Quantidades por Tamanho</th>
-                  <th className="px-2 py-3 font-medium w-12 text-center bg-slate-100/30">Qtd</th>
-                  <th className="px-2 py-3 font-medium w-24 text-right">Lista</th>
-                  <th className="px-2 py-3 font-medium w-20 text-right">Desc%</th>
-                  <th className="px-2 py-3 font-medium w-24 text-right font-semibold">Unit</th>
-                  <th className="px-2 py-3 font-medium w-28 text-right font-bold">Total</th>
+                  <th className="px-2 py-3 font-medium min-w-[280px]">Produto / Identificação</th>
+                  <th className="px-2 py-3 font-medium min-w-[320px]">Quantidades por Tamanho</th>
+                  <th className="px-2 py-3 font-medium w-16 text-center bg-slate-100/30">Qtd</th>
+                  <th className="px-2 py-3 font-medium w-[290px] text-right">Valores (Tabela / Desc / Unit / Total)</th>
                   <th className="px-2 py-3 font-medium w-10 text-center"></th>
                 </tr>
               </thead>
@@ -611,58 +604,56 @@ function NewOrderPage() {
                   const qtyTotal = getItemQuantity(item);
                   return (
                     <tr key={idx} className="hover:bg-slate-50/50">
-                      <td className="px-2 py-2 text-slate-400 bg-slate-100/50 text-center">{idx + 1}</td>
-                      <td className="px-2 py-2">
-                        <SearchableCombobox
-                          items={(products || []).filter(p => ['PA', 'Serviço', 'PF'].includes(p.format || '')).map(p => ({ id: p.id, name: getProductDisplayName(p) }))}
-                          value={item.product_id || ""}
-                          onChange={(v) => updateItem(idx, "product_id", v)}
-                          placeholder="Selecione..."
-                        />
-                      </td>
-                      <td className="px-2 py-2"><Input className="h-8 text-xs font-mono border-green-500/50 bg-green-50/30 placeholder:text-green-600/40 min-w-[80px]" placeholder="ex: CLV003" value={item.art_code || ""} onChange={e => updateItem(idx, "art_code", e.target.value.toUpperCase())} /></td>
-                      <td className="px-2 py-2"><Input className="h-8 text-xs font-mono min-w-[90px]" value={item.sku || ""} onChange={e => updateItem(idx, "sku", e.target.value)} /></td>
-                      <td className="px-2 py-2">
-                        <Select value={item.gender || "Unissex"} onValueChange={(v) => updateItem(idx, "gender", v)}>
-                          <SelectTrigger className="h-8 border-transparent hover:border-input bg-transparent shadow-none p-1 text-xs min-w-[80px]"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Masculino">Masculino</SelectItem>
-                            <SelectItem value="Feminino">Feminino</SelectItem>
-                            <SelectItem value="Unissex">Unissex</SelectItem>
-                            <SelectItem value="Infantil">Infantil</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </td>
-                      <td className="px-2 py-2 text-center">
-                        <div className="flex flex-col gap-1 items-center justify-center">
-                          <Button variant="outline" size="sm" onClick={() => setActiveCustomizationIndex(idx)} className="h-7 text-[10px] border-dashed text-blue-600 hover:text-blue-700 hover:bg-blue-50 w-full px-1 min-w-[50px]">
-                            <Wand2 className="size-3 mr-1" /> {(item.customizations || []).length} pr.
-                          </Button>
-                          {(item.customizations || []).length > 0 && (
-                            <Button variant="ghost" size="sm" onClick={() => handleSaveSku(idx)} disabled={createProductMutation.isPending} className="h-5 text-[9px] text-green-600 hover:bg-green-50 w-full px-1">
-                              <Save className="size-2.5 mr-1" /> SKU
+                      <td className="px-2 py-2 text-slate-400 bg-slate-100/50 text-center align-top pt-3">{idx + 1}</td>
+                      <td className="px-2 py-2 space-y-2 align-top">
+                        <div>
+                          <SearchableCombobox
+                            items={(products || []).filter(p => ['PA', 'Serviço', 'PF'].includes(p.format || '')).map(p => ({ id: p.id, name: getProductDisplayName(p) }))}
+                            value={item.product_id || ""}
+                            onChange={(v) => updateItem(idx, "product_id", v)}
+                            placeholder="Selecione..."
+                          />
+                        </div>
+                        <div className="flex gap-2 flex-wrap items-center">
+                          <Input className="h-8 text-xs font-mono border-green-500/50 bg-green-50/30 placeholder:text-green-600/40 w-24" placeholder="Cód. Arte *" value={item.art_code || ""} onChange={e => updateItem(idx, "art_code", e.target.value.toUpperCase())} />
+                          <Input className="h-8 text-xs font-mono w-28" placeholder="Cód. Base (PA)" value={item.sku || ""} onChange={e => updateItem(idx, "sku", e.target.value)} />
+                          <Select value={item.gender || "Unissex"} onValueChange={(v) => updateItem(idx, "gender", v)}>
+                            <SelectTrigger className="h-8 border bg-white shadow-sm p-1 px-2 text-xs w-24"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Masculino">Masculino</SelectItem>
+                              <SelectItem value="Feminino">Feminino</SelectItem>
+                              <SelectItem value="Unissex">Unissex</SelectItem>
+                              <SelectItem value="Infantil">Infantil</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Select value={item.grid_type || "adulto"} onValueChange={(v) => updateItem(idx, "grid_type", v)}>
+                            <SelectTrigger className="h-8 border bg-white shadow-sm p-1 px-2 text-xs w-20"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="adulto">Adulto</SelectItem>
+                              <SelectItem value="infantil">Infantil</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <div className="flex gap-1 items-center">
+                            <Button variant="outline" size="sm" onClick={() => setActiveCustomizationIndex(idx)} className="h-8 text-[10px] border text-blue-600 hover:bg-blue-50 px-2">
+                              <Wand2 className="size-3 mr-1" /> {(item.customizations || []).length} pers.
                             </Button>
-                          )}
+                            {(item.customizations || []).length > 0 && (
+                              <Button variant="ghost" size="sm" onClick={() => handleSaveSku(idx)} disabled={createProductMutation.isPending} className="h-6 text-[9px] text-green-600 hover:bg-green-50 px-1.5">
+                                <Save className="size-2.5 mr-1" /> SKU
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </td>
-                      <td className="px-2 py-2">
-                        <Select value={item.grid_type || "adulto"} onValueChange={(v) => updateItem(idx, "grid_type", v)}>
-                          <SelectTrigger className="h-8 border-transparent hover:border-input bg-transparent shadow-none p-1 text-xs min-w-[70px]"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="adulto">Adulto</SelectItem>
-                            <SelectItem value="infantil">Infantil</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </td>
-                      <td className="px-2 py-2">
-                        <div className="flex flex-wrap gap-1 items-end">
+                      <td className="px-2 py-2 align-top">
+                        <div className="flex flex-wrap gap-1 items-end mt-1">
                           {(item.active_sizes || []).map((sz: string) => (
                             <div key={sz} className="flex flex-col items-center gap-0.5 relative group">
                               <span className="text-[9px] font-bold text-slate-500 uppercase">{sz}</span>
                               <Input
                                 type="number"
                                 min={0}
-                                className="h-7 px-1 text-center text-xs w-9 bg-white border border-slate-200 rounded focus:border-green-500"
+                                className="h-7 px-1 text-center text-xs w-10 bg-white border border-slate-200 rounded focus:border-green-500"
                                 value={item.sizes?.[sz] === 0 ? "" : (item.sizes?.[sz] || "")}
                                 onChange={e => updateItem(idx, `size_${sz}`, e.target.value)}
                                 placeholder="0"
@@ -697,12 +688,30 @@ function NewOrderPage() {
                           </Popover>
                         </div>
                       </td>
-                      <td className="px-2 py-2 text-center font-semibold text-slate-600 bg-slate-50/50">{qtyTotal}</td>
-                      <td className="px-2 py-2"><Input type="number" step="0.01" className="h-8 text-right text-xs bg-white min-w-[90px] w-full" value={item.list_price || ""} onChange={e => updateItem(idx, "list_price", parseFloat(e.target.value))} /></td>
-                      <td className="px-2 py-2"><Input type="number" step="0.01" className="h-8 text-right text-xs bg-white min-w-[80px] w-full" value={item.discount_percent || ""} onChange={e => updateItem(idx, "discount_percent", parseFloat(e.target.value))} /></td>
-                      <td className="px-2 py-2"><Input type="number" step="0.01" className="h-8 text-right text-xs font-medium text-slate-700 bg-white min-w-[90px] w-full" value={item.unit_price || ""} onChange={e => updateItem(idx, "unit_price", parseFloat(e.target.value))} /></td>
-                      <td className="px-2 py-2 text-right font-bold text-slate-900 bg-slate-50/30 whitespace-nowrap min-w-[90px]">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(qtyTotal * Number(item.unit_price || 0))}</td>
-                      <td className="px-2 py-2 text-center">
+                      <td className="px-2 py-2 text-center font-semibold text-slate-600 bg-slate-50/50 align-top pt-4">{qtyTotal}</td>
+                      <td className="px-2 py-2 space-y-1 align-top text-right w-[290px]">
+                        <div className="flex gap-1.5 justify-end items-center flex-nowrap">
+                          <div className="flex flex-col items-end">
+                            <span className="text-[9px] text-muted-foreground uppercase">Tabela</span>
+                            <CurrencyInput className="h-8 text-right text-xs bg-white w-20 px-1" value={item.list_price || 0} onChange={v => updateItem(idx, "list_price", v)} />
+                          </div>
+                          <div className="flex flex-col items-end">
+                            <span className="text-[9px] text-muted-foreground uppercase">Desc (%)</span>
+                            <Input type="number" step="0.01" className="h-8 text-right text-xs bg-white w-14 px-1" value={item.discount_percent || ""} onChange={e => updateItem(idx, "discount_percent", parseFloat(e.target.value))} />
+                          </div>
+                          <div className="flex flex-col items-end">
+                            <span className="text-[9px] text-muted-foreground uppercase">Unit (R$)</span>
+                            <CurrencyInput className="h-8 text-right text-xs font-medium text-slate-700 bg-white w-20 px-1" value={item.unit_price || 0} onChange={v => updateItem(idx, "unit_price", v)} />
+                          </div>
+                        </div>
+                        <div className="flex justify-end items-center pt-1.5 border-t border-dashed mt-1.5">
+                          <div className="flex items-center gap-1.5 text-xs pr-1">
+                            <span className="text-[9px] text-muted-foreground uppercase font-bold">Total:</span>
+                            <span className="font-bold text-slate-900">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(qtyTotal * Number(item.unit_price || 0))}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-2 py-2 text-center align-top pt-4">
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600" onClick={() => removeItem(idx)}><Trash2 className="size-3.5" /></Button>
                       </td>
                     </tr>
@@ -822,7 +831,7 @@ function NewOrderPage() {
                 {payments.map((p, idx) => (
                   <tr key={idx} className="hover:bg-slate-50/50">
                     <td className="px-4 py-2 text-center text-slate-400 bg-slate-100/50">{idx + 1}</td>
-                    <td className="px-4 py-2"><Input type="number" step="0.01" className="h-8" value={p.amount || ""} onChange={e => updatePaymentAmount(idx, parseFloat(e.target.value) || 0)} /></td>
+                    <td className="px-4 py-2"><CurrencyInput className="h-8 text-right px-1" value={p.amount || 0} onChange={v => updatePaymentAmount(idx, v)} /></td>
                     <td className="px-4 py-2">
                       <Select value={p.payment_method || ""} onValueChange={(v) => updatePaymentField(idx, "payment_method", v)}>
                         <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
@@ -972,10 +981,7 @@ function NewOrderPage() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground text-blue-600">Frete Cobrado</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">R$</span>
-                <Input type="number" step="0.01" className="h-9 pl-8" value={formData.freight_cost || ""} onChange={e => setFormData({...formData, freight_cost: parseFloat(e.target.value) || 0})} />
-              </div>
+              <CurrencyInput className="h-9 bg-white" value={formData.freight_cost || 0} onChange={v => setFormData({...formData, freight_cost: v})} />
             </div>
           </div>
         </section>
@@ -1113,19 +1119,19 @@ function NewOrderPage() {
                       </div>
                       
                       <div className="w-20">
-                        <Input type="number" step="0.01" placeholder="Custo" value={cust.cost} onChange={e => {
+                        <CurrencyInput placeholder="Custo" value={cust.cost || 0} onChange={v => {
                           const newC = [...(items[activeCustomizationIndex].customizations || [])];
-                          newC[cIdx].cost = parseFloat(e.target.value) || 0;
+                          newC[cIdx].cost = v;
                           updateItem(activeCustomizationIndex, "customizations", newC);
-                        }} className="h-8 text-xs text-center" />
+                        }} className="h-8 text-xs text-center px-1" />
                       </div>
                       
                       <div className="w-20">
-                        <Input type="number" step="0.01" placeholder="Venda" value={cust.price} onChange={e => {
+                        <CurrencyInput placeholder="Venda" value={cust.price || 0} onChange={v => {
                           const newC = [...(items[activeCustomizationIndex].customizations || [])];
-                          newC[cIdx].price = parseFloat(e.target.value) || 0;
+                          newC[cIdx].price = v;
                           updateItem(activeCustomizationIndex, "customizations", newC);
-                        }} className="h-8 text-xs text-center font-medium text-blue-600" />
+                        }} className="h-8 text-xs text-center font-medium text-blue-600 px-1" />
                       </div>
                       
                       <div className="w-16">

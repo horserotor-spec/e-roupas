@@ -65,8 +65,27 @@ function PrintPage() {
           <div>
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Cliente</h3>
             <p className="font-semibold">{order.client_name}</p>
-            {order.clients?.phone && <p className="text-sm text-slate-600">{order.clients.phone}</p>}
-            {order.clients?.email && <p className="text-sm text-slate-600">{order.clients.email}</p>}
+            {order.clients?.company_name && order.clients.company_name !== order.clients.name && (
+              <p className="text-sm text-slate-600">Razão Social: {order.clients.company_name}</p>
+            )}
+            {order.clients?.document && (
+              <p className="text-sm text-slate-600">CPF/CNPJ: {order.clients.document}</p>
+            )}
+            {(order.clients?.phone || order.clients?.landline_phone) && (
+              <p className="text-sm text-slate-600">Tel: {order.clients.phone || order.clients.landline_phone}</p>
+            )}
+            {order.clients?.email && (
+              <p className="text-sm text-slate-600">Email: {order.clients.email}</p>
+            )}
+            {(order.clients?.street || order.clients?.city) && (
+              <p className="text-xs text-slate-500 mt-2 border-t pt-2 leading-relaxed">
+                <strong>Endereço:</strong> {order.clients.street}{order.clients.number ? `, ${order.clients.number}` : ""}
+                {order.clients.complement ? ` - ${order.clients.complement}` : ""}
+                {order.clients.neighborhood ? ` - ${order.clients.neighborhood}` : ""}
+                {order.clients.city ? ` - ${order.clients.city}/${order.clients.state || ""}` : ""}
+                {order.clients.zip_code ? ` - CEP: ${order.clients.zip_code}` : ""}
+              </p>
+            )}
           </div>
           <div className="text-right">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Detalhes</h3>
@@ -76,6 +95,11 @@ function PrintPage() {
             <p className="text-sm text-slate-600">
               Marca: <span className="font-medium">{order.brand_code}</span>
             </p>
+            {order.payment_method && (
+              <p className="text-sm text-slate-600">
+                Forma de Pagamento: <span className="font-medium">{order.payment_method}</span>
+              </p>
+            )}
           </div>
         </div>
 
@@ -105,7 +129,7 @@ function PrintPage() {
           </table>
         </div>
 
-        <div className="grid grid-cols-2 gap-8 mb-8">
+        <div className="grid grid-cols-2 gap-8 mb-6">
           <div className="text-sm">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Observações</h3>
             <p className="text-slate-600 whitespace-pre-wrap">{order.notes || "Nenhuma observação."}</p>
@@ -131,6 +155,41 @@ function PrintPage() {
               <span>Total Final:</span> 
               <span>R$ {finalTotal.toLocaleString("pt-BR", {minimumFractionDigits:2})}</span>
             </div>
+          </div>
+        </div>
+
+        <div className="mb-8">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Forma de Pagamento / Parcelas</h3>
+          <table className="w-full text-xs text-left border-collapse border border-slate-200">
+            <thead>
+              <tr className="bg-slate-50 text-slate-500 uppercase">
+                <th className="border border-slate-200 p-1.5 font-semibold w-12 text-center">#</th>
+                <th className="border border-slate-200 p-1.5 font-semibold">Valor (R$)</th>
+                <th className="border border-slate-200 p-1.5 font-semibold">Forma</th>
+                <th className="border border-slate-200 p-1.5 font-semibold">Data Venc.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(order.payments && order.payments.length > 0
+                ? order.payments
+                : [{ amount: finalTotal, payment_method: order.payment_method || "PIX", due_date: order.sale_date ? order.sale_date.substring(0, 10) : new Date().toISOString().split("T")[0] }]
+              ).map((p, idx) => (
+                <tr key={idx} className="text-slate-700">
+                  <td className="border border-slate-200 p-1.5 text-center">{idx + 1}</td>
+                  <td className="border border-slate-200 p-1.5 font-medium">R$ {Number(p.amount || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+                  <td className="border border-slate-200 p-1.5">{p.payment_method || "PIX"}</td>
+                  <td className="border border-slate-200 p-1.5">{p.due_date ? p.due_date.split("-").reverse().join("/") : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-12 flex justify-between gap-8 pt-8 mb-6">
+          <div className="w-[45%] text-center border-t border-slate-400 pt-2 text-xs">
+            Assinatura do Vendedor / Responsável
+          </div>
+          <div className="w-[45%] text-center border-t border-slate-400 pt-2 text-xs">
+            De acordo do Cliente (Ok / Assinatura)
           </div>
         </div>
         

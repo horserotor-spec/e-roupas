@@ -220,9 +220,9 @@ function CrmPage() {
                 <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">
                   <div className="flex flex-col items-start gap-1">
                     <span>{c.last_purchase_date ? new Date(c.last_purchase_date).toLocaleDateString("pt-BR") : "—"}</span>
-                    {c.is_first_purchase && (
+                    {c.entity_type === "cliente" && c.is_first_purchase && (
                       <span className="inline-flex items-center rounded-full bg-gray-400 px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
-                        1ª compra
+                        PRIMEIRA COMPRA
                       </span>
                     )}
                   </div>
@@ -230,7 +230,7 @@ function CrmPage() {
                 <td className="px-4 py-3 text-right number">{c.orders}</td>
                 <td className="px-4 py-3 text-right number font-medium">{formatCurrency(c.total)}</td>
                 <td className="px-4 py-3 text-right">
-                  <Button variant="ghost" size="icon" onClick={() => openEditClient(c)} className="h-8 w-8 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button variant="ghost" size="icon" onClick={() => openEditClient(c)} className="h-8 w-8 text-muted-foreground hover:text-primary">
                     <Edit2 className="size-4" />
                   </Button>
                 </td>

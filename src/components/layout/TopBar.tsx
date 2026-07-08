@@ -1,10 +1,10 @@
 import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth";
 import { UniversalSearch } from "./UniversalSearch";
-import { Moon, Sun, Monitor, LogOut } from "lucide-react";
+import { Moon, Sun, Monitor, LogOut, Menu } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
-export function TopBar() {
+export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { mode, setMode, resolved } = useTheme();
   const { user, logout } = useAuth();
   const [menu, setMenu] = useState(false);
@@ -22,6 +22,15 @@ export function TopBar() {
   return (
     <header className="sticky top-0 z-30 glass hairline-b print:hidden">
       <div className="h-14 px-4 md:px-6 flex items-center gap-4">
+        {onMenuClick && (
+          <button
+            onClick={onMenuClick}
+            className="md:hidden size-9 grid place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors mr-1"
+            title="Abrir menu"
+          >
+            <Menu className="size-5" />
+          </button>
+        )}
         <div className="flex-1 max-w-md">
           <UniversalSearch />
         </div>

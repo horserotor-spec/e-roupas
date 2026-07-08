@@ -485,9 +485,10 @@ export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawe
                       id="first_purchase" 
                       checked={formData.is_first_purchase} 
                       onCheckedChange={(checked) => setFormData({ ...formData, is_first_purchase: !!checked })}
+                      disabled
                     />
-                    <Label htmlFor="first_purchase" className="text-sm font-normal cursor-pointer">
-                      É a primeira compra deste cliente
+                    <Label htmlFor="first_purchase" className="text-sm font-normal cursor-not-allowed opacity-70">
+                      É a primeira compra deste cliente (Auto-calculado pelo sistema)
                     </Label>
                   </div>
                 </div>
