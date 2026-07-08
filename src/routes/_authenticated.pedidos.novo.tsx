@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link, useBlocker } from "@tanstack/react-router";
 import { formatCurrency } from "@/lib/utils";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -182,6 +182,7 @@ function NewOrderPage() {
   const [payments, setPayments] = useState<OrderPayment[]>([{ amount: 0, payment_method: "PIX", installments: 1, due_date: new Date().toISOString().split("T")[0], status: "pendente", notes: "" }]);
   const [activeCustomizationIndex, setActiveCustomizationIndex] = useState<number | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const isSubmittedRef = useRef(false);
 
   const isDirty = 
     !isSubmitted && (
@@ -194,7 +195,17 @@ function NewOrderPage() {
     );
 
   const blocker = useBlocker({
-    shouldBlockFn: () => isDirty,
+    shouldBlockFn: () => {
+      if (isSubmittedRef.current) return false;
+      return (
+        formData.client_id !== "" || 
+        formData.brand_id !== "" || 
+        items.length > 0 || 
+        formData.discount > 0 || 
+        formData.other_expenses > 0 || 
+        formData.purchase_order !== ""
+      );
+    }
   });
 
   useEffect(() => {
@@ -441,6 +452,7 @@ function NewOrderPage() {
     }
     
     try {
+      isSubmittedRef.current = true;
       setIsSubmitted(true);
       await createMutation.mutateAsync({
         ...formData,
@@ -457,6 +469,7 @@ function NewOrderPage() {
       navigate({ to: "/pedidos" });
       return true;
     } catch (err: any) {
+      isSubmittedRef.current = false;
       setIsSubmitted(false);
       toast.error("Erro ao salvar: " + err.message);
       return false;
@@ -1228,10 +1241,9 @@ function NewOrderPage() {
               <Button
                 variant="secondary"
                 onClick={() => {
+                  isSubmittedRef.current = true;
                   setIsSubmitted(true);
-                  setTimeout(() => {
-                    blocker.proceed();
-                  }, 0);
+                  blocker.proceed();
                 }}
               >
                 Descartar e Sair

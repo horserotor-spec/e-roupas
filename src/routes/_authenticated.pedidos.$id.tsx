@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link, useParams, useBlocker } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -93,6 +93,7 @@ function EditOrderPage() {
   const [loadingOrder, setLoadingOrder] = useState(true);
   const [initialLoaded, setInitialLoaded] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const isDirtyRef = useRef(false);
 
   useEffect(() => {
     if (!loadingOrder && !initialLoaded) {
@@ -158,23 +159,24 @@ function EditOrderPage() {
   useEffect(() => {
     if (initialLoaded) {
       setIsDirty(true);
+      isDirtyRef.current = true;
     }
   }, [formData, items, payments]);
 
   const blocker = useBlocker({
-    shouldBlockFn: () => isDirty,
+    shouldBlockFn: () => isDirtyRef.current,
   });
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isDirty) {
+      if (isDirtyRef.current) {
         e.preventDefault();
         e.returnValue = "";
       }
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isDirty]);
+  }, []);
 
   useEffect(() => {
     if (formData.client_id && clients && !loadingOrder) {
@@ -553,6 +555,7 @@ function EditOrderPage() {
       toast.success("Pedido atualizado com sucesso!");
       navigate({ to: "/pedidos" });
       setIsDirty(false);
+      isDirtyRef.current = false;
       return true;
     } catch (err: any) {
       toast.error("Erro ao salvar: " + err.message);
@@ -1526,10 +1529,9 @@ function EditOrderPage() {
             <Button
               variant="secondary"
               onClick={() => {
+                isDirtyRef.current = false;
                 setIsDirty(false);
-                setTimeout(() => {
-                  blocker.proceed();
-                }, 0);
+                blocker.proceed();
               }}
             >
               Descartar e Sair
