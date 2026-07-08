@@ -15,6 +15,7 @@ interface ClientFormDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   client?: Client | null;
+  onSuccess?: (client: Client) => void;
 }
 
 const applyCpfCnpjMask = (value: string, isPj: boolean) => {
@@ -47,7 +48,7 @@ const applyPhoneMask = (value: string) => {
   return digits.replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3").slice(0, 15);
 };
 
-export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawerProps) {
+export function ClientFormDrawer({ open, onOpenChange, client, onSuccess }: ClientFormDrawerProps) {
   const isEditing = !!client;
   const createMutation = useCreateClient();
   const updateMutation = useUpdateClient();
@@ -202,11 +203,13 @@ export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawe
       };
 
       if (isEditing) {
-        await updateMutation.mutateAsync({ id: client.id, ...dataToSave });
+        const updated = await updateMutation.mutateAsync({ id: client.id, ...dataToSave });
         toast.success("Cadastro atualizado com sucesso!");
+        if (onSuccess) onSuccess(updated as any);
       } else {
-        await createMutation.mutateAsync(dataToSave);
+        const created = await createMutation.mutateAsync(dataToSave);
         toast.success("Cadastro criado com sucesso!");
+        if (onSuccess) onSuccess(created as any);
       }
       onOpenChange(false);
     } catch (error: any) {

@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useClients, useBrands } from "@/lib/api/clients";
 import { useSuppliers } from "@/lib/api/inventory";
 import { Switch } from "@/components/ui/switch";
+import { ClientFormDrawer } from "@/components/crm/ClientFormDrawer";
 import { useProducts, Product } from "@/lib/api/products";
 import { useCreateOrder, OrderItem, OrderPayload, OrderPayment } from "@/lib/api/orders";
 import { supabase } from "@/lib/supabase";
@@ -88,6 +89,8 @@ function NewOrderPage() {
   const navigate = useNavigate();
   const createMutation = useCreateOrder();
   const createProductMutation = useCreateProductFromBOM();
+  
+  const [clientDrawerOpen, setClientDrawerOpen] = useState(false);
   
   const { data: clients } = useClients();
   const { data: products } = useProducts();
@@ -533,7 +536,16 @@ function NewOrderPage() {
           <h2 className="text-sm font-semibold text-slate-700 mb-4">Dados do cliente</h2>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
             <div className="space-y-1.5 md:col-span-2">
-              <Label className="text-xs text-muted-foreground">Cliente *</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-muted-foreground">Cliente *</Label>
+                <button
+                  type="button"
+                  onClick={() => setClientDrawerOpen(true)}
+                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:underline flex items-center gap-0.5"
+                >
+                  <Plus className="size-3" /> Cadastrar Novo
+                </button>
+              </div>
               <SearchableCombobox
                 items={(clients || []).map(c => ({ id: c.id, name: `${c.name} ${c.company_name ? `(${c.company_name})` : ''}` }))}
                 value={formData.client_id}
@@ -1213,6 +1225,14 @@ function NewOrderPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <ClientFormDrawer
+          open={clientDrawerOpen}
+          onOpenChange={setClientDrawerOpen}
+          onSuccess={(newClient) => {
+            setFormData(prev => ({ ...prev, client_id: newClient.id }));
+          }}
+        />
       </div>
     </div>
   );
