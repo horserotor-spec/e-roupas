@@ -107,19 +107,27 @@ function BatchFormDrawer({ open, onOpenChange }: { open: boolean, onOpenChange: 
   const [batchCode, setBatchCode] = useState<string>("");
   const [averageCost, setAverageCost] = useState<number>(0);
   const [qualityNotes, setQualityNotes] = useState<string>("");
-  const [grid, setGrid] = useState<Record<string, number>>({
-    P: 0,
-    M: 0,
-    G: 0,
-    GG: 0,
-    XG: 0
-  });
+  const [gradeType, setGradeType] = useState<"adulto" | "infantil">("adulto");
+  const [grid, setGrid] = useState<Record<string, number>>({});
+
+  const ADULT_SIZES = ["PP", "P", "M", "G", "GG", "XG", "G1", "G2", "G3", "G4"];
+  const CHILD_SIZES = ["2", "4", "6", "8", "10", "12", "14", "16"];
+
+  useEffect(() => {
+    const sizes = gradeType === "adulto" ? ADULT_SIZES : CHILD_SIZES;
+    const initialGrid: Record<string, number> = {};
+    sizes.forEach(s => {
+      initialGrid[s] = 0;
+    });
+    setGrid(initialGrid);
+  }, [gradeType]);
 
   useEffect(() => {
     if (open) {
       setProductId("");
       setSupplierId("");
       setBatchCode("");
+      setGradeType("adulto");
       
       const now = new Date();
       const year = now.getFullYear();
@@ -148,17 +156,18 @@ function BatchFormDrawer({ open, onOpenChange }: { open: boolean, onOpenChange: 
         });
       setAverageCost(0);
       setQualityNotes("");
-      setGrid({
-        P: 0,
-        M: 0,
-        G: 0,
-        GG: 0,
-        XG: 0
-      });
     }
   }, [open]);
 
   const mpProducts = products.filter(p => p.format === "MP");
+
+  const handleProductChange = (val: string) => {
+    setProductId(val);
+    const selectedProd = mpProducts.find(p => p.id === val);
+    if (selectedProd) {
+      setAverageCost(selectedProd.cost_price || 0);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -203,7 +212,7 @@ function BatchFormDrawer({ open, onOpenChange }: { open: boolean, onOpenChange: 
           <div className="flex-1 py-6 space-y-5">
             <div className="space-y-2">
               <Label>Produto Pai MP *</Label>
-              <Select value={productId} onValueChange={setProductId}>
+              <Select value={productId} onValueChange={handleProductChange}>
                 <SelectTrigger><SelectValue placeholder="Selecione o produto MP..." /></SelectTrigger>
                 <SelectContent>
                   {mpProducts.map(p => (
@@ -231,6 +240,19 @@ function BatchFormDrawer({ open, onOpenChange }: { open: boolean, onOpenChange: 
             <div className="space-y-2">
               <Label>Custo Médio Unitário (R$)</Label>
               <Input type="number" step="0.01" value={averageCost || ""} onChange={e => setAverageCost(parseFloat(e.target.value) || 0)} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tipo de Grade *</Label>
+              <Select value={gradeType} onValueChange={(v) => setGradeType(v as any)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a grade..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="adulto">Grade Adulto (PP ao G4)</SelectItem>
+                  <SelectItem value="infantil">Grade Infantil (2 ao 16)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-3">
