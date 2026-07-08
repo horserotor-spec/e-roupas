@@ -253,10 +253,9 @@ export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawe
                     <SelectContent>
                       <SelectItem value="cliente">Cliente</SelectItem>
                       <SelectItem value="fornecedor">Fornecedor</SelectItem>
+                      <SelectItem value="transportadora">Transportador</SelectItem>
                       <SelectItem value="colaborador">Colaborador</SelectItem>
                       <SelectItem value="vendedor">Vendedor</SelectItem>
-                      <SelectItem value="socio">Sócio</SelectItem>
-                      <SelectItem value="transportadora">Transportadora</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
