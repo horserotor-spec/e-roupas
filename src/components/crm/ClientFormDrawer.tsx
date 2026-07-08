@@ -62,6 +62,8 @@ export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawe
     phone: "",
     landline_phone: "",
     email: "",
+    email_nfe: "",
+    icms_contributor_type: "9",
     instagram: "",
     company_name: "",
     lead_source: "Instagram",
@@ -92,6 +94,8 @@ export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawe
           phone: client.phone || "",
           landline_phone: client.landline_phone || "",
           email: client.email || "",
+          email_nfe: client.email_nfe || "",
+          icms_contributor_type: client.icms_contributor_type || "9",
           instagram: client.instagram || "",
           company_name: client.company_name || "",
           lead_source: client.lead_source || "Outros",
@@ -118,6 +122,8 @@ export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawe
           phone: "", 
           landline_phone: "",
           email: "",
+          email_nfe: "",
+          icms_contributor_type: "9",
           instagram: "", 
           company_name: "", 
           lead_source: "Instagram",
@@ -285,7 +291,7 @@ export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawe
                 />
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>{formData.entity_class === "pj" ? "CNPJ" : "CPF"}</Label>
                   <Input 
@@ -301,6 +307,22 @@ export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawe
                     onChange={e => setFormData({ ...formData, state_registration: e.target.value })}
                     placeholder={formData.entity_class === "pj" ? "IE" : "Número do RG"}
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label>Contribuinte ICMS</Label>
+                  <Select 
+                    value={formData.icms_contributor_type} 
+                    onValueChange={(v) => setFormData({ ...formData, icms_contributor_type: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1 - Contribuinte ICMS</SelectItem>
+                      <SelectItem value="2">2 - Contribuinte isento</SelectItem>
+                      <SelectItem value="9">9 - Não contribuinte</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -338,7 +360,7 @@ export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawe
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>E-mail</Label>
                   <Input 
@@ -346,6 +368,15 @@ export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawe
                     value={formData.email || ""} 
                     onChange={e => setFormData({ ...formData, email: e.target.value })}
                     placeholder="email@exemplo.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>E-mail envio NF</Label>
+                  <Input 
+                    type="email"
+                    value={formData.email_nfe || ""} 
+                    onChange={e => setFormData({ ...formData, email_nfe: e.target.value })}
+                    placeholder="nfe@exemplo.com"
                   />
                 </div>
                 <div className="space-y-2">

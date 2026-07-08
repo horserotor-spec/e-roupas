@@ -11,6 +11,8 @@ export interface Client {
   phone: string | null;
   landline_phone: string | null;
   email: string | null;
+  email_nfe: string | null;
+  icms_contributor_type: string | null;
   instagram: string | null;
   company_name: string | null;
   lead_source: string | null;
