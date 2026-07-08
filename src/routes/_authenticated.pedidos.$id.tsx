@@ -165,6 +165,7 @@ function EditOrderPage() {
 
   const blocker = useBlocker({
     shouldBlockFn: () => isDirtyRef.current,
+    withResolver: true
   });
 
   useEffect(() => {
@@ -1507,7 +1508,7 @@ function EditOrderPage() {
         </div>
       )}
 
-      <Dialog open={blocker.state === "blocked"} onOpenChange={(open) => { if (!open) blocker.reset(); }}>
+      <Dialog open={blocker.status === "blocked"} onOpenChange={(open) => { if (!open) blocker.reset(); }}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Alterações não salvas</DialogTitle>
