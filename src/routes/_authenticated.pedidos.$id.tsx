@@ -1509,7 +1509,7 @@ function EditOrderPage() {
       )}
 
       <Dialog open={blocker.status === "blocked"} onOpenChange={(open) => { if (!open) blocker.reset(); }}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
             <DialogTitle>Alterações não salvas</DialogTitle>
           </DialogHeader>
