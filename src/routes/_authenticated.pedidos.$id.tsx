@@ -1519,16 +1519,12 @@ function EditOrderPage() {
           <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-end">
             <Button
               variant="outline"
-              onClick={() => {
-                const dest = blocker.location?.href || "/pedidos";
-                window.open(dest, "_blank");
-                blocker.reset();
-              }}
+              onClick={() => blocker.reset()}
             >
-              Abrir link em outra aba
+              Continuar Editando
             </Button>
             <Button
-              variant="secondary"
+              variant="destructive"
               onClick={() => {
                 isDirtyRef.current = false;
                 setIsDirty(false);
@@ -1538,7 +1534,7 @@ function EditOrderPage() {
               Descartar e Sair
             </Button>
             <Button
-              className="bg-primary text-white hover:bg-primary/90"
+              className="bg-green-600 hover:bg-green-700 text-white"
               onClick={async () => {
                 const saved = await handleSubmit();
                 if (saved) {
