@@ -1125,23 +1125,23 @@ function EditOrderPage() {
             <div className="col-span-2 md:col-span-6 mb-[-10px]"><h3 className="text-xs font-semibold uppercase text-slate-500">Volume e Dimensões (Cálculo Automático)</h3></div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Qtd (Vol)</Label>
-              <Input type="number" className="h-9" value={formData.volumes_quantity || ""} onChange={e => setFormData({...formData, volumes_quantity: parseInt(e.target.value) || 0})} />
+              <Input type="number" className="h-9" value={formData.volumes_quantity ?? ""} onChange={e => setFormData({...formData, volumes_quantity: parseInt(e.target.value) || 0})} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Peso (Kg)</Label>
-              <Input type="number" step="0.01" className="h-9" value={formData.gross_weight || ""} onChange={e => setFormData({...formData, gross_weight: parseFloat(e.target.value) || 0})} />
+              <Input type="number" step="0.01" className="h-9" value={formData.gross_weight ?? ""} onChange={e => setFormData({...formData, gross_weight: parseFloat(e.target.value.replace(',', '.')) || 0})} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Altura (cm)</Label>
-              <Input type="number" step="0.1" className="h-9" value={formData.package_height || ""} onChange={e => setFormData({...formData, package_height: parseFloat(e.target.value) || 0})} />
+              <Input type="number" step="0.1" className="h-9" value={formData.package_height ?? ""} onChange={e => setFormData({...formData, package_height: parseFloat(e.target.value.replace(',', '.')) || 0})} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Largura (cm)</Label>
-              <Input type="number" step="0.1" className="h-9" value={formData.package_width || ""} onChange={e => setFormData({...formData, package_width: parseFloat(e.target.value) || 0})} />
+              <Input type="number" step="0.1" className="h-9" value={formData.package_width ?? ""} onChange={e => setFormData({...formData, package_width: parseFloat(e.target.value.replace(',', '.')) || 0})} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Comp. (cm)</Label>
-              <Input type="number" step="0.1" className="h-9" value={formData.package_length || ""} onChange={e => setFormData({...formData, package_length: parseFloat(e.target.value) || 0})} />
+              <Input type="number" step="0.1" className="h-9" value={formData.package_length ?? ""} onChange={e => setFormData({...formData, package_length: parseFloat(e.target.value.replace(',', '.')) || 0})} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground text-blue-600">Frete Cobrado</Label>
