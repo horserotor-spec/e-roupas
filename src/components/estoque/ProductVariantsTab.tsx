@@ -99,7 +99,6 @@ function VariantFormDrawer({ open, onOpenChange, variant }: { open: boolean, onO
   const [formData, setFormData] = useState<Partial<ProductVariant>>({});
 
   const { data: models = [] } = useModels();
-  const { data: lines = [] } = useLines();
   const { data: fabrics = [] } = useFabrics();
   const { data: colors = [] } = useColors();
 
@@ -151,13 +150,7 @@ function VariantFormDrawer({ open, onOpenChange, variant }: { open: boolean, onO
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Linha</Label>
-              <Select value={formData.line_id || ""} onValueChange={(v) => setFormData({ ...formData, line_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Nenhuma" /></SelectTrigger>
-                <SelectContent>{lines.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
+
 
             <div className="space-y-2">
               <Label>Malha *</Label>
