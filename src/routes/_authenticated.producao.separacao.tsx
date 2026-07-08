@@ -3,11 +3,13 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { bipSeparationItem, BipSeparationResult } from "@/lib/api/orders";
-import { ArrowLeft, Barcode, CheckCircle2, AlertOctagon, Loader2, Sparkles, Printer, UserCheck } from "lucide-react";
+import { ArrowLeft, Barcode, CheckCircle2, AlertOctagon, Loader2, Sparkles, Printer, UserCheck, Camera, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Html5Qrcode } from "html5-qrcode";
 
 export const Route = createFileRoute("/_authenticated/producao/separacao")({
   validateSearch: (search: Record<string, unknown>) => {
@@ -30,6 +32,11 @@ function SeparationPage() {
   const [isBiping, setIsBiping] = useState(false);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
+  // Estados do Scanner por Câmera
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
+
   // Busca dados detalhados do pedido
   const { data: order, isLoading } = useQuery({
     queryKey: ["separacao_pedido", orderId],
@@ -49,23 +56,87 @@ function SeparationPage() {
     enabled: !!orderId
   });
 
+  // Sintetizador de Som (Bipe)
+  const playBeep = (success: boolean) => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(success ? 1000 : 180, ctx.currentTime);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      osc.start();
+      osc.stop(ctx.currentTime + (success ? 0.12 : 0.45));
+    } catch (e) {
+      console.error("Falha ao reproduzir bipe:", e);
+    }
+  };
+
   // Focar no campo de leitura continuamente
   useEffect(() => {
-    if (barcodeInputRef.current) {
+    if (barcodeInputRef.current && !cameraOpen) {
       barcodeInputRef.current.focus();
     }
-  }, [activeItemIndex, bipResult]);
+  }, [activeItemIndex, bipResult, cameraOpen]);
+
+  // Instanciar e controlar a Câmera quando o modal abrir
+  useEffect(() => {
+    if (cameraOpen) {
+      setCameraError(null);
+      const timer = setTimeout(() => {
+        const html5QrCode = new Html5Qrcode("camera-scanner-view");
+        html5QrCodeRef.current = html5QrCode;
+        
+        html5QrCode.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: (width, height) => {
+              return { width: Math.min(width * 0.85, 280), height: 100 };
+            }
+          },
+          (decodedText) => {
+            handleCameraScan(decodedText);
+          },
+          () => {
+            // Callback silencioso para falha de detecção contínua
+          }
+        ).catch(err => {
+          console.error("Erro ao iniciar câmera:", err);
+          setCameraError("Acesso à câmera negado ou não disponível.");
+        });
+      }, 300);
+
+      return () => {
+        clearTimeout(timer);
+        if (html5QrCodeRef.current) {
+          if (html5QrCodeRef.current.isScanning) {
+            html5QrCodeRef.current.stop().catch(err => console.error("Erro ao fechar scanner:", err));
+          }
+        }
+      };
+    }
+  }, [cameraOpen, activeItemIndex]);
+
+  const handleCameraScan = async (scannedCode: string) => {
+    if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+      await html5QrCodeRef.current.stop().catch(err => console.error(err));
+    }
+    setCameraOpen(false);
+    await processBip(scannedCode);
+  };
 
   // Manter foco ao clicar em qualquer lugar da tela
   const handleScreenClick = () => {
-    if (barcodeInputRef.current) {
+    if (barcodeInputRef.current && !cameraOpen) {
       barcodeInputRef.current.focus();
     }
   };
 
-  const handleBipSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!barcode.trim()) return;
+  const processBip = async (codeToProcess: string) => {
+    if (!codeToProcess.trim()) return;
 
     const currentItem = order?.order_items?.[activeItemIndex];
     if (!currentItem) {
@@ -77,22 +148,29 @@ function SeparationPage() {
     setBipResult(null);
 
     try {
-      const res = await bipSeparationItem(orderId, currentItem.id, barcode);
+      const res = await bipSeparationItem(orderId, currentItem.id, codeToProcess);
       setBipResult(res);
       setBarcode("");
 
       if (res.success) {
+        playBeep(true);
         toast.success("MP Validado e baixado no estoque!");
-        // Invalidar cache de pedidos para atualizar as quantidades separadas
         queryClient.invalidateQueries({ queryKey: ["separacao_pedido", orderId] });
       } else {
+        playBeep(false);
         toast.error("MP Incorreto! Bipagem bloqueada.");
       }
     } catch (err: any) {
+      playBeep(false);
       toast.error("Erro na validação: " + err.message);
     } finally {
       setIsBiping(false);
     }
+  };
+
+  const handleBipSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await processBip(barcode);
   };
 
   // Se o item atual já estiver totalmente separado, seleciona automaticamente o próximo pendente
@@ -101,7 +179,7 @@ function SeparationPage() {
       const currentItem = order.order_items[activeItemIndex];
       if (currentItem && Number(currentItem.quantity_separated || 0) >= Number(currentItem.quantity)) {
         // Encontrar próximo item com quantidade pendente
-        const nextPendingIdx = order.order_items.findIndex((item: any, idx: number) => 
+        const nextPendingIdx = order.order_items.findIndex((item: any) => 
           Number(item.quantity_separated || 0) < Number(item.quantity)
         );
         if (nextPendingIdx !== -1) {
@@ -112,21 +190,26 @@ function SeparationPage() {
     }
   }, [order, activeItemIndex]);
 
-  const handleFinishSeparation = async () => {
-    // Verificar se todos os itens estão separados
+  const handleFinishSeparation = async (isPartial = false) => {
+    // Verificar se todos os itens estão separados no fechamento total
     const hasPending = order?.order_items?.some((item: any) => 
       Number(item.quantity_separated || 0) < Number(item.quantity)
     );
 
-    if (hasPending) {
+    if (!isPartial && hasPending) {
       toast.error("Ainda restam peças pendentes de separação física.");
       return;
     }
 
-    // Avançar status do pedido para "🟢 Separado" e mover o processo de Separação para concluído
+    if (isPartial) {
+      const confirmText = `Deseja liberar o ENVIO PARCIAL deste pedido? Apenas ${totalSeparatedCount} de ${totalItemsCount} peças foram separadas.`;
+      if (!window.confirm(confirmText)) return;
+    }
+
+    // Avançar status do pedido para "🟢 Corte" (Kanban de Produção)
     const { error: statusError } = await supabase
       .from("orders")
-      .update({ status: "corte" }) // Avança para o Kanban do Corte
+      .update({ status: "corte" })
       .eq("id", orderId);
 
     if (statusError) {
@@ -134,21 +217,28 @@ function SeparationPage() {
       return;
     }
 
-    // Atualizar o status do processo na tabela order_item_processes
-    const itemIds = order.order_items.map((i: any) => i.id);
-    await supabase
-      .from("order_item_processes")
-      .update({ status: "concluido", finished_at: new Date().toISOString() })
-      .in("order_item_id", itemIds);
+    // Atualizar o status do processo na tabela order_item_processes para "concluido" apenas para os itens que foram fisicamente separados!
+    const separatedItemIds = order.order_items
+      .filter((i: any) => (i.quantity_separated || 0) > 0)
+      .map((i: any) => i.id);
 
-    // Timeline
+    if (separatedItemIds.length > 0) {
+      await supabase
+        .from("order_item_processes")
+        .update({ status: "concluido", finished_at: new Date().toISOString() })
+        .in("order_item_id", separatedItemIds);
+    }
+
+    // Registrar evento de auditoria na timeline
     await supabase.from("order_timeline").insert([{
       order_id: orderId,
-      event_type: "separacao_concluida",
-      description: "Separação física de todas as peças concluída. Pedido liberado para o Corte."
+      event_type: isPartial ? "separacao_parcial" : "separacao_concluida",
+      description: isPartial
+        ? `Separação física PARCIAL concluída (Envio Parcial). Separadas ${totalSeparatedCount} de ${totalItemsCount} peças. Liberado para o corte.`
+        : "Separação física de todas as peças concluída. Pedido liberado para o Corte."
     }]);
 
-    toast.success("Separação concluída com sucesso! Pedido avançado.");
+    toast.success(isPartial ? "Envio parcial liberado com sucesso!" : "Separação concluída com sucesso! Pedido avançado.");
     navigate({ to: "/producao" });
   };
 
@@ -321,29 +411,39 @@ function SeparationPage() {
               </div>
             )}
 
-            {/* CAMPO DE BARCODE INVISIVEL / AUTO-FOCADO */}
-            <form onSubmit={handleBipSubmit} className="relative">
-              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                <Barcode className="size-6 text-slate-500" />
-              </div>
-              <Input
-                ref={barcodeInputRef}
-                type="text"
-                value={barcode}
-                onChange={(e) => setBarcode(e.target.value)}
-                placeholder="Escaneie o código de barras da matéria-prima..."
-                disabled={isBiping}
-                className="h-16 pl-14 pr-4 bg-slate-900 border-2 border-slate-800 text-white rounded-2xl text-lg font-bold placeholder-slate-600 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all shadow-inner w-full"
-              />
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                <span className="text-[10px] font-bold text-slate-500 bg-slate-800/80 px-2 py-1 rounded border border-slate-700 uppercase tracking-widest">Aguardando Scanner</span>
-              </div>
-            </form>
+            {/* CAMPO DE BARCODE COM BOTÃO DE CÂMERA */}
+            <div className="flex gap-3 items-center">
+              <form onSubmit={handleBipSubmit} className="relative flex-1">
+                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                  <Barcode className="size-6 text-slate-500" />
+                </div>
+                <Input
+                  ref={barcodeInputRef}
+                  type="text"
+                  value={barcode}
+                  onChange={(e) => setBarcode(e.target.value)}
+                  placeholder="Escaneie o código de barras da matéria-prima..."
+                  disabled={isBiping}
+                  className="h-16 pl-14 pr-4 bg-slate-900 border-2 border-slate-800 text-white rounded-2xl text-lg font-bold placeholder-slate-600 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all shadow-inner w-full"
+                />
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-slate-500 bg-slate-800/80 px-2 py-1 rounded border border-slate-700 uppercase tracking-widest">Aguardando Scanner</span>
+                </div>
+              </form>
+              <Button
+                type="button"
+                onClick={() => setCameraOpen(true)}
+                className="h-16 w-16 bg-slate-800 border-2 border-slate-700 hover:bg-slate-700 rounded-2xl flex items-center justify-center text-primary-foreground transition-all flex-shrink-0"
+                title="Escanear com a câmera do celular"
+              >
+                <Camera className="size-7 text-emerald-400" />
+              </Button>
+            </div>
 
           </div>
 
           {/* RODAPÉ DO MODO SEPARACÃO */}
-          <div className="flex-shrink-0 flex justify-between items-center pt-6 border-t border-slate-800/60 max-w-4xl mx-auto w-full">
+          <div className="flex-shrink-0 flex flex-col sm:flex-row gap-4 justify-between items-center pt-6 border-t border-slate-800/60 max-w-4xl mx-auto w-full">
             <div className="flex items-center gap-2">
               <Button 
                 asChild
@@ -356,22 +456,61 @@ function SeparationPage() {
               </Button>
             </div>
             
-            <Button
-              onClick={handleFinishSeparation}
-              disabled={!isAllSeparated}
-              className={`h-11 px-8 rounded-full font-bold transition-all ${
-                isAllSeparated 
-                  ? "bg-emerald-500 text-slate-950 hover:bg-emerald-400 font-extrabold shadow-lg shadow-emerald-500/20" 
-                  : "bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed"
-              }`}
-            >
-              <CheckCircle2 className="size-4 mr-2" /> Concluir e Liberar Pedido
-            </Button>
+            <div className="flex gap-2 flex-wrap items-center">
+              {totalSeparatedCount > 0 && !isAllSeparated && (
+                <Button
+                  onClick={() => handleFinishSeparation(true)}
+                  className="h-11 px-6 rounded-full font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/20"
+                >
+                  <AlertTriangle className="size-4 mr-2" /> Liberar Envio Parcial
+                </Button>
+              )}
+
+              <Button
+                onClick={() => handleFinishSeparation(false)}
+                disabled={!isAllSeparated}
+                className={`h-11 px-8 rounded-full font-bold transition-all ${
+                  isAllSeparated 
+                    ? "bg-emerald-500 text-slate-950 hover:bg-emerald-400 font-extrabold shadow-lg shadow-emerald-500/20" 
+                    : "bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed"
+                }`}
+              >
+                <CheckCircle2 className="size-4 mr-2" /> Concluir Separação Total
+              </Button>
+            </div>
           </div>
 
         </div>
 
       </div>
+
+      {/* CAMERA SCANNER DIALOG */}
+      <Dialog open={cameraOpen} onOpenChange={setCameraOpen}>
+        <DialogContent className="max-w-md bg-slate-950 border-slate-800 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2 text-base font-bold">
+              <Camera className="size-5 text-emerald-400" />
+              Escanear Matéria-Prima
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center justify-center p-4">
+            {cameraError ? (
+              <div className="text-red-400 text-sm text-center py-6">
+                {cameraError}
+              </div>
+            ) : (
+              <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black border border-slate-800">
+                <div id="camera-scanner-view" className="w-full h-full" />
+                <div className="absolute inset-x-0 top-1/2 h-0.5 bg-red-500/80 animate-pulse shadow-md shadow-red-500/50 pointer-events-none" />
+              </div>
+            )}
+            <p className="text-xs text-slate-400 text-center mt-4">
+              Aponte a câmera traseira do celular para o código de barras da etiqueta.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
