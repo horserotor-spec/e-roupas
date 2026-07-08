@@ -66,6 +66,8 @@ export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawe
     icms_contributor_type: "9",
     instagram: "",
     company_name: "",
+    order_contact_name: "",
+    order_contact_phone: "",
     lead_source: "Instagram",
     notes: "",
     credit_status: "bom",
@@ -98,6 +100,8 @@ export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawe
           icms_contributor_type: client.icms_contributor_type || "9",
           instagram: client.instagram || "",
           company_name: client.company_name || "",
+          order_contact_name: client.order_contact_name || "",
+          order_contact_phone: client.order_contact_phone || "",
           lead_source: client.lead_source || "Outros",
           notes: client.notes || "",
           credit_status: client.credit_status || "bom",
@@ -126,6 +130,8 @@ export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawe
           icms_contributor_type: "9",
           instagram: "", 
           company_name: "", 
+          order_contact_name: "",
+          order_contact_phone: "",
           lead_source: "Instagram",
           notes: "", 
           credit_status: "bom",
@@ -334,6 +340,27 @@ export function ClientFormDrawer({ open, onOpenChange, client }: ClientFormDrawe
                   placeholder="Nome fantasia ou nome do contato na empresa"
                 />
               </div>
+
+              {formData.entity_class === "pj" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-xl bg-muted/10">
+                  <div className="space-y-2">
+                    <Label>Responsável pelos Pedidos</Label>
+                    <Input 
+                      value={formData.order_contact_name || ""} 
+                      onChange={e => setFormData({ ...formData, order_contact_name: e.target.value })}
+                      placeholder="Ex: João da Silva"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>WhatsApp do Responsável</Label>
+                    <Input 
+                      value={formData.order_contact_phone || ""} 
+                      onChange={e => setFormData({ ...formData, order_contact_phone: applyPhoneMask(e.target.value) })}
+                      placeholder="(00) 00000-0000"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="h-px bg-border my-2" />

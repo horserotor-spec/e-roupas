@@ -15,6 +15,8 @@ export interface Client {
   icms_contributor_type: string | null;
   instagram: string | null;
   company_name: string | null;
+  order_contact_name: string | null;
+  order_contact_phone: string | null;
   lead_source: string | null;
   notes: string | null;
   credit_status: string;
