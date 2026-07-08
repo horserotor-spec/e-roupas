@@ -91,6 +91,7 @@ function NewOrderPage() {
   const createProductMutation = useCreateProductFromBOM();
   
   const [clientDrawerOpen, setClientDrawerOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<any>(null);
   
   const { data: clients } = useClients();
   const { data: products } = useProducts();
@@ -538,13 +539,36 @@ function NewOrderPage() {
             <div className="space-y-1.5 md:col-span-2">
               <div className="flex items-center justify-between">
                 <Label className="text-xs text-muted-foreground">Cliente *</Label>
-                <button
-                  type="button"
-                  onClick={() => setClientDrawerOpen(true)}
-                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:underline flex items-center gap-0.5"
-                >
-                  <Plus className="size-3" /> Cadastrar Novo
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingClient(null);
+                      setClientDrawerOpen(true);
+                    }}
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:underline flex items-center gap-0.5"
+                  >
+                    <Plus className="size-3" /> Cadastrar Novo
+                  </button>
+                  {formData.client_id && (
+                    <>
+                      <span className="text-slate-300">|</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const matched = clients?.find(c => c.id === formData.client_id);
+                          if (matched) {
+                            setEditingClient(matched);
+                            setClientDrawerOpen(true);
+                          }
+                        }}
+                        className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-0.5"
+                      >
+                        Visualizar / Editar
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
               <SearchableCombobox
                 items={(clients || []).map(c => ({ id: c.id, name: `${c.name} ${c.company_name ? `(${c.company_name})` : ''}` }))}
@@ -1229,6 +1253,7 @@ function NewOrderPage() {
         <ClientFormDrawer
           open={clientDrawerOpen}
           onOpenChange={setClientDrawerOpen}
+          client={editingClient}
           onSuccess={(newClient) => {
             setFormData(prev => ({ ...prev, client_id: newClient.id }));
           }}

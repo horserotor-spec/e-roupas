@@ -10,6 +10,7 @@ import { useClients, useBrands } from "@/lib/api/clients";
 import { useSuppliers } from "@/lib/api/inventory";
 import { Switch } from "@/components/ui/switch";
 import { useProducts, Product } from "@/lib/api/products";
+import { ClientFormDrawer } from "@/components/crm/ClientFormDrawer";
 import { useUpdateOrder, OrderItem, OrderPayload } from "@/lib/api/orders";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -85,6 +86,9 @@ function EditOrderPage() {
   const carriers = (clients || []).filter((c: any) => c.entity_type === "transportadora");
   const { data: products } = useProducts();
   const [brands, setBrands] = useState<{id: string, name: string, code: string}[]>([]);
+
+  const [clientDrawerOpen, setClientDrawerOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<any>(null);
 
   const [loadingOrder, setLoadingOrder] = useState(true);
   const [initialLoaded, setInitialLoaded] = useState(false);
@@ -664,7 +668,39 @@ function EditOrderPage() {
           <h2 className="text-sm font-semibold text-slate-700 mb-4">Dados do cliente</h2>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
             <div className="space-y-1.5 md:col-span-2">
-              <Label className="text-xs text-muted-foreground">Cliente *</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-muted-foreground">Cliente *</Label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingClient(null);
+                      setClientDrawerOpen(true);
+                    }}
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:underline flex items-center gap-0.5"
+                  >
+                    <Plus className="size-3" /> Cadastrar Novo
+                  </button>
+                  {formData.client_id && (
+                    <>
+                      <span className="text-slate-300">|</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const matched = clients?.find((c: any) => c.id === formData.client_id);
+                          if (matched) {
+                            setEditingClient(matched);
+                            setClientDrawerOpen(true);
+                          }
+                        }}
+                        className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-0.5"
+                      >
+                        Visualizar / Editar
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
               <SearchableCombobox
                 items={(clients || []).map(c => ({ id: c.id, name: `${c.name} ${c.company_name ? `(${c.company_name})` : ''}` }))}
                 value={formData.client_id}
@@ -1511,6 +1547,15 @@ function EditOrderPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ClientFormDrawer
+        open={clientDrawerOpen}
+        onOpenChange={setClientDrawerOpen}
+        client={editingClient}
+        onSuccess={(newClient) => {
+          setFormData(prev => ({ ...prev, client_id: newClient.id }));
+        }}
+      />
     </>
   );
 }
