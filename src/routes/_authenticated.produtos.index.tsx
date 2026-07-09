@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useProducts, Product, useImportProducts, useCloneProduct, useDeleteProduct } from "@/lib/api/products";
 import { useAllProductsStockSummary } from "@/lib/api/inventory";
 import { useState, useDeferredValue, useRef, useMemo } from "react";
-import { Search, Plus, Loader2, Edit2, Box, Download, Upload, Copy, Trash2, Columns3 } from "lucide-react";
+import { Search, Plus, Loader2, Edit2, Box, Download, Upload, Copy, Trash2, Columns3, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ProductFormDrawer } from "@/components/products/ProductFormDrawer";
@@ -107,6 +107,70 @@ function ProductsPage() {
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadTemplate = () => {
+    const templateData = [
+      {
+        Nome: "Camiseta Classic Oversized",
+        SKU: "CAM-OVER-001",
+        Preço: 89.90,
+        "Preço Custo": 35.00,
+        Formato: "PA",
+        Unidade: "UN",
+        Marca: "e-roupas",
+        Categoria: "Camisetas",
+        Condição: "Novo",
+        EAN: "7891234567890",
+        NCM: "6109.10.00",
+        CEST: "28.038.00",
+        Origem: 0,
+        "CST ICMS": "102",
+        "Alíquota ICMS": 0,
+        "CST PIS": "07",
+        "Alíquota PIS": 0,
+        "CST COFINS": "07",
+        "Alíquota COFINS": 0,
+        "CST IPI": "99",
+        "Alíquota IPI": 0,
+        CFOP: "5102"
+      },
+      {
+        Nome: "Tecido Meia Malha Fio 30.1 Penteado",
+        SKU: "TEC-MALHA-301",
+        Preço: 45.00,
+        "Preço Custo": 20.00,
+        Formato: "MP",
+        Unidade: "KG",
+        Marca: "Tecelagem Fina",
+        Categoria: "Tecidos",
+        Condição: "Novo",
+        EAN: "",
+        NCM: "5208.11.00",
+        CEST: "",
+        Origem: 0,
+        "CST ICMS": "102",
+        "Alíquota ICMS": 0,
+        "CST PIS": "07",
+        "Alíquota PIS": 0,
+        "CST COFINS": "07",
+        "Alíquota COFINS": 0,
+        "CST IPI": "99",
+        "Alíquota IPI": 0,
+        CFOP: "5102"
+      }
+    ];
+
+    const csv = Papa.unparse(templateData, { header: true });
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `modelo_importacao_produtos.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -177,6 +241,10 @@ function ProductsPage() {
             ref={fileInputRef} 
             onChange={handleImportCSV} 
           />
+          <Button variant="outline" className="h-9 gap-1.5 text-blue-600 hover:text-blue-700 border-blue-200" onClick={handleDownloadTemplate}>
+            <FileSpreadsheet className="size-4" /> 
+            Planilha Modelo
+          </Button>
           <Button variant="outline" className="h-9 gap-1.5" onClick={() => fileInputRef.current?.click()} disabled={importMutation.isPending}>
             {importMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />} 
             Importar

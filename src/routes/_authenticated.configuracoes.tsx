@@ -136,13 +136,35 @@ function Config() {
         }
       });
 
-      const { error } = await supabase.from("system_settings").upsert({
-        key: "cmv_costs_config",
-        value: valueObj,
-        description: "Configurações de custo unitário para cálculo do CMV (Saquinho, Etiqueta, DTF, Bordado, MP)"
-      }, { onConflict: "key" });
+      // 1. Verificar se a configuração já existe no banco
+      const { data: existingSetting } = await supabase
+        .from("system_settings")
+        .select("id")
+        .eq("key", "cmv_costs_config")
+        .maybeSingle();
 
-      if (error) throw error;
+      let result;
+      if (existingSetting) {
+        // 2. Se já existe, atualiza pelo ID
+        result = await supabase
+          .from("system_settings")
+          .update({
+            value: valueObj,
+            description: "Configurações de custo unitário para cálculo do CMV (Saquinho, Etiqueta, DTF, Bordado, MP)"
+          })
+          .eq("id", existingSetting.id);
+      } else {
+        // 3. Se não existe, insere uma nova linha
+        result = await supabase
+          .from("system_settings")
+          .insert({
+            key: "cmv_costs_config",
+            value: valueObj,
+            description: "Configurações de custo unitário para cálculo do CMV (Saquinho, Etiqueta, DTF, Bordado, MP)"
+          });
+      }
+
+      if (result.error) throw result.error;
       toast.success("Configurações do CMV salvas com sucesso!");
     } catch (err: any) {
       toast.error("Erro ao salvar: " + err.message);

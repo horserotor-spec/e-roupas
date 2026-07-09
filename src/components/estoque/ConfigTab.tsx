@@ -1,6 +1,55 @@
 import { useModels, useColors, useFabrics } from "@/lib/api/inventory";
 import { Loader2 } from "lucide-react";
 
+const COLOR_CODES: Record<string, string> = {
+  "branco": "100",
+  "natural": "101",
+  "off white": "101",
+  "off-white": "101",
+  "verde agua": "102",
+  "verde água": "102",
+  "celeste": "103",
+  "cinza claro": "105",
+  "areia": "106",
+  "lilás": "107",
+  "lilas": "107",
+  "rosa bb": "108",
+  "creme": "109",
+  "salmão": "114",
+  "salmao": "114",
+  "marinho": "201",
+  "preto": "202",
+  "limão": "203",
+  "limao": "203",
+  "seleção": "204",
+  "selecao": "204",
+  "chumbo": "206",
+  "laranja": "207",
+  "pink": "210",
+  "barbie": "213",
+  "ocre": "214",
+  "royal": "301",
+  "vermelho": "302",
+  "bandeira": "303",
+  "musgo": "304",
+  "militar": "306",
+  "turquesa": "307",
+  "vinho": "308",
+  "petróleo": "309",
+  "petroleo": "309",
+  "marrom": "310",
+  "pitanga": "311",
+  "jade": "312",
+  "caramelo": "313",
+  "roxo": "315",
+  "botonê": "1101",
+  "botone": "1101",
+  "cinza mescla": "1001",
+  "bananinha": "1100",
+  "marinho mescla": "2011",
+  "preto mescla": "2021",
+};
+
 export function ConfigTab() {
   const { data: models = [], isLoading: loadModels } = useModels();
   const { data: colors = [], isLoading: loadColors } = useColors();
@@ -21,12 +70,15 @@ export function ConfigTab() {
           <h3 className="font-semibold">Cores Padrão</h3>
         </div>
         <ul className="divide-y text-sm max-h-[570px] overflow-y-auto">
-          {colors.map(m => (
-            <li key={m.id} className="px-4 py-2.5 hover:bg-muted/50 flex items-center gap-2">
-              <div className="size-4 rounded-full border flex-shrink-0" style={{ backgroundColor: m.hex || '#ccc' }}></div>
-              {m.name}
-            </li>
-          ))}
+          {colors.map(m => {
+            const code = COLOR_CODES[m.name.toLowerCase()] || m.code;
+            return (
+              <li key={m.id} className="px-4 py-2.5 hover:bg-muted/50 flex items-center gap-2">
+                <div className="size-4 rounded-full border flex-shrink-0" style={{ backgroundColor: m.hex || '#ccc' }}></div>
+                <span>{m.name} {code ? `(COD. ${code})` : ""}</span>
+              </li>
+            );
+          })}
           {colors.length === 0 && <li className="px-4 py-4 text-center text-muted-foreground">Nenhuma cor.</li>}
         </ul>
       </div>

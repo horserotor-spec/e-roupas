@@ -563,7 +563,11 @@ export function useStockMovements(filters?: { productId?: string; batchId?: stri
             product_variants!inner(
               size,
               sku_internal,
-              product_id
+              product_id,
+              products!inner(
+                name,
+                technical_name
+              )
             )
           )
         `)

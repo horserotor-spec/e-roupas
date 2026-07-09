@@ -16,6 +16,55 @@ import { generateSku, generateTechnicalName } from "@/lib/skuGenerator";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Wand2, Edit3 } from "lucide-react";
 
+const COLOR_CODES: Record<string, string> = {
+  "branco": "100",
+  "natural": "101",
+  "off white": "101",
+  "off-white": "101",
+  "verde agua": "102",
+  "verde água": "102",
+  "celeste": "103",
+  "cinza claro": "105",
+  "areia": "106",
+  "lilás": "107",
+  "lilas": "107",
+  "rosa bb": "108",
+  "creme": "109",
+  "salmão": "114",
+  "salmao": "114",
+  "marinho": "201",
+  "preto": "202",
+  "limão": "203",
+  "limao": "203",
+  "seleção": "204",
+  "selecao": "204",
+  "chumbo": "206",
+  "laranja": "207",
+  "pink": "210",
+  "barbie": "213",
+  "ocre": "214",
+  "royal": "301",
+  "vermelho": "302",
+  "bandeira": "303",
+  "musgo": "304",
+  "militar": "306",
+  "turquesa": "307",
+  "vinho": "308",
+  "petróleo": "309",
+  "petroleo": "309",
+  "marrom": "310",
+  "pitanga": "311",
+  "jade": "312",
+  "caramelo": "313",
+  "roxo": "315",
+  "botonê": "1101",
+  "botone": "1101",
+  "cinza mescla": "1001",
+  "bananinha": "1100",
+  "marinho mescla": "2011",
+  "preto mescla": "2021",
+};
+
 interface ProductFormDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -546,7 +595,11 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                     )}
                     {formData.color_id && (
                       <span className="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-[10px] font-medium text-slate-600 border border-slate-200">
-                        COR: {colors.find(c => c.id === formData.color_id)?.name}
+                        {(() => {
+                          const c = colors.find(col => col.id === formData.color_id);
+                          const code = c ? (COLOR_CODES[c.name.toLowerCase()] || c.code) : "";
+                          return `COR: ${c?.name || ""}${code ? ` (COD. ${code})` : ""}`;
+                        })()}
                       </span>
                     )}
                   </div>
@@ -684,14 +737,17 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                       <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none_color">Nenhuma</SelectItem>
-                        {colors.map(c => (
-                          <SelectItem key={c.id} value={c.id}>
-                            <div className="flex items-center gap-1.5">
-                              <div className="size-2.5 rounded-full border" style={{ backgroundColor: c.hex || '#ccc' }}></div>
-                              <span>{c.name}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
+                        {colors.map(c => {
+                          const code = COLOR_CODES[c.name.toLowerCase()] || c.code;
+                          return (
+                            <SelectItem key={c.id} value={c.id}>
+                              <div className="flex items-center gap-1.5">
+                                <div className="size-2.5 rounded-full border" style={{ backgroundColor: c.hex || '#ccc' }}></div>
+                                <span>{c.name} {code ? `(COD. ${code})` : ""}</span>
+                              </div>
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                   </div>

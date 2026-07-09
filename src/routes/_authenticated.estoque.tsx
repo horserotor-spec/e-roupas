@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Boxes, Package, Factory, Truck, Settings, FileBox, AlertTriangle, TrendingDown, Loader2 } from "lucide-react";
+import { Boxes, Package, Factory, Truck, Settings, FileBox, AlertTriangle, TrendingDown, Loader2, FileText } from "lucide-react";
 import { SuppliersTab } from "@/components/estoque/SuppliersTab";
 import { ConfigTab } from "@/components/estoque/ConfigTab";
 import { ProductVariantsTab } from "@/components/estoque/ProductVariantsTab";
 import { InventoryBatchesTab } from "@/components/estoque/InventoryBatchesTab";
 import { RelatorioEstoqueTab } from "@/components/estoque/RelatorioEstoqueTab";
+import { CorteCosturaTab } from "@/components/estoque/CorteCosturaTab";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
@@ -18,7 +19,7 @@ export const Route = createFileRoute("/_authenticated/estoque")({
 
 const TABS = [
   { id: "dashboard", label: "Dashboard", icon: Boxes },
-  { id: "movimentacoes", label: "Histórico & Auditoria", icon: TrendingDown },
+  { id: "corte_costura", label: "Ficha de Corte e Costura", icon: FileText },
   { id: "relatorios", label: "Relatórios & Exportação", icon: FileBox },
   { id: "variantes", label: "Variantes (Cadastro)", icon: Package },
   { id: "lotes", label: "Lotes (Entrada)", icon: FileBox },
@@ -59,7 +60,7 @@ function EstoquePage() {
 
       <div className="flex-1">
         {activeTab === "dashboard" && <DashboardTab />}
-        {activeTab === "movimentacoes" && <MovementsTab />}
+        {activeTab === "corte_costura" && <CorteCosturaTab />}
         {activeTab === "relatorios" && <RelatorioEstoqueTab />}
         {activeTab === "variantes" && <ProductVariantsTab />}
         {activeTab === "lotes" && <InventoryBatchesTab />}
