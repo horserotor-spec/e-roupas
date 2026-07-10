@@ -3,6 +3,7 @@ import { supabase } from "../supabase";
 
 export interface Client {
   id: string;
+  code: string | null;
   name: string;
   entity_class: "pf" | "pj";
   entity_type: "cliente" | "fornecedor" | "colaborador" | "vendedor" | "socio" | "transportadora";
@@ -34,6 +35,7 @@ export interface Client {
   commission_percent: number;
   orders: number;
   total: number;
+  created_at: string;
 }
 
 export function useClients(search?: string) {
@@ -47,7 +49,7 @@ export function useClients(search?: string) {
         .order("name");
 
       if (search) {
-        query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,document.ilike.%${search}%,company_name.ilike.%${search}%,phone.ilike.%${search}%,entity_type.ilike.%${search}%`);
+        query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,document.ilike.%${search}%,company_name.ilike.%${search}%,phone.ilike.%${search}%,entity_type.ilike.%${search}%,code.ilike.%${search}%`);
       }
 
       const { data: clientsData, error: clientsErr } = await query;

@@ -1,0 +1,5 @@
+import { j as jsxRuntimeExports } from "./_libs/react.mjs";
+const SplitNotFoundComponent = () => /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "p-10 text-sm text-muted-foreground", children: "Página não encontrada." });
+export {
+  SplitNotFoundComponent as notFoundComponent
+};

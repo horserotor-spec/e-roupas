@@ -44,6 +44,7 @@ function CrmPage() {
     }
 
     const dataToExport = clients.map(c => ({
+      "Código": c.code || '',
       Nome: c.name,
       Tipo: c.entity_class?.toUpperCase() || 'PF',
       Categoria: c.entity_type || 'cliente',
@@ -56,6 +57,7 @@ function CrmPage() {
       "Nome Fantasia": c.company_name || '',
       "Origem": c.lead_source || '',
       "Status Crédito": c.credit_status || '',
+      "Cliente Desde": c.created_at ? new Date(c.created_at).toLocaleDateString("pt-BR") : '',
       "Primeira Compra": c.is_first_purchase ? 'Sim' : 'Não',
       "Última Compra": c.last_purchase_date ? new Date(c.last_purchase_date).toLocaleDateString("pt-BR") : '',
       "CEP": c.zip_code || '',
@@ -190,6 +192,7 @@ function CrmPage() {
               <th className="text-left font-medium px-4 py-2.5">Cliente</th>
               <th className="text-left font-medium px-4 py-2.5 hidden md:table-cell">Contato</th>
               <th className="text-left font-medium px-4 py-2.5 hidden lg:table-cell">Origem</th>
+              <th className="text-left font-medium px-4 py-2.5 hidden lg:table-cell">Cliente Desde</th>
               <th className="text-left font-medium px-4 py-2.5 hidden lg:table-cell">Última Compra</th>
               <th className="text-right font-medium px-4 py-2.5 number">Pedidos</th>
               <th className="text-right font-medium px-4 py-2.5 number">Total</th>
@@ -209,7 +212,14 @@ function CrmPage() {
             {!isLoading && filtered.map((c) => (
               <tr key={c.id} className="hover:bg-muted/30 transition-colors group">
                 <td className="px-4 py-3">
-                  <Link to="/crm/$clientId" params={{ clientId: c.id }} className="font-medium hover:text-primary">{c.name}</Link>
+                  <div className="flex items-center gap-2">
+                    <Link to="/crm/$clientId" params={{ clientId: c.id }} className="font-medium hover:text-primary">{c.name}</Link>
+                    {c.code && (
+                      <span className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground font-mono">
+                        {c.code}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-muted-foreground">{c.document || "—"}</div>
                 </td>
                 <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">
@@ -217,6 +227,9 @@ function CrmPage() {
                   <div className="text-xs">{c.email || "—"}</div>
                 </td>
                 <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">{c.lead_source || "—"}</td>
+                <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">
+                  {c.created_at ? new Date(c.created_at).toLocaleDateString("pt-BR") : "—"}
+                </td>
                 <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">
                   <div className="flex flex-col items-start gap-1">
                     <span>{c.last_purchase_date ? new Date(c.last_purchase_date).toLocaleDateString("pt-BR") : "—"}</span>
