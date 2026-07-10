@@ -1,0 +1,1 @@
+import{ao as e}from"./index-DcYxQFTE.js";function c(r,[t,n]){return Math.min(n,Math.max(t,r))}var o=e.createContext(void 0);function i(r){const t=e.useContext(o);return r||t||"ltr"}function s(r){const t=e.useRef({value:r,previous:r});return e.useMemo(()=>(t.current.value!==r&&(t.current.previous=t.current.value,t.current.value=r),t.current.previous),[r])}export{s as a,c,i as u};

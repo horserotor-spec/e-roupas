@@ -6,7 +6,7 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useClients, useBrands } from "@/lib/api/clients";
+import { useClients } from "@/lib/api/clients";
 import { useSuppliers } from "@/lib/api/inventory";
 import { Switch } from "@/components/ui/switch";
 import { useProducts, Product } from "@/lib/api/products";
