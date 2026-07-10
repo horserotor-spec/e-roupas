@@ -3,6 +3,9 @@
   "private": true,
   "sideEffects": false,
   "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
@@ -71,6 +74,7 @@
     "vaul": "^1.1.2",
     "vinxi": "^0.5.11",
     "vite-tsconfig-paths": "^6.0.2",
+    "ws": "^8.21.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
