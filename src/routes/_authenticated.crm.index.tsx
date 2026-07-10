@@ -118,6 +118,7 @@ function CrmPage() {
             city: row.Cidade || row.city || null,
             state: row.UF || row.state || null,
             notes: row["Observações"] || row.notes || null,
+            created_at: row["Cliente Desde"] || row.created_at || null,
             active: true
           }));
 
@@ -133,6 +134,32 @@ function CrmPage() {
         toast.error("Erro ao ler arquivo: " + error.message);
       }
     });
+  };
+
+  const handleDownloadTemplate = () => {
+    const headers = [
+      "Nome", "Tipo", "Categoria", "CPF/CNPJ", "RG/IE", "Celular", 
+      "Telefone Fixo", "Email", "Instagram", "Nome Fantasia", 
+      "Origem", "Status Crédito", "CEP", "Endereço", "Número", 
+      "Complemento", "Bairro", "Cidade", "UF", "Observações", "Cliente Desde"
+    ];
+    
+    // Create CSV string with headers only (empty row optional, but headers are enough)
+    const csvContent = Papa.unparse({
+      fields: headers,
+      data: []
+    });
+    
+    // Trigger download
+    const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "modelo_importacao_clientes.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -153,6 +180,9 @@ function CrmPage() {
           <Button variant="outline" className="h-9 gap-1.5" onClick={() => fileInputRef.current?.click()} disabled={importMutation.isPending}>
             {importMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />} 
             Importar
+          </Button>
+          <Button variant="outline" className="h-9 gap-1.5" onClick={handleDownloadTemplate} title="Baixar Modelo de Importação">
+            <Download className="size-4" /> Modelo CSV
           </Button>
           <Button variant="outline" className="h-9 gap-1.5" onClick={handleExportCSV}>
             <Download className="size-4" /> Exportar

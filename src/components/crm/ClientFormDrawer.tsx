@@ -81,6 +81,7 @@ export function ClientFormDrawer({ open, onOpenChange, client, onSuccess }: Clie
     state: "",
     active: true,
     commission_percent: 0,
+    created_at: "",
   });
 
   const [isLoadingCep, setIsLoadingCep] = useState(false);
@@ -116,6 +117,7 @@ export function ClientFormDrawer({ open, onOpenChange, client, onSuccess }: Clie
           state: client.state || "",
           active: client.active ?? true,
           commission_percent: client.commission_percent || 0,
+          created_at: client.created_at ? client.created_at.substring(0, 10) : "",
         });
       } else {
         setFormData({
@@ -146,6 +148,7 @@ export function ClientFormDrawer({ open, onOpenChange, client, onSuccess }: Clie
           state: "",
           active: true,
           commission_percent: 0,
+          created_at: "",
         });
       }
     }
@@ -199,7 +202,8 @@ export function ClientFormDrawer({ open, onOpenChange, client, onSuccess }: Clie
     try {
       const dataToSave = { 
         ...formData, 
-        last_purchase_date: formData.last_purchase_date || null 
+        last_purchase_date: formData.last_purchase_date || null,
+        created_at: formData.created_at || undefined,
       };
 
       if (isEditing) {
@@ -535,6 +539,15 @@ export function ClientFormDrawer({ open, onOpenChange, client, onSuccess }: Clie
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Cliente Desde (Data de Cadastro)</Label>
+                <Input 
+                  type="date"
+                  value={formData.created_at || ""} 
+                  onChange={e => setFormData({ ...formData, created_at: e.target.value })}
+                />
               </div>
 
               {formData.entity_type === "cliente" && (
