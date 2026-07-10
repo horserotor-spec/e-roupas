@@ -2,7 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { formatCurrency } from "@/lib/utils";
 import { Link } from "@tanstack/react-router";
 import { orders, clients } from "@/lib/mock-data";
-import { BarChart3, Boxes, ArrowRight } from "lucide-react";
+import { BarChart3, Boxes, ArrowRight, Download } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import Papa from "papaparse";
+import { toast } from "sonner";
+import { useState } from "react";
 
 export const Route = createFileRoute("/_authenticated/relatorios")({
   head: () => ({ meta: [{ title: "Relatórios · e-roupas OS" }] }),
@@ -15,6 +19,36 @@ function Relatorios() {
   const erTotal = er.reduce((s, o) => s + o.total, 0);
   const pg8Total = pg8.reduce((s, o) => s + o.total, 0);
   const sum = erTotal + pg8Total;
+
+  const [loadingType, setLoadingType] = useState<string | null>(null);
+
+  const exportData = async (table: string, name: string) => {
+    try {
+      setLoadingType(table);
+      const { data, error } = await supabase.from(table).select("*");
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        toast.info(`Nenhum dado encontrado para ${name}.`);
+        return;
+      }
+      const csv = Papa.unparse(data, { header: true });
+      const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `relatorio_${table}_${new Date().toISOString().split("T")[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success(`Relatório de ${name} exportado com sucesso!`);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`Erro ao exportar ${name}: ${err.message}`);
+    } finally {
+      setLoadingType(null);
+    }
+  };
 
   return (
     <div className="px-6 md:px-10 py-8 max-w-[1400px] mx-auto">
@@ -42,25 +76,78 @@ function Relatorios() {
         </div>
       </div>
 
-      <div className="mt-3 rounded-2xl border border-border bg-white p-5 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 shrink-0">
-            <Boxes className="size-6" />
-          </div>
-          <div>
-            <h3 className="text-base font-semibold text-slate-800">Relatório Industrial de Estoque</h3>
-            <p className="text-sm text-slate-500 mt-0.5">Rastreabilidade, movimentações, saldo imutável e exportação de CSV.</p>
-          </div>
-        </div>
-        <Link to="/estoque" className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors shrink-0">
-          Acessar Relatório <ArrowRight className="size-4" />
-        </Link>
-      </div>
+      <h2 className="text-xl font-semibold tracking-tight mt-8 mb-4">Exportação de Dados</h2>
+      
+      <div className="grid grid-cols-1 gap-3">
+        <ExportCard 
+          title="Relatório de Produção" 
+          description="Exportação completa de todos os pedidos e seus status." 
+          isLoading={loadingType === "orders"} 
+          onExport={() => exportData("orders", "Produção")} 
+        />
+        <ExportCard 
+          title="Relatório de Produtos" 
+          description="Exportação do catálogo completo de produtos." 
+          isLoading={loadingType === "products"} 
+          onExport={() => exportData("products", "Produtos")} 
+        />
+        <ExportCard 
+          title="Relatório de Orçamentos" 
+          description="Exportação de orçamentos gerados." 
+          isLoading={loadingType === "quotes"} 
+          onExport={() => exportData("quotes", "Orçamentos")} 
+        />
+        <ExportCard 
+          title="Relatório de Fornecedores" 
+          description="Exportação do cadastro de fornecedores." 
+          isLoading={loadingType === "suppliers"} 
+          onExport={() => exportData("suppliers", "Fornecedores")} 
+        />
+        <ExportCard 
+          title="Relatório de Clientes" 
+          description="Exportação do cadastro completo do CRM." 
+          isLoading={loadingType === "clients"} 
+          onExport={() => exportData("clients", "Clientes")} 
+        />
 
-      <div className="mt-3 rounded-2xl border border-dashed border-border p-12 text-center">
-        <BarChart3 className="size-6 text-muted-foreground mx-auto" />
-        <p className="mt-2 text-sm text-muted-foreground">Relatórios completos (funil, SLA, lucro por processo) na Sprint 2.</p>
+        <div className="rounded-2xl border border-border bg-white p-5 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 shrink-0">
+              <Boxes className="size-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-semibold text-slate-800">Relatório Industrial de Estoque</h3>
+              <p className="text-sm text-slate-500 mt-0.5">Rastreabilidade, movimentações, saldo imutável e exportação de CSV.</p>
+            </div>
+          </div>
+          <Link to="/estoque" className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors shrink-0">
+            Acessar Relatório <ArrowRight className="size-4" />
+          </Link>
+        </div>
       </div>
+    </div>
+  );
+}
+
+function ExportCard({ title, description, onExport, isLoading }: { title: string, description: string, onExport: () => void, isLoading: boolean }) {
+  return (
+    <div className="rounded-2xl border border-border bg-white p-5 flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="flex items-center gap-4">
+        <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 shrink-0">
+          <Download className="size-6" />
+        </div>
+        <div>
+          <h3 className="text-base font-semibold text-slate-800">{title}</h3>
+          <p className="text-sm text-slate-500 mt-0.5">{description}</p>
+        </div>
+      </div>
+      <button 
+        onClick={onExport} 
+        disabled={isLoading}
+        className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors shrink-0 disabled:opacity-50"
+      >
+        <Download className="size-4" /> {isLoading ? "Exportando..." : "Exportar CSV"}
+      </button>
     </div>
   );
 }
