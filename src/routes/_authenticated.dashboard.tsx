@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+// CACHE BUST 2: FORCE VERCEL BUILD FOR SRC FILES
 import { formatCurrency } from "@/lib/utils";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ArrowUpRight, Flame, Clock, FileCheck2, UserPlus, Activity, Loader2, ShieldAlert } from "lucide-react";
