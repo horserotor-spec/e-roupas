@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DebugEstoqueRouteImport } from './routes/debug-estoque'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
@@ -45,6 +46,11 @@ import { Route as AuthenticatedFinanceiroConciliacaoRouteImport } from './routes
 import { Route as AuthenticatedFinanceiroCentroCustosRouteImport } from './routes/_authenticated.financeiro.centro-custos'
 import { Route as AuthenticatedCrmClientIdRouteImport } from './routes/_authenticated.crm.$clientId'
 
+const RedefinirSenhaRoute = RedefinirSenhaRouteImport.update({
+  id: '/redefinir-senha',
+  path: '/redefinir-senha',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -242,6 +248,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/debug-estoque': typeof DebugEstoqueRoute
   '/login': typeof LoginRoute
+  '/redefinir-senha': typeof RedefinirSenhaRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/estoque': typeof AuthenticatedEstoqueRoute
@@ -278,6 +285,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/debug-estoque': typeof DebugEstoqueRoute
   '/login': typeof LoginRoute
+  '/redefinir-senha': typeof RedefinirSenhaRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/estoque': typeof AuthenticatedEstoqueRoute
@@ -315,6 +323,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/debug-estoque': typeof DebugEstoqueRoute
   '/login': typeof LoginRoute
+  '/redefinir-senha': typeof RedefinirSenhaRoute
   '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/estoque': typeof AuthenticatedEstoqueRoute
@@ -353,6 +362,7 @@ export interface FileRouteTypes {
     | '/'
     | '/debug-estoque'
     | '/login'
+    | '/redefinir-senha'
     | '/configuracoes'
     | '/dashboard'
     | '/estoque'
@@ -389,6 +399,7 @@ export interface FileRouteTypes {
     | '/'
     | '/debug-estoque'
     | '/login'
+    | '/redefinir-senha'
     | '/configuracoes'
     | '/dashboard'
     | '/estoque'
@@ -425,6 +436,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/debug-estoque'
     | '/login'
+    | '/redefinir-senha'
     | '/_authenticated/configuracoes'
     | '/_authenticated/dashboard'
     | '/_authenticated/estoque'
@@ -463,6 +475,7 @@ export interface RootRouteChildren {
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   DebugEstoqueRoute: typeof DebugEstoqueRoute
   LoginRoute: typeof LoginRoute
+  RedefinirSenhaRoute: typeof RedefinirSenhaRoute
   PrintIdRoute: typeof PrintIdRoute
   PrintOperacionalRoute: typeof PrintOperacionalRoute
   PrintEtiquetaIdRoute: typeof PrintEtiquetaIdRoute
@@ -470,6 +483,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/redefinir-senha': {
+      id: '/redefinir-senha'
+      path: '/redefinir-senha'
+      fullPath: '/redefinir-senha'
+      preLoaderRoute: typeof RedefinirSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -816,6 +836,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   DebugEstoqueRoute: DebugEstoqueRoute,
   LoginRoute: LoginRoute,
+  RedefinirSenhaRoute: RedefinirSenhaRoute,
   PrintIdRoute: PrintIdRoute,
   PrintOperacionalRoute: PrintOperacionalRoute,
   PrintEtiquetaIdRoute: PrintEtiquetaIdRoute,
