@@ -189,8 +189,8 @@ function NewOrderPage() {
       formData.client_id !== "" || 
       formData.brand_id !== "" || 
       items.length > 0 || 
-      formData.discount > 0 || 
-      formData.other_expenses > 0 || 
+      (formData.discount || 0) > 0 || 
+      (formData.other_expenses || 0) > 0 || 
       formData.purchase_order !== ""
     );
 
@@ -201,8 +201,8 @@ function NewOrderPage() {
         formData.client_id !== "" || 
         formData.brand_id !== "" || 
         items.length > 0 || 
-        formData.discount > 0 || 
-        formData.other_expenses > 0 || 
+        (formData.discount || 0) > 0 || 
+        (formData.other_expenses || 0) > 0 || 
         formData.purchase_order !== ""
       );
     },
@@ -1220,7 +1220,7 @@ function NewOrderPage() {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={blocker.status === "blocked"} onOpenChange={(open) => { if (!open) blocker.reset(); }}>
+        <Dialog open={blocker.status === "blocked"} onOpenChange={(open) => { if (!open) blocker.reset?.(); }}>
           <DialogContent className="sm:max-w-[380px] p-6 text-center">
             <DialogHeader className="text-center sm:text-center">
               <DialogTitle className="text-center w-full">Alterações não salvas</DialogTitle>
@@ -1234,9 +1234,9 @@ function NewOrderPage() {
                 onClick={async () => {
                   const saved = await handleSubmit();
                   if (saved) {
-                    blocker.proceed();
+                    blocker.proceed?.();
                   } else {
-                    blocker.reset();
+                    blocker.reset?.();
                   }
                 }}
               >
@@ -1256,7 +1256,7 @@ function NewOrderPage() {
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => blocker.reset()}
+                onClick={() => blocker.reset?.()}
               >
                 Continuar Editando
               </Button>

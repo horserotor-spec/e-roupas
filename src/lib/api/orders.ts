@@ -22,6 +22,11 @@ export interface OrderItem {
   customizations?: any[];
   production_status?: string;
   notes?: string;
+  // UI form properties
+  art_code?: string;
+  grid_type?: string;
+  active_sizes?: any[];
+  sizes?: Record<string, number>;
 }
 
 export interface OrderPayment {
@@ -39,6 +44,7 @@ export interface OrderPayment {
 export interface Order {
   id: string;
   code: string;
+  created_at?: string;
   status: OrderStatus;
   priority: string;
   deadline: string | null;
@@ -49,6 +55,8 @@ export interface Order {
   owner_name: string;
   items: OrderItem[];
   payments?: OrderPayment[];
+  clients?: any;
+  brands?: any;
   
   // Full fields
   client_id: string;
@@ -110,8 +118,7 @@ export interface Order {
     costura_grid?: Record<string, number>;
     corte_unit_price?: number;
     costura_unit_price?: number;
-
-
+    mix_fabrics_allowed?: boolean;
 }
 
 export type OrderPayload = Partial<Order> & { client_id: string; brand_id: string; items?: OrderItem[]; payments?: OrderPayment[] };
@@ -747,7 +754,7 @@ export function useCreateOrder() {
       delete (orderData as any).created_at;
       if (orderData.seller_id === "") orderData.seller_id = null;
       if (orderData.salesperson_id === "") orderData.salesperson_id = null;
-      if (orderData.responsible_user_id === "") orderData.responsible_user_id = null;
+      if ((orderData as any).responsible_user_id === "") (orderData as any).responsible_user_id = null;
       
       delete (orderData as any).mix_fabrics_allowed;
       if (orderData.departure_date === "") orderData.departure_date = null;
@@ -879,7 +886,7 @@ export function useCreateOrder() {
         }]);
       }
 
-      if (orderData.status === "em_producao" || orderData.status === "confirmado") {
+      if (orderData.status === "liberado_producao" || orderData.status === "confirmado") {
         await allocateStockAndCreateProcesses(newOrder.id);
       }
 
@@ -909,7 +916,7 @@ export function useUpdateOrder() {
       delete (orderData as any).created_at;
       if (orderData.seller_id === "") orderData.seller_id = null;
       if (orderData.salesperson_id === "") orderData.salesperson_id = null;
-      if (orderData.responsible_user_id === "") orderData.responsible_user_id = null;
+      if ((orderData as any).responsible_user_id === "") (orderData as any).responsible_user_id = null;
       
       delete (orderData as any).mix_fabrics_allowed;
       if (orderData.departure_date === "") orderData.departure_date = null;
@@ -1192,7 +1199,7 @@ export function useUpdateOrder() {
         }
       }
 
-      if (orderData.status === "em_producao" || orderData.status === "confirmado") {
+      if (orderData.status === "liberado_producao" || orderData.status === "confirmado") {
         await allocateStockAndCreateProcesses(id);
       }
 

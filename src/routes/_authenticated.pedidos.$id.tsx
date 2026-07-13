@@ -1508,7 +1508,7 @@ function EditOrderPage() {
         </div>
       )}
 
-      <Dialog open={blocker.status === "blocked"} onOpenChange={(open) => { if (!open) blocker.reset(); }}>
+      <Dialog open={blocker.status === "blocked"} onOpenChange={(open) => { if (!open) blocker.reset?.(); }}>
         <DialogContent className="sm:max-w-[380px] p-6 text-center">
           <DialogHeader className="text-center sm:text-center">
             <DialogTitle className="text-center w-full">Alterações não salvas</DialogTitle>
@@ -1522,9 +1522,9 @@ function EditOrderPage() {
               onClick={async () => {
                 const saved = await handleSubmit();
                 if (saved) {
-                  blocker.proceed();
+                  blocker.proceed?.();
                 } else {
-                  blocker.reset();
+                  blocker.reset?.();
                 }
               }}
             >
@@ -1536,7 +1536,7 @@ function EditOrderPage() {
               onClick={() => {
                 isDirtyRef.current = false;
                 setIsDirty(false);
-                blocker.proceed();
+                blocker.proceed?.();
               }}
             >
               Descartar e Sair
@@ -1544,7 +1544,7 @@ function EditOrderPage() {
             <Button
               variant="outline"
               className="w-full"
-              onClick={() => blocker.reset()}
+              onClick={() => blocker.reset?.()}
             >
               Continuar Editando
             </Button>

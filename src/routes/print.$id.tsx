@@ -57,7 +57,7 @@ function PrintPage() {
           </div>
           <div className="text-right">
             <img src="/logo.png" alt="e-roupas" className="h-8 object-contain ml-auto mb-2" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-            <p className="text-xs text-slate-500">{new Date(order.created_at).toLocaleDateString("pt-BR")}</p>
+            <p className="text-xs text-slate-500">Emitido em: {new Date(order.created_at || Date.now()).toLocaleDateString("pt-BR")}</p>
           </div>
         </div>
 

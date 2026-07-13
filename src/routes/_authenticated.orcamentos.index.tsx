@@ -174,7 +174,7 @@ function QuotesPage() {
                     </StatusBadge>
                   </td>
                   <td className="px-4 py-3 text-right text-xs text-muted-foreground">
-                    {new Date(quote.created_at).toLocaleDateString("pt-BR")}
+                    {quote.created_at ? new Date(quote.created_at).toLocaleDateString("pt-BR") : ''}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Link to="/pedidos/$id" params={{ id: quote.id }}>

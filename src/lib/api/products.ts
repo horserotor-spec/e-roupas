@@ -34,6 +34,9 @@ export interface Product {
   models?: any;
   fabrics?: any;
   canonical_colors?: any;
+  model?: any;
+  fabric?: any;
+  color?: any;
   origin?: number;
   icms_cst?: string | null;
   icms_percent?: number;

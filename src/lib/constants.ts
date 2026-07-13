@@ -14,7 +14,7 @@ export type OrderStatus =
   | "lead" | "atendimento" | "orcamento" | "arte_criacao" | "aguardando_arte"
   | "confirmado" | "aguardando_financeiro" | "liberado_producao"
   | "separacao" | "corte" | "costura" | "bordado" | "impressao" | "prensa"
-  | "qualidade" | "expedicao" | "entregue" | "finalizado";
+  | "qualidade" | "expedicao" | "entregue" | "finalizado" | "cancelado";
 
 export type ProcessType =
   | "separacao" | "corte" | "costura" | "bordado"
@@ -26,7 +26,7 @@ export const statusLabel: Record<OrderStatus, string> = {
   confirmado: "Pedido confirmado", aguardando_financeiro: "Aguardando financeiro",
   liberado_producao: "Liberado produção", separacao: "Separação", corte: "Corte",
   costura: "Costura", bordado: "Bordado", impressao: "Impressão", prensa: "Prensa",
-  qualidade: "Manuseio e qualidade", expedicao: "Expedição", entregue: "Entregue", finalizado: "Finalizado",
+  qualidade: "Manuseio e qualidade", expedicao: "Expedição", entregue: "Entregue", finalizado: "Finalizado", cancelado: "Cancelado",
 };
 
 export const statusTone: Record<OrderStatus, "neutral" | "info" | "warning" | "success" | "primary"> = {
@@ -35,7 +35,7 @@ export const statusTone: Record<OrderStatus, "neutral" | "info" | "warning" | "s
   confirmado: "info", aguardando_financeiro: "warning",
   liberado_producao: "primary", separacao: "primary", corte: "primary",
   costura: "primary", bordado: "primary", impressao: "primary", prensa: "primary",
-  qualidade: "info", expedicao: "info", entregue: "success", finalizado: "success",
+  qualidade: "info", expedicao: "info", entregue: "success", finalizado: "success", cancelado: "neutral",
 };
 
 export const processLabel: Record<ProcessType, string> = {

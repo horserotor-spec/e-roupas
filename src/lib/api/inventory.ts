@@ -54,6 +54,7 @@ export interface CanonicalColor {
   name: string;
   hex: string | null;
   active: boolean;
+  code?: string;
 }
 
 export interface SizeGrid {
