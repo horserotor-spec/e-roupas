@@ -189,10 +189,15 @@ function VariantFormDrawer({ open, onOpenChange, variant }: { open: boolean, onO
               </div>
               <div className="space-y-2">
                 <Label>Gênero *</Label>
-                <Select value={formData.gender || ""} onValueChange={(v) => setFormData({ ...formData, gender: v })}>
+                <Select value={(formData.gender || "").toLowerCase()} onValueChange={(v) => setFormData({ ...formData, gender: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {["Unissex", "Masculino", "Feminino", "Infantil"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    {[
+                      { val: "unissex", label: "Unissex" }, 
+                      { val: "masculino", label: "Masculino" }, 
+                      { val: "feminino", label: "Feminino" }, 
+                      { val: "infantil", label: "Infantil" }
+                    ].map(s => <SelectItem key={s.val} value={s.val}>{s.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

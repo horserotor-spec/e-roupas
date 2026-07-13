@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useInventoryBatches, useCreateInventoryEntryGrid, InventoryBatch, useProductVariants, useSuppliersCRM } from "@/lib/api/inventory";
+import { useInventoryBatches, useCreateInventoryEntryGrid, InventoryBatch, useProductVariants, useSuppliersCRM, useSoftDeleteInventoryBatches } from "@/lib/api/inventory";
 import { useProducts } from "@/lib/api/products";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,79 +8,183 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, Loader2, FileBox, MinusCircle, Check, ChevronsUpDown } from "lucide-react";
+import { Search, Plus, Loader2, FileBox, MinusCircle, Edit2, Trash2, CheckSquare, Columns3 } from "lucide-react";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { useAdjustInventoryBatch } from "@/lib/api/inventory";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { getProductDisplayName } from "@/lib/utils/product-display";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
+import { EditBatchModal } from "@/components/inventory/EditBatchModal";
 
 export function InventoryBatchesTab() {
-  const { data: batches = [], isLoading } = useInventoryBatches();
+  const { data: batchesRaw, isLoading, error } = useInventoryBatches();
+  if (error) console.error('QUERY ERROR:', error);
+  const batches = (batchesRaw || []).filter((b:any) => b.active !== false);
+
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [adjustmentOpen, setAdjustmentOpen] = useState<string | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedBatchForEdit, setSelectedBatchForEdit] = useState<any>(null);
+  
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(["lote_data", "variante", "fornecedor", "min_stock", "total", "reservado", "disponivel", "acoes"]);
+  const toggleColumn = (colId: string) => setVisibleColumns(prev => prev.includes(colId) ? prev.filter(id => id !== colId) : [...prev, colId]);
+  const deleteMutation = useSoftDeleteInventoryBatches();
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === batches.length && batches.length > 0) setSelectedIds([]);
+    else setSelectedIds(batches.map((b:any) => b.id));
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleDeleteSelected = async () => {
+    if (!deleteReason.trim()) return toast.error("Informe um motivo para a exclusão.");
+    if (!confirm('Tem certeza que deseja excluir os lotes selecionados?')) return;
+    
+    setIsDeleting(true);
+    try {
+      await deleteMutation.mutateAsync({ batchIds: selectedIds, reason: deleteReason });
+      toast.success("Lotes excluídos com sucesso!");
+      setSelectedIds([]);
+      setDeleteReason("");
+    } catch (e:any) {
+      toast.error("Erro ao excluir: " + e.message);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const openEdit = () => {
+    if (selectedIds.length !== 1) return;
+    const b = batches.find((x:any) => x.id === selectedIds[0]);
+    if (b) {
+      setSelectedBatchForEdit(b);
+      setEditModalOpen(true);
+    }
+  };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div className="relative flex-1 max-w-md">
-          {/* Simple filter placeholder, we might want to filter batches by variant in a robust way */}
           <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             placeholder="Buscar lote..."
             className="h-9 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm outline-none focus:border-primary"
           />
         </div>
-        <Button onClick={() => setDrawerOpen(true)} className="h-9 inline-flex items-center gap-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white">
-          <Plus className="size-4" /> Nova Entrada (Lote)
-        </Button>
+                  <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="h-9 gap-2">
+                  <Columns3 className="size-4" />
+                  <span className="hidden sm:inline">Colunas</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuCheckboxItem checked={visibleColumns.includes("lote_data")} onCheckedChange={() => toggleColumn("lote_data")}>Lote / Data</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={visibleColumns.includes("variante")} onCheckedChange={() => toggleColumn("variante")}>Variante Mestre</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={visibleColumns.includes("fornecedor")} onCheckedChange={() => toggleColumn("fornecedor")}>Fornecedor</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={visibleColumns.includes("min_stock")} onCheckedChange={() => toggleColumn("min_stock")}>Estoque Mínimo</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={visibleColumns.includes("total")} onCheckedChange={() => toggleColumn("total")}>Total</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={visibleColumns.includes("reservado")} onCheckedChange={() => toggleColumn("reservado")}>Reservado</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={visibleColumns.includes("disponivel")} onCheckedChange={() => toggleColumn("disponivel")}>Disponível</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={visibleColumns.includes("acoes")} onCheckedChange={() => toggleColumn("acoes")}>Ações</DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button onClick={() => setDrawerOpen(true)} className="h-9 inline-flex items-center gap-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white">
+              <Plus className="size-4" /> Nova Entrada (Lote)
+            </Button>
+          </div>
       </div>
+
+      {selectedIds.length > 0 && (
+        <div className="bg-slate-50 border p-3 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2">
+            <CheckSquare className="size-5 text-indigo-600" />
+            <span className="text-sm font-medium">{selectedIds.length} lote(s) selecionado(s)</span>
+          </div>
+          <div className="flex items-center gap-3">
+            {selectedIds.length === 1 && (
+              <Button onClick={openEdit} variant="outline" size="sm" className="h-8 gap-1.5">
+                <Edit2 className="size-3.5" /> Editar
+              </Button>
+            )}
+            <div className="flex items-center gap-2">
+              <Input 
+                placeholder="Motivo da exclusão..." 
+                value={deleteReason} 
+                onChange={e => setDeleteReason(e.target.value)} 
+                className="h-8 w-48 text-xs" 
+              />
+              <Button onClick={handleDeleteSelected} disabled={isDeleting} variant="destructive" size="sm" className="h-8 gap-1.5">
+                {isDeleting ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+                Excluir
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
-              <th className="text-left font-medium px-4 py-2.5">Lote / Data</th>
-              <th className="text-left font-medium px-4 py-2.5">Variante Mestre</th>
-              <th className="text-left font-medium px-4 py-2.5">Fornecedor</th>
-              <th className="text-right font-medium px-4 py-2.5">Total</th>
-              <th className="text-right font-medium px-4 py-2.5 text-orange-600">Reservado</th>
-              <th className="text-right font-medium px-4 py-2.5 text-green-600">Disponível</th>
-              <th className="text-right font-medium px-4 py-2.5">Ações</th>
+              <th className="px-4 py-2.5 w-10 text-center">
+                <input type="checkbox" checked={batches.length > 0 && selectedIds.length === batches.length} onChange={toggleSelectAll} className="rounded border-slate-300" />
+              </th>
+              {visibleColumns.includes("lote_data") && <th className="text-left font-medium px-4 py-2.5">Lote / Data</th>}
+              {visibleColumns.includes("variante") && <th className="text-left font-medium px-4 py-2.5">Variante Mestre</th>}
+              {visibleColumns.includes("fornecedor") && <th className="text-left font-medium px-4 py-2.5">Fornecedor</th>}
+                {visibleColumns.includes("min_stock") && <th className="text-right font-medium px-4 py-2.5">Est. Mínimo</th>}
+              {visibleColumns.includes("total") && <th className="text-right font-medium px-4 py-2.5">Total</th>}
+              {visibleColumns.includes("reservado") && <th className="text-right font-medium px-4 py-2.5 text-orange-600">Reservado</th>}
+              {visibleColumns.includes("disponivel") && <th className="text-right font-medium px-4 py-2.5 text-green-600">Disponível</th>}
+              {visibleColumns.includes("acoes") && <th className="text-right font-medium px-4 py-2.5">Ações</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {isLoading && (
-              <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin mx-auto" /></td></tr>
+              <tr><td colSpan={visibleColumns.length + 1} className="px-4 py-12 text-center text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin mx-auto" /></td></tr>
             )}
-            {!isLoading && batches.map(b => (
+            {!isLoading && batches.map((b:any) => (
               <tr key={b.id} className="hover:bg-muted/30 transition-colors group">
-                <td className="px-4 py-3">
-                  <div className="font-mono text-xs font-semibold">{b.batch_code}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">{new Date(b.entry_date).toLocaleDateString()}</div>
+                <td className="px-4 py-3 text-center">
+                  <input type="checkbox" checked={selectedIds.includes(b.id)} onChange={() => toggleSelect(b.id)} className="rounded border-slate-300" />
                 </td>
-                <td className="px-4 py-3">
-                  <div className="font-medium text-primary">{b.product_variants?.sku_internal || "Sem SKU"}</div>
-                  <div className="text-xs text-muted-foreground line-clamp-1">
-                    {b.product_variants?.models?.name} · {b.product_variants?.fabrics?.name} · {b.product_variants?.canonical_colors?.name} · {b.product_variants?.size}
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">{b.suppliers?.name}</td>
-                <td className="px-4 py-3 text-right font-medium">{b.quantity_total}</td>
-                <td className="px-4 py-3 text-right font-medium text-orange-600">{b.quantity_reserved}</td>
-                <td className="px-4 py-3 text-right font-medium text-green-600">{b.quantity_available}</td>
-                <td className="px-4 py-3 text-right">
-                  <Button variant="ghost" size="sm" onClick={() => setAdjustmentOpen(b.id)} className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50">
-                    <MinusCircle className="size-4 mr-1.5" /> Saída
-                  </Button>
-                </td>
+                {visibleColumns.includes("lote_data") && <td className="px-4 py-3"><div className="font-mono text-xs font-semibold">{b.batch_code}</div><div className="text-xs text-muted-foreground mt-0.5">{new Date(b.entry_date).toLocaleDateString()}</div></td>}
+                {visibleColumns.includes("variante") && <td className="px-4 py-3"><div className="font-medium text-primary">{b.product_variants?.sku_internal || "Sem SKU"}</div><div className="text-xs text-muted-foreground line-clamp-1">{b.product_variants?.models?.name} · {b.product_variants?.fabrics?.name} · {b.product_variants?.canonical_colors?.name} · {b.product_variants?.size}</div></td>}
+                {visibleColumns.includes("fornecedor") && <td className="px-4 py-3 text-muted-foreground">{b.suppliers?.company_name || b.suppliers?.name}</td>}
+                  {visibleColumns.includes("min_stock") && <td className="px-4 py-3 text-right text-muted-foreground font-medium">{b.product_variants?.min_stock || 0}</td>}
+                {visibleColumns.includes("total") && <td className="px-4 py-3 text-right font-medium">{b.quantity_total}</td>}
+                {visibleColumns.includes("reservado") && <td className="px-4 py-3 text-right font-medium text-orange-600">{b.quantity_reserved}</td>}
+                {visibleColumns.includes("disponivel") && <td className="px-4 py-3 text-right font-medium text-green-600">
+                    <div className="flex flex-col items-end gap-1">
+                      <span>{b.quantity_available}</span>
+                      {Number(b.quantity_available) === 0 ? (
+                        <span className="text-[10px] font-semibold bg-red-100 text-red-700 px-1.5 py-0.5 rounded">Esgotado</span>
+                      ) : Number(b.quantity_available) <= (b.product_variants?.min_stock || 0) ? (
+                        <span className="text-[10px] font-semibold bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">Estoque Crítico</span>
+                      ) : null}
+                    </div>
+                  </td>}
+                {visibleColumns.includes("acoes") && <td className="px-4 py-3 text-right">
+                    <Button variant="ghost" size="sm" onClick={() => setAdjustmentOpen(b.id)} className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50">
+                      <MinusCircle className="size-4 mr-1.5" /> Saída
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => openEdit()} className="h-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50">
+                      <Edit2 className="size-4 mr-1.5" /> Editar
+                    </Button>
+                  </td>}
               </tr>
             ))}
             {!isLoading && batches.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-muted-foreground">Nenhum lote em estoque.</td></tr>
+              <tr><td colSpan={visibleColumns.length + 1} className="px-4 py-12 text-center text-sm text-muted-foreground">Nenhum lote em estoque.</td></tr>
             )}
           </tbody>
         </table>
@@ -92,6 +196,13 @@ export function InventoryBatchesTab() {
           batchId={adjustmentOpen} 
           open={!!adjustmentOpen} 
           onOpenChange={(v) => { if(!v) setAdjustmentOpen(null); }} 
+        />
+      )}
+      {editModalOpen && selectedBatchForEdit && (
+        <EditBatchModal 
+          batch={selectedBatchForEdit} 
+          open={editModalOpen} 
+          onOpenChange={(v) => { if(!v) setEditModalOpen(false); }} 
         />
       )}
     </div>
@@ -160,11 +271,11 @@ function BatchFormDrawer({ open, onOpenChange }: { open: boolean, onOpenChange: 
     }
   }, [open]);
 
-  const mpProducts = products.filter(p => p.format === "MP");
+  const mpProducts = products.filter((p:any) => p.format === "MP");
 
   const handleProductChange = (val: string) => {
     setProductId(val);
-    const selectedProd = mpProducts.find(p => p.id === val);
+    const selectedProd = mpProducts.find((p:any) => p.id === val);
     if (selectedProd) {
       setAverageCost(selectedProd.cost_price || 0);
     }
@@ -216,7 +327,7 @@ function BatchFormDrawer({ open, onOpenChange }: { open: boolean, onOpenChange: 
               <Select value={productId} onValueChange={handleProductChange}>
                 <SelectTrigger><SelectValue placeholder="Selecione o produto MP..." /></SelectTrigger>
                 <SelectContent>
-                  {mpProducts.map(p => (
+                  {mpProducts.map((p:any) => (
                     <SelectItem key={p.id} value={p.id}>
                       {getProductDisplayName(p)} {p.sku ? `[${p.sku}]` : ''}
                     </SelectItem>
@@ -229,7 +340,7 @@ function BatchFormDrawer({ open, onOpenChange }: { open: boolean, onOpenChange: 
               <Label>Fornecedor de Origem *</Label>
               <Select value={supplierId} onValueChange={setSupplierId}>
                 <SelectTrigger><SelectValue placeholder="Selecione o fornecedor..." /></SelectTrigger>
-                <SelectContent>{suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.company_name || s.name}</SelectItem>)}</SelectContent>
+                <SelectContent>{suppliers.map((s:any) => <SelectItem key={s.id} value={s.id}>{s.company_name || s.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
 
@@ -312,9 +423,9 @@ function BatchAdjustmentDrawer({ batchId, open, onOpenChange }: { batchId: strin
     try {
       await adjustMutation.mutateAsync({
         batch_id: batchId,
-        quantity: quantity,
-        notes: notes,
-        type: 'saída'
+        adjustment: -quantity,
+        reason: notes,
+        movement_type: 'ajuste_saida'
       });
       toast.success("Saída registrada com sucesso!");
       onOpenChange(false);

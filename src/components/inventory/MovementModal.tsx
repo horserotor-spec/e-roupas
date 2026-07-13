@@ -34,7 +34,7 @@ export function MovementModal({ open, onOpenChange, batchId, variantInfo }: Move
     }
 
     try {
-      const isExit = movementType === "ajuste_saida" || movementType === "perda";
+      const isExit = movementType === "ajuste_saida" || movementType === "perda" || movementType === "excluir_produto";
       const adjustAmount = isExit ? -quantity : quantity;
 
       await adjustMutation.mutateAsync({
@@ -71,10 +71,12 @@ export function MovementModal({ open, onOpenChange, batchId, variantInfo }: Move
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="inserir_produto">Inserir Produto</SelectItem>
                   <SelectItem value="ajuste_entrada">Entrada (Ajuste)</SelectItem>
                   <SelectItem value="ajuste_saida">Saída (Ajuste)</SelectItem>
                   <SelectItem value="perda">Saída (Perda/Avaria)</SelectItem>
                   <SelectItem value="transferencia">Transferência Interna</SelectItem>
+                  <SelectItem value="excluir_produto">Excluir Produto</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -99,6 +99,7 @@ export interface ProductVariant {
   lead_time_medio?: number;
   cost_price?: number;
   average_cost?: number;
+  min_stock?: number;
   active: boolean;
   // Included relations for UI
   models?: ProductModel;
@@ -373,7 +374,8 @@ export function useCreateSupplierCRM() {
           name: payload.name.trim(), 
           entity_type: "fornecedor", 
           entity_class: "pj", // Padrão PJ para fornecedores
-          active: true 
+          active: true,
+                min_stock: minQty 
         }])
         .select()
         .single();
@@ -528,7 +530,7 @@ export function useInventoryBatches(variantId?: string) {
         .from("inventory_batches")
         .select(`
           *,
-          suppliers(*),
+          suppliers:clients(*),
           product_variants(
             *,
             models:product_models(*),
@@ -660,15 +662,20 @@ export function useAdjustInventoryBatch() {
       batch_id: string;
       adjustment: number;
       reason: string;
+      movement_type?: string;
     }) => {
       // Registrar movimento de estoque
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+
       const { data: movData, error: movErr } = await supabase
         .from("inventory_movements")
         .insert([{
           batch_id: payload.batch_id,
-          movement_type: payload.adjustment >= 0 ? "ajuste_entrada" : "ajuste_saida",
+          movement_type: payload.movement_type || (payload.adjustment >= 0 ? "ajuste_entrada" : "ajuste_saida"),
           quantity: payload.adjustment,
-          notes: payload.reason
+          notes: payload.reason,
+          created_by: userId || null
         }])
         .select()
         .single();
@@ -774,6 +781,7 @@ export function useCreateInventoryEntryGrid() {
       average_cost: number;
       quality_notes: string;
       grid: Record<string, number>;
+        minStockGrid?: Record<string, number>;
     }) => {
       // 1. Buscar produto pai com os relacionamentos de engenharia
       const { data: prod, error: prodErr } = await supabase
@@ -802,7 +810,8 @@ export function useCreateInventoryEntryGrid() {
       const results = [];
 
       for (const [size, qty] of entries) {
-        if (qty <= 0) continue;
+        const minQty = payload.minStockGrid?.[size] || 0;
+          if (qty <= 0 && minQty <= 0) continue;
 
         // Gerar SKU dinâmico: MP-REG-PEL-PTO-P
         const sku = `MP-${modelCode}-${fabricCode}-${colorCode}-${size.toUpperCase()}`;
@@ -826,13 +835,19 @@ export function useCreateInventoryEntryGrid() {
               size: size,
               gender: "unissex",
               sku_internal: sku,
-              active: true
+              active: true,
+              min_stock: minQty
             }])
             .select()
             .single();
 
           if (varCreateErr) throw varCreateErr;
           variant = newVar;
+        } else {
+          // Update min_stock if it changed
+          if (minQty >= 0 && variant.min_stock !== minQty) {
+            await supabase.from("product_variants").update({ min_stock: minQty }).eq("id", variant.id);
+          }
         }
 
         // 3. Criar lote de estoque (inventory_batches) com saldo 0
@@ -926,3 +941,99 @@ export function useCreateInventoryEntryGrid() {
     }
   });
 }
+export function useSoftDeleteInventoryBatches() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { batchIds: string[], reason: string }) => {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+
+      for (const batchId of payload.batchIds) {
+        // 1. Inactivate the batch
+        const { error: batchErr } = await supabase
+          .from("inventory_batches")
+          .update({ active: false, quantity_available: 0 })
+          .eq("id", batchId);
+        
+        if (batchErr) throw batchErr;
+
+        // 2. Record the movement 'excluir_produto'
+        const { error: movErr } = await supabase
+          .from("inventory_movements")
+          .insert([{
+            batch_id: batchId,
+            movement_type: "excluir_produto",
+            quantity: 0,
+            notes: payload.reason,
+            created_by: userId || null
+          }]);
+        
+        if (movErr) throw movErr;
+      }
+      return true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inventory_batches"] });
+      queryClient.invalidateQueries({ queryKey: ["stock_movements"] });
+    }
+  });
+}
+
+export function useEditInventoryBatch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { 
+      batch_id: string; 
+      supplier_id: string; 
+      quantity_total: number;
+      min_stock: number;
+      reason: string;
+      variant_id: string;
+      old_quantity: number;
+    }) => {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+
+      const { data: currentBatch, error: cbErr } = await supabase.from("inventory_batches").select("quantity_available, quantity_total").eq("id", payload.batch_id).single();
+      if(cbErr) throw cbErr;
+
+      const diff = payload.quantity_total - currentBatch.quantity_total;
+      const newAvailable = currentBatch.quantity_available + diff;
+
+      const { error: updErr } = await supabase
+        .from("inventory_batches")
+        .update({ 
+          supplier_id: payload.supplier_id,
+          quantity_total: payload.quantity_total,
+          quantity_available: newAvailable
+        })
+        .eq("id", payload.batch_id);
+      if (updErr) throw updErr;
+
+      const { error: varErr } = await supabase
+        .from("product_variants")
+        .update({ min_stock: payload.min_stock })
+        .eq("id", payload.variant_id);
+      if (varErr) throw varErr;
+
+      const { error: movErr } = await supabase
+        .from("inventory_movements")
+        .insert([{
+          batch_id: payload.batch_id,
+          movement_type: "ajuste_entrada",
+          quantity: diff,
+          notes: "EDI��O DE LOTE: " + payload.reason,
+          created_by: userId || null
+        }]);
+      if (movErr) throw movErr;
+
+      return true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inventory_batches"] });
+      queryClient.invalidateQueries({ queryKey: ["stock_movements"] });
+      queryClient.invalidateQueries({ queryKey: ["product_variants"] });
+    }
+  });
+}
+

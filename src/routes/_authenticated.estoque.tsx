@@ -59,7 +59,7 @@ function EstoquePage() {
       </div>
 
       <div className="flex-1">
-        {activeTab === "dashboard" && <DashboardTab />}
+        {activeTab === "dashboard" && <DashboardTab onNavigate={setActiveTab} />}
         {activeTab === "corte_costura" && <CorteCosturaTab />}
         {activeTab === "relatorios" && <RelatorioEstoqueTab />}
         {activeTab === "variantes" && <ProductVariantsTab />}
@@ -71,7 +71,7 @@ function EstoquePage() {
   );
 }
 
-function DashboardTab() {
+function DashboardTab({ onNavigate }: { onNavigate: (tabId: string) => void }) {
   const { data: batches = [], isLoading: isLoadingBatches } = useQuery({
     queryKey: ["dashboard_batches"],
     queryFn: async () => {
@@ -238,23 +238,23 @@ function DashboardTab() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border shadow-sm">
-          <div className="text-sm font-medium text-muted-foreground flex items-center justify-between">Baixo Estoque <AlertTriangle className="size-4 text-amber-500"/></div>
+        <div onClick={() => onNavigate("lotes")} className="bg-white p-5 rounded-2xl border shadow-sm cursor-pointer hover:border-amber-400 hover:shadow-md transition-all">
+            <div className="text-sm font-medium text-muted-foreground flex items-center justify-between">Baixo Estoque <AlertTriangle className="size-4 text-amber-500"/></div>
           <div className="mt-2 text-3xl font-bold text-amber-600">{lowStock}</div>
           <div className="text-xs text-muted-foreground mt-1">Variantes abaixo do estoque de segurança (&lt; 15)</div>
         </div>
-        <div className="bg-white p-5 rounded-2xl border shadow-sm">
-          <div className="text-sm font-medium text-muted-foreground flex items-center justify-between">Ruptura <AlertTriangle className="size-4 text-red-500"/></div>
+        <div onClick={() => onNavigate("lotes")} className="bg-white p-5 rounded-2xl border shadow-sm cursor-pointer hover:border-red-400 hover:shadow-md transition-all">
+            <div className="text-sm font-medium text-muted-foreground flex items-center justify-between">Ruptura <AlertTriangle className="size-4 text-red-500"/></div>
           <div className="mt-2 text-3xl font-bold text-red-600">{ruptures}</div>
           <div className="text-xs text-muted-foreground mt-1">Variantes com saldo físico zerado</div>
         </div>
-        <div className="bg-white p-5 rounded-2xl border shadow-sm">
-          <div className="text-sm font-medium text-muted-foreground flex items-center justify-between">Estoque Reservado <Factory className="size-4 text-indigo-500"/></div>
+        <div onClick={() => onNavigate("lotes")} className="bg-white p-5 rounded-2xl border shadow-sm cursor-pointer hover:border-indigo-400 hover:shadow-md transition-all">
+            <div className="text-sm font-medium text-muted-foreground flex items-center justify-between">Estoque Reservado <Factory className="size-4 text-indigo-500"/></div>
           <div className="mt-2 text-3xl font-bold text-indigo-600">{reservedTotal.toLocaleString("pt-BR")}</div>
           <div className="text-xs text-muted-foreground mt-1">Matéria-prima alocada para produção</div>
         </div>
-        <div className="bg-white p-5 rounded-2xl border shadow-sm">
-          <div className="text-sm font-medium text-muted-foreground flex items-center justify-between">Variantes Ativas <Package className="size-4 text-slate-400"/></div>
+        <div onClick={() => onNavigate("variantes")} className="bg-white p-5 rounded-2xl border shadow-sm cursor-pointer hover:border-slate-400 hover:shadow-md transition-all">
+            <div className="text-sm font-medium text-muted-foreground flex items-center justify-between">Variantes Ativas <Package className="size-4 text-slate-400"/></div>
           <div className="mt-2 text-3xl font-bold text-slate-700">{activeProducts}</div>
           <div className="text-xs text-muted-foreground mt-1">Total de SKUs físicos cadastrados</div>
         </div>

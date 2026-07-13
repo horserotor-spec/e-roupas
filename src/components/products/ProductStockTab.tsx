@@ -79,7 +79,16 @@ export function ProductStockTab({ product }: ProductStockTabProps) {
                     <td className="p-3 text-center font-bold text-slate-800">{variant?.size}</td>
                     <td className="p-3 text-right font-medium text-slate-600">{Number(batch.quantity_total).toFixed(0)}</td>
                     <td className="p-3 text-right text-orange-600 font-medium">{Number(batch.quantity_reserved).toFixed(0)}</td>
-                    <td className="p-3 text-right text-blue-600 font-bold">{Number(batch.quantity_available).toFixed(0)}</td>
+                    <td className="p-3 text-right text-blue-600 font-bold">
+                      <div className="flex flex-col items-end gap-1">
+                        <span>{Number(batch.quantity_available).toFixed(0)}</span>
+                        {Number(batch.quantity_available) === 0 ? (
+                          <span className="text-[10px] font-semibold bg-red-100 text-red-700 px-1.5 py-0.5 rounded">Esgotado</span>
+                        ) : Number(batch.quantity_available) <= (variant?.min_stock || 0) ? (
+                          <span className="text-[10px] font-semibold bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">Estoque Crítico</span>
+                        ) : null}
+                      </div>
+                    </td>
                     <td className="p-3 text-center">
                       <Button 
                         variant="ghost" 

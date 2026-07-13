@@ -117,12 +117,14 @@ export function RelatorioEstoqueTab() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos os tipos</SelectItem>
+                <SelectItem value="inserir_produto">Inserir Produto</SelectItem>
                 <SelectItem value="compra">Compra / Lote Inicial</SelectItem>
                 <SelectItem value="ajuste_entrada">Ajuste de Entrada</SelectItem>
-                <SelectItem value="ajuste_saida">Ajuste de Saída</SelectItem>
+                <SelectItem value="ajuste_saida">Saída (Ajuste)</SelectItem>
                 <SelectItem value="perda">Perda / Avaria</SelectItem>
                 <SelectItem value="transferencia">Transferência Interna</SelectItem>
                 <SelectItem value="consumo">Consumo de Produção</SelectItem>
+                <SelectItem value="excluir_produto">Excluir Produto</SelectItem>
               </SelectContent>
             </Select>
           </div>

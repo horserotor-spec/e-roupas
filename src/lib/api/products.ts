@@ -27,7 +27,6 @@ export interface Product {
   ncm: string | null;
   cest: string | null;
   min_stock: number;
-  max_stock: number;
   model_id?: string | null;
   fabric_id?: string | null;
   color_id?: string | null;
