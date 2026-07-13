@@ -19,8 +19,25 @@ import { EditBatchModal } from "@/components/inventory/EditBatchModal";
 export function InventoryBatchesTab() {
   const { data: batchesRaw, isLoading, error } = useInventoryBatches();
   if (error) console.error('QUERY ERROR:', error);
-  const batches = (batchesRaw || []).filter((b:any) => b.active !== false);
-
+  const [searchQuery, setSearchQuery] = useState("");
+  const allBatches = (batchesRaw || []).filter((b:any) => b.active !== false);
+  
+  const batches = allBatches.filter((b:any) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    const v = b.product_variants || {};
+    const searchString = `
+      ${b.batch_code || ""} 
+      ${v.sku_internal || ""} 
+      ${v.models?.name || ""} 
+      ${v.fabrics?.name || ""} 
+      ${v.canonical_colors?.name || ""} 
+      ${v.size || ""} 
+      ${b.suppliers?.company_name || ""} 
+      ${b.suppliers?.name || ""}
+    `.toLowerCase();
+    return searchString.includes(q);
+  });
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [adjustmentOpen, setAdjustmentOpen] = useState<string | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -75,6 +92,8 @@ export function InventoryBatchesTab() {
           <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             placeholder="Buscar lote..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="h-9 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm outline-none focus:border-primary"
           />
         </div>
