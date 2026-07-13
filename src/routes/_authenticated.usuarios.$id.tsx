@@ -193,7 +193,9 @@ function EditarUsuario() {
     if (!confirm) return;
     
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(formData.email);
+      const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
+        redirectTo: window.location.origin + '/redefinir-senha',
+      });
       if (error) throw error;
 
       await supabase.from("audit_logs").insert({
