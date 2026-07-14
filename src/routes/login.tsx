@@ -65,7 +65,14 @@ function LoginPage() {
               <div>
                 <div className="flex items-center justify-between">
                   <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Senha</label>
-                  <button type="button" onClick={() => setMode("reset")} className="text-[11px] text-primary hover:underline">
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      setErr(null);
+                      setMsg("Para redefinir sua senha, solicite ao Administrador do sistema.");
+                    }} 
+                    className="text-[11px] text-primary hover:underline"
+                  >
                     Esqueceu a senha?
                   </button>
                 </div>
@@ -93,16 +100,8 @@ function LoginPage() {
               type="submit" disabled={loading}
               className="h-10 w-full rounded-lg bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60 transition-opacity"
             >
-              {loading ? "Aguarde…" : mode === "login" ? "Entrar" : "Enviar link"}
+              {loading ? "Aguarde…" : "Entrar"}
             </button>
-            
-            {mode === "reset" && (
-              <p className="text-[11px] text-center pt-2">
-                <button type="button" onClick={() => setMode("login")} className="text-muted-foreground hover:text-foreground">
-                  Voltar para o login
-                </button>
-              </p>
-            )}
 
             <p className="text-[11px] text-muted-foreground text-center pt-2">
               Acesso restrito. Utilize suas credenciais corporativas para acessar o sistema.

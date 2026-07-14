@@ -188,26 +188,32 @@ function EditarUsuario() {
     return roles.find(r => r.id === formData.role_id)?.name;
   };
 
-  const resetPassword = async () => {
-    const confirm = window.confirm("Gerar uma senha temporária e enviar link de redefinição para o e-mail do usuário?");
+  const generateTemporaryPassword = async () => {
+    const confirm = window.confirm("Gerar uma senha temporária para este usuário?");
     if (!confirm) return;
     
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
-        redirectTo: window.location.origin + '/redefinir-senha',
+      const tempPass = Math.random().toString(36).slice(-8);
+      
+      const { error } = await supabase.rpc('admin_reset_user_password', {
+        target_user_id: id,
+        new_password: tempPass
       });
+      
       if (error) throw error;
 
       await supabase.from("audit_logs").insert({
         user_id: currentUser?.id,
         target_user_id: id,
         module: "Usuários",
-        action: "RESET_SENHA"
+        action: "GERAR_SENHA_TEMPORARIA"
       });
 
-      toast.success("Link de redefinição enviado!");
+      // Exibe a senha em um prompt para que o administrador possa copiar facilmente
+      window.prompt("Senha temporária gerada com sucesso! Copie a senha abaixo e envie ao usuário:", tempPass);
+      toast.success("Senha temporária gerada!");
     } catch(e: any) {
-      toast.error("Erro ao resetar: " + e.message);
+      toast.error("Erro ao gerar senha: " + e.message);
     }
   };
 
@@ -334,8 +340,8 @@ function EditarUsuario() {
               <div className="flex items-center gap-3 text-lg font-medium border-b pb-3">
                 <KeyRound className="w-5 h-5 text-primary" /> Credenciais
               </div>
-              <p className="text-sm text-muted-foreground">O reset de senha enviará um link para o e-mail do usuário onde ele poderá criar uma nova senha.</p>
-              <Button variant="outline" onClick={resetPassword}>Enviar Link de Redefinição</Button>
+              <p className="text-sm text-muted-foreground">Isso gerará uma senha temporária aleatória para este usuário. Você precisará copiar a senha gerada e enviá-la para o usuário manualmente.</p>
+              <Button variant="outline" onClick={generateTemporaryPassword}>Gerar Senha Temporária</Button>
             </div>
 
             <div className="bg-card border rounded-xl shadow-sm p-6 space-y-4">
