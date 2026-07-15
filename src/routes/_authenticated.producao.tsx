@@ -254,22 +254,24 @@ function ProducaoPage() {
                         {/* ATALHOS OPERACIONAIS DA SPRINT 2.10 */}
                         {order.status === "separacao" && (
                           <div className="flex gap-2 mt-1 mb-2.5 w-full">
-                            <Link 
-                              to="/print/operacional" 
-                              search={{ orderId: order.id }}
-                              onClick={(e) => e.stopPropagation()}
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(`/print/etiqueta/${order.id}`, '_blank');
+                              }}
                               className="flex-1 h-7 rounded bg-slate-800 hover:bg-slate-900 text-[10px] font-bold text-white flex items-center justify-center gap-1 uppercase transition-colors"
                             >
                               <Printer className="size-3.5" /> Imprimir Etqs.
-                            </Link>
-                            <Link 
-                              to="/producao/separacao" 
-                              search={{ orderId: order.id }}
-                              onClick={(e) => e.stopPropagation()}
+                            </button>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate({ to: "/producao/separacao", search: { orderId: order.id } });
+                              }}
                               className="flex-1 h-7 rounded bg-amber-500 hover:bg-amber-600 text-[10px] font-bold text-slate-950 flex items-center justify-center gap-1 uppercase transition-colors"
                             >
                               <Barcode className="size-3.5" /> Bipar (Separação)
-                            </Link>
+                            </button>
                           </div>
                         )}
 
