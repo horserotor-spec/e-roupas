@@ -3,7 +3,7 @@ import { useOrder } from "@/lib/api/orders";
 import { Loader2, Printer, Grid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
-import Barcode from "react-barcode";
+import { QRCodeSVG } from "qrcode.react";
 
 export const Route = createFileRoute("/print/operacional")({
   validateSearch: (search: Record<string, unknown>) => {
@@ -194,17 +194,14 @@ function PrintOperacionalPage() {
               </div>
 
               {/* Barcode Principal Legível */}
-              <div className="w-full flex justify-center overflow-hidden">
-                <Barcode 
-                  value={lbl.barcode} 
-                  width={1} 
-                  height={28} 
-                  fontSize={8} 
-                  displayValue={false} 
-                  margin={0}
-                  background="transparent"
-                />
-              </div>
+                <div className="w-full flex justify-center overflow-hidden py-1">
+                  <QRCodeSVG 
+                    value={lbl.barcode} 
+                    size={32}
+                    level="M"
+                    includeMargin={false}
+                  />
+                </div>
             </div>
           );
         })}
