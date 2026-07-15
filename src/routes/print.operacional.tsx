@@ -74,7 +74,7 @@ function PrintOperacionalPage() {
         fabric: fabricSigla,
         color: colorSigla,
         size: sizeStr,
-        barcode: `${exactSku}|${i + 1}`,
+        barcode: `${exactSku}.${i + 1}`,
         unitText: `${i + 1}/${qty}`
       });
     }
@@ -197,7 +197,7 @@ function PrintOperacionalPage() {
               <div className="w-full flex justify-center overflow-hidden">
                 <Barcode 
                   value={lbl.barcode} 
-                  width={0.9} 
+                  width={1.2} 
                   height={28} 
                   fontSize={8} 
                   displayValue={false} 

@@ -508,7 +508,8 @@ export async function bipSeparationItem(
 
   // Normalizar bipagem
   const cleanBiped = barcodeBipado.trim().toUpperCase();
-  const bipedBase = cleanBiped.split('|')[0]; // Extrai apenas a parte principal do SKU
+  const lastDotIndex = cleanBiped.lastIndexOf('.');
+  const bipedBase = lastDotIndex !== -1 ? cleanBiped.substring(0, lastDotIndex) : cleanBiped; // Extrai apenas a parte principal do SKU
   
   // Validar se a etiqueta específica já foi bipada (se houver sufixo de unidade)
   const scannedLabels = (item as any).scanned_labels || [];
