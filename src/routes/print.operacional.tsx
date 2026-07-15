@@ -74,7 +74,7 @@ function PrintOperacionalPage() {
         fabric: fabricSigla,
         color: colorSigla,
         size: sizeStr,
-        barcode: `${exactSku}|${item.id}|${i + 1}`,
+        barcode: `${exactSku}|${i + 1}`,
         unitText: `${i + 1}/${qty}`
       });
     }
