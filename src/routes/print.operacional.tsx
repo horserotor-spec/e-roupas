@@ -65,7 +65,7 @@ function PrintOperacionalPage() {
       const sizeStr = (item.size || "G").toUpperCase();
       const artCode = (item.sku?.split('-')[0] || "ART").toUpperCase();
       
-      const exactSku = item.sku || `${artCode}-REG-${fabricSigla}-${colorSigla}-${sizeStr}`;
+      const shortId = item.id.split('-')[0].toUpperCase();
 
       labelsToPrint.push({
         orderCode: order.code,
@@ -74,7 +74,7 @@ function PrintOperacionalPage() {
         fabric: fabricSigla,
         color: colorSigla,
         size: sizeStr,
-        barcode: `${exactSku}.${i + 1}`,
+        barcode: `${shortId}.${i + 1}`,
         unitText: `${i + 1}/${qty}`
       });
     }

@@ -504,7 +504,8 @@ export async function bipSeparationItem(
   const fabricCode = (prod?.fabrics?.code || "GEN").toUpperCase();
   const colorCode = (prod?.canonical_colors?.code || "GEN").toUpperCase();
   const sizeCode = expectedSize.toUpperCase();
-  const expectedBarcode = `${artCode}-REG-${fabricCode}-${colorCode}-${sizeCode}`;
+  const expectedBarcodeOld = `${artCode}-REG-${fabricCode}-${colorCode}-${sizeCode}`;
+  const expectedBarcodeNew = item.id.split('-')[0].toUpperCase();
 
   // Normalizar bipagem
   const cleanBiped = barcodeBipado.trim().toUpperCase();
@@ -518,7 +519,7 @@ export async function bipSeparationItem(
   }
 
   // 2. Validar anti-erro (compara a base)
-  if (bipedBase !== expectedBarcode) {
+  if (bipedBase !== expectedBarcodeNew && bipedBase !== expectedBarcodeOld && bipedBase !== item.sku?.toUpperCase()) {
     // Tenta identificar o que foi bipado com base na nomenclatura MP-REG-MALHA-COR-TAMANHO
     const parts = bipedBase.split('-');
     let bipedDetails = bipedBase;
@@ -698,12 +699,15 @@ export async function bipExpeditionItem(
   const fabricCode = (prod?.fabrics?.code || "GEN").toUpperCase();
   const colorCode = (prod?.canonical_colors?.code || "GEN").toUpperCase();
   const sizeCode = expectedSize.toUpperCase();
-  const expectedBarcode = `${artCode}-REG-${fabricCode}-${colorCode}-${sizeCode}`;
+  const expectedBarcodeOld = `${artCode}-REG-${fabricCode}-${colorCode}-${sizeCode}`;
+  const expectedBarcodeNew = item.id.split('-')[0].toUpperCase();
   
   const cleanBiped = barcodeBipado.trim().toUpperCase();
+  const lastDotIndex = cleanBiped.lastIndexOf('.');
+  const bipedBase = lastDotIndex !== -1 ? cleanBiped.substring(0, lastDotIndex) : cleanBiped;
 
-  // Validar anti-erro (aceita tanto o SKU padrão do produto quanto o código de peças padrão)
-  if (cleanBiped !== expectedBarcode && cleanBiped !== item.sku?.toUpperCase()) {
+  // Validar anti-erro (aceita tanto o SKU padrão do produto quanto o código de peças padrão e o novo ID encurtado)
+  if (bipedBase !== expectedBarcodeNew && bipedBase !== expectedBarcodeOld && bipedBase !== item.sku?.toUpperCase()) {
     return {
       success: false,
       message: "🔴 PRODUTO INCORRETO",
