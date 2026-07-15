@@ -197,7 +197,7 @@ function PrintOperacionalPage() {
               <div className="w-full flex justify-center overflow-hidden">
                 <Barcode 
                   value={lbl.barcode} 
-                  width={1.2} 
+                  width={1} 
                   height={28} 
                   fontSize={8} 
                   displayValue={false} 
