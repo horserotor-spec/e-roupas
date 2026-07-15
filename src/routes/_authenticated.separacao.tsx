@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Html5Qrcode } from "html5-qrcode";
 
-export const Route = createFileRoute("/_authenticated/producao/separacao")({
+export const Route = createFileRoute("/_authenticated/separacao")({
   validateSearch: (search: Record<string, unknown>) => {
     return {
       orderId: (search.orderId as string) || "",

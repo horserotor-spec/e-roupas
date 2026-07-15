@@ -16,6 +16,7 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PrintOperacionalRouteImport } from './routes/print.operacional'
 import { Route as PrintIdRouteImport } from './routes/print.$id'
+import { Route as AuthenticatedSeparacaoRouteImport } from './routes/_authenticated.separacao'
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated.relatorios'
 import { Route as AuthenticatedProducaoRouteImport } from './routes/_authenticated.producao'
 import { Route as AuthenticatedIaRouteImport } from './routes/_authenticated.ia'
@@ -33,7 +34,6 @@ import { Route as AuthenticatedCrmIndexRouteImport } from './routes/_authenticat
 import { Route as PrintEtiquetaIdRouteImport } from './routes/print.etiqueta.$id'
 import { Route as AuthenticatedUsuariosNovoRouteImport } from './routes/_authenticated.usuarios.novo'
 import { Route as AuthenticatedUsuariosIdRouteImport } from './routes/_authenticated.usuarios.$id'
-import { Route as AuthenticatedProducaoSeparacaoRouteImport } from './routes/_authenticated.producao.separacao'
 import { Route as AuthenticatedPedidosNovoRouteImport } from './routes/_authenticated.pedidos.novo'
 import { Route as AuthenticatedPedidosOrderIdRouteImport } from './routes/_authenticated.pedidos.$orderId'
 import { Route as AuthenticatedPedidosIdRouteImport } from './routes/_authenticated.pedidos.$id'
@@ -45,7 +45,7 @@ import { Route as AuthenticatedFinanceiroDreRouteImport } from './routes/_authen
 import { Route as AuthenticatedFinanceiroConciliacaoRouteImport } from './routes/_authenticated.financeiro.conciliacao'
 import { Route as AuthenticatedFinanceiroCentroCustosRouteImport } from './routes/_authenticated.financeiro.centro-custos'
 import { Route as AuthenticatedCrmClientIdRouteImport } from './routes/_authenticated.crm.$clientId'
-import { Route as AuthenticatedExpedicaoBipagemOrderIdRouteImport } from './routes/_authenticated.expedicao.bipagem.$orderId'
+import { Route as AuthenticatedBipagemOrderIdRouteImport } from './routes/_authenticated.bipagem.$orderId'
 
 const RedefinirSenhaRoute = RedefinirSenhaRouteImport.update({
   id: '/redefinir-senha',
@@ -80,6 +80,11 @@ const PrintIdRoute = PrintIdRouteImport.update({
   id: '/print/$id',
   path: '/print/$id',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedSeparacaoRoute = AuthenticatedSeparacaoRouteImport.update({
+  id: '/separacao',
+  path: '/separacao',
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedRelatoriosRoute = AuthenticatedRelatoriosRouteImport.update({
   id: '/relatorios',
@@ -173,12 +178,6 @@ const AuthenticatedUsuariosIdRoute = AuthenticatedUsuariosIdRouteImport.update({
   path: '/usuarios/$id',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedProducaoSeparacaoRoute =
-  AuthenticatedProducaoSeparacaoRouteImport.update({
-    id: '/separacao',
-    path: '/separacao',
-    getParentRoute: () => AuthenticatedProducaoRoute,
-  } as any)
 const AuthenticatedPedidosNovoRoute =
   AuthenticatedPedidosNovoRouteImport.update({
     id: '/pedidos/novo',
@@ -244,11 +243,11 @@ const AuthenticatedCrmClientIdRoute =
     path: '/crm/$clientId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
-const AuthenticatedExpedicaoBipagemOrderIdRoute =
-  AuthenticatedExpedicaoBipagemOrderIdRouteImport.update({
+const AuthenticatedBipagemOrderIdRoute =
+  AuthenticatedBipagemOrderIdRouteImport.update({
     id: '/bipagem/$orderId',
     path: '/bipagem/$orderId',
-    getParentRoute: () => AuthenticatedExpedicaoRoute,
+    getParentRoute: () => AuthenticatedRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -259,13 +258,15 @@ export interface FileRoutesByFullPath {
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/estoque': typeof AuthenticatedEstoqueRoute
-  '/expedicao': typeof AuthenticatedExpedicaoRouteWithChildren
+  '/expedicao': typeof AuthenticatedExpedicaoRoute
   '/financeiro': typeof AuthenticatedFinanceiroRouteWithChildren
   '/ia': typeof AuthenticatedIaRoute
-  '/producao': typeof AuthenticatedProducaoRouteWithChildren
+  '/producao': typeof AuthenticatedProducaoRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/separacao': typeof AuthenticatedSeparacaoRoute
   '/print/$id': typeof PrintIdRoute
   '/print/operacional': typeof PrintOperacionalRoute
+  '/bipagem/$orderId': typeof AuthenticatedBipagemOrderIdRoute
   '/crm/$clientId': typeof AuthenticatedCrmClientIdRoute
   '/financeiro/centro-custos': typeof AuthenticatedFinanceiroCentroCustosRoute
   '/financeiro/conciliacao': typeof AuthenticatedFinanceiroConciliacaoRoute
@@ -277,7 +278,6 @@ export interface FileRoutesByFullPath {
   '/pedidos/$id': typeof AuthenticatedPedidosIdRoute
   '/pedidos/$orderId': typeof AuthenticatedPedidosOrderIdRoute
   '/pedidos/novo': typeof AuthenticatedPedidosNovoRoute
-  '/producao/separacao': typeof AuthenticatedProducaoSeparacaoRoute
   '/usuarios/$id': typeof AuthenticatedUsuariosIdRoute
   '/usuarios/novo': typeof AuthenticatedUsuariosNovoRoute
   '/print/etiqueta/$id': typeof PrintEtiquetaIdRoute
@@ -287,7 +287,6 @@ export interface FileRoutesByFullPath {
   '/pedidos/': typeof AuthenticatedPedidosIndexRoute
   '/produtos/': typeof AuthenticatedProdutosIndexRoute
   '/usuarios/': typeof AuthenticatedUsuariosIndexRoute
-  '/expedicao/bipagem/$orderId': typeof AuthenticatedExpedicaoBipagemOrderIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -297,12 +296,14 @@ export interface FileRoutesByTo {
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/estoque': typeof AuthenticatedEstoqueRoute
-  '/expedicao': typeof AuthenticatedExpedicaoRouteWithChildren
+  '/expedicao': typeof AuthenticatedExpedicaoRoute
   '/ia': typeof AuthenticatedIaRoute
-  '/producao': typeof AuthenticatedProducaoRouteWithChildren
+  '/producao': typeof AuthenticatedProducaoRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/separacao': typeof AuthenticatedSeparacaoRoute
   '/print/$id': typeof PrintIdRoute
   '/print/operacional': typeof PrintOperacionalRoute
+  '/bipagem/$orderId': typeof AuthenticatedBipagemOrderIdRoute
   '/crm/$clientId': typeof AuthenticatedCrmClientIdRoute
   '/financeiro/centro-custos': typeof AuthenticatedFinanceiroCentroCustosRoute
   '/financeiro/conciliacao': typeof AuthenticatedFinanceiroConciliacaoRoute
@@ -314,7 +315,6 @@ export interface FileRoutesByTo {
   '/pedidos/$id': typeof AuthenticatedPedidosIdRoute
   '/pedidos/$orderId': typeof AuthenticatedPedidosOrderIdRoute
   '/pedidos/novo': typeof AuthenticatedPedidosNovoRoute
-  '/producao/separacao': typeof AuthenticatedProducaoSeparacaoRoute
   '/usuarios/$id': typeof AuthenticatedUsuariosIdRoute
   '/usuarios/novo': typeof AuthenticatedUsuariosNovoRoute
   '/print/etiqueta/$id': typeof PrintEtiquetaIdRoute
@@ -324,7 +324,6 @@ export interface FileRoutesByTo {
   '/pedidos': typeof AuthenticatedPedidosIndexRoute
   '/produtos': typeof AuthenticatedProdutosIndexRoute
   '/usuarios': typeof AuthenticatedUsuariosIndexRoute
-  '/expedicao/bipagem/$orderId': typeof AuthenticatedExpedicaoBipagemOrderIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -336,13 +335,15 @@ export interface FileRoutesById {
   '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/estoque': typeof AuthenticatedEstoqueRoute
-  '/_authenticated/expedicao': typeof AuthenticatedExpedicaoRouteWithChildren
+  '/_authenticated/expedicao': typeof AuthenticatedExpedicaoRoute
   '/_authenticated/financeiro': typeof AuthenticatedFinanceiroRouteWithChildren
   '/_authenticated/ia': typeof AuthenticatedIaRoute
-  '/_authenticated/producao': typeof AuthenticatedProducaoRouteWithChildren
+  '/_authenticated/producao': typeof AuthenticatedProducaoRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/_authenticated/separacao': typeof AuthenticatedSeparacaoRoute
   '/print/$id': typeof PrintIdRoute
   '/print/operacional': typeof PrintOperacionalRoute
+  '/_authenticated/bipagem/$orderId': typeof AuthenticatedBipagemOrderIdRoute
   '/_authenticated/crm/$clientId': typeof AuthenticatedCrmClientIdRoute
   '/_authenticated/financeiro/centro-custos': typeof AuthenticatedFinanceiroCentroCustosRoute
   '/_authenticated/financeiro/conciliacao': typeof AuthenticatedFinanceiroConciliacaoRoute
@@ -354,7 +355,6 @@ export interface FileRoutesById {
   '/_authenticated/pedidos/$id': typeof AuthenticatedPedidosIdRoute
   '/_authenticated/pedidos/$orderId': typeof AuthenticatedPedidosOrderIdRoute
   '/_authenticated/pedidos/novo': typeof AuthenticatedPedidosNovoRoute
-  '/_authenticated/producao/separacao': typeof AuthenticatedProducaoSeparacaoRoute
   '/_authenticated/usuarios/$id': typeof AuthenticatedUsuariosIdRoute
   '/_authenticated/usuarios/novo': typeof AuthenticatedUsuariosNovoRoute
   '/print/etiqueta/$id': typeof PrintEtiquetaIdRoute
@@ -364,7 +364,6 @@ export interface FileRoutesById {
   '/_authenticated/pedidos/': typeof AuthenticatedPedidosIndexRoute
   '/_authenticated/produtos/': typeof AuthenticatedProdutosIndexRoute
   '/_authenticated/usuarios/': typeof AuthenticatedUsuariosIndexRoute
-  '/_authenticated/expedicao/bipagem/$orderId': typeof AuthenticatedExpedicaoBipagemOrderIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -381,8 +380,10 @@ export interface FileRouteTypes {
     | '/ia'
     | '/producao'
     | '/relatorios'
+    | '/separacao'
     | '/print/$id'
     | '/print/operacional'
+    | '/bipagem/$orderId'
     | '/crm/$clientId'
     | '/financeiro/centro-custos'
     | '/financeiro/conciliacao'
@@ -394,7 +395,6 @@ export interface FileRouteTypes {
     | '/pedidos/$id'
     | '/pedidos/$orderId'
     | '/pedidos/novo'
-    | '/producao/separacao'
     | '/usuarios/$id'
     | '/usuarios/novo'
     | '/print/etiqueta/$id'
@@ -404,7 +404,6 @@ export interface FileRouteTypes {
     | '/pedidos/'
     | '/produtos/'
     | '/usuarios/'
-    | '/expedicao/bipagem/$orderId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -418,8 +417,10 @@ export interface FileRouteTypes {
     | '/ia'
     | '/producao'
     | '/relatorios'
+    | '/separacao'
     | '/print/$id'
     | '/print/operacional'
+    | '/bipagem/$orderId'
     | '/crm/$clientId'
     | '/financeiro/centro-custos'
     | '/financeiro/conciliacao'
@@ -431,7 +432,6 @@ export interface FileRouteTypes {
     | '/pedidos/$id'
     | '/pedidos/$orderId'
     | '/pedidos/novo'
-    | '/producao/separacao'
     | '/usuarios/$id'
     | '/usuarios/novo'
     | '/print/etiqueta/$id'
@@ -441,7 +441,6 @@ export interface FileRouteTypes {
     | '/pedidos'
     | '/produtos'
     | '/usuarios'
-    | '/expedicao/bipagem/$orderId'
   id:
     | '__root__'
     | '/'
@@ -457,8 +456,10 @@ export interface FileRouteTypes {
     | '/_authenticated/ia'
     | '/_authenticated/producao'
     | '/_authenticated/relatorios'
+    | '/_authenticated/separacao'
     | '/print/$id'
     | '/print/operacional'
+    | '/_authenticated/bipagem/$orderId'
     | '/_authenticated/crm/$clientId'
     | '/_authenticated/financeiro/centro-custos'
     | '/_authenticated/financeiro/conciliacao'
@@ -470,7 +471,6 @@ export interface FileRouteTypes {
     | '/_authenticated/pedidos/$id'
     | '/_authenticated/pedidos/$orderId'
     | '/_authenticated/pedidos/novo'
-    | '/_authenticated/producao/separacao'
     | '/_authenticated/usuarios/$id'
     | '/_authenticated/usuarios/novo'
     | '/print/etiqueta/$id'
@@ -480,7 +480,6 @@ export interface FileRouteTypes {
     | '/_authenticated/pedidos/'
     | '/_authenticated/produtos/'
     | '/_authenticated/usuarios/'
-    | '/_authenticated/expedicao/bipagem/$orderId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -544,6 +543,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/print/$id'
       preLoaderRoute: typeof PrintIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/separacao': {
+      id: '/_authenticated/separacao'
+      path: '/separacao'
+      fullPath: '/separacao'
+      preLoaderRoute: typeof AuthenticatedSeparacaoRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/relatorios': {
       id: '/_authenticated/relatorios'
@@ -664,13 +670,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedUsuariosIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/producao/separacao': {
-      id: '/_authenticated/producao/separacao'
-      path: '/separacao'
-      fullPath: '/producao/separacao'
-      preLoaderRoute: typeof AuthenticatedProducaoSeparacaoRouteImport
-      parentRoute: typeof AuthenticatedProducaoRoute
-    }
     '/_authenticated/pedidos/novo': {
       id: '/_authenticated/pedidos/novo'
       path: '/pedidos/novo'
@@ -748,30 +747,15 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCrmClientIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/expedicao/bipagem/$orderId': {
-      id: '/_authenticated/expedicao/bipagem/$orderId'
+    '/_authenticated/bipagem/$orderId': {
+      id: '/_authenticated/bipagem/$orderId'
       path: '/bipagem/$orderId'
-      fullPath: '/expedicao/bipagem/$orderId'
-      preLoaderRoute: typeof AuthenticatedExpedicaoBipagemOrderIdRouteImport
-      parentRoute: typeof AuthenticatedExpedicaoRoute
+      fullPath: '/bipagem/$orderId'
+      preLoaderRoute: typeof AuthenticatedBipagemOrderIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
   }
 }
-
-interface AuthenticatedExpedicaoRouteChildren {
-  AuthenticatedExpedicaoBipagemOrderIdRoute: typeof AuthenticatedExpedicaoBipagemOrderIdRoute
-}
-
-const AuthenticatedExpedicaoRouteChildren: AuthenticatedExpedicaoRouteChildren =
-  {
-    AuthenticatedExpedicaoBipagemOrderIdRoute:
-      AuthenticatedExpedicaoBipagemOrderIdRoute,
-  }
-
-const AuthenticatedExpedicaoRouteWithChildren =
-  AuthenticatedExpedicaoRoute._addFileChildren(
-    AuthenticatedExpedicaoRouteChildren,
-  )
 
 interface AuthenticatedFinanceiroRouteChildren {
   AuthenticatedFinanceiroCentroCustosRoute: typeof AuthenticatedFinanceiroCentroCustosRoute
@@ -805,28 +789,17 @@ const AuthenticatedFinanceiroRouteWithChildren =
     AuthenticatedFinanceiroRouteChildren,
   )
 
-interface AuthenticatedProducaoRouteChildren {
-  AuthenticatedProducaoSeparacaoRoute: typeof AuthenticatedProducaoSeparacaoRoute
-}
-
-const AuthenticatedProducaoRouteChildren: AuthenticatedProducaoRouteChildren = {
-  AuthenticatedProducaoSeparacaoRoute: AuthenticatedProducaoSeparacaoRoute,
-}
-
-const AuthenticatedProducaoRouteWithChildren =
-  AuthenticatedProducaoRoute._addFileChildren(
-    AuthenticatedProducaoRouteChildren,
-  )
-
 interface AuthenticatedRouteChildren {
   AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedEstoqueRoute: typeof AuthenticatedEstoqueRoute
-  AuthenticatedExpedicaoRoute: typeof AuthenticatedExpedicaoRouteWithChildren
+  AuthenticatedExpedicaoRoute: typeof AuthenticatedExpedicaoRoute
   AuthenticatedFinanceiroRoute: typeof AuthenticatedFinanceiroRouteWithChildren
   AuthenticatedIaRoute: typeof AuthenticatedIaRoute
-  AuthenticatedProducaoRoute: typeof AuthenticatedProducaoRouteWithChildren
+  AuthenticatedProducaoRoute: typeof AuthenticatedProducaoRoute
   AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
+  AuthenticatedSeparacaoRoute: typeof AuthenticatedSeparacaoRoute
+  AuthenticatedBipagemOrderIdRoute: typeof AuthenticatedBipagemOrderIdRoute
   AuthenticatedCrmClientIdRoute: typeof AuthenticatedCrmClientIdRoute
   AuthenticatedPedidosIdRoute: typeof AuthenticatedPedidosIdRoute
   AuthenticatedPedidosOrderIdRoute: typeof AuthenticatedPedidosOrderIdRoute
@@ -844,11 +817,13 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedEstoqueRoute: AuthenticatedEstoqueRoute,
-  AuthenticatedExpedicaoRoute: AuthenticatedExpedicaoRouteWithChildren,
+  AuthenticatedExpedicaoRoute: AuthenticatedExpedicaoRoute,
   AuthenticatedFinanceiroRoute: AuthenticatedFinanceiroRouteWithChildren,
   AuthenticatedIaRoute: AuthenticatedIaRoute,
-  AuthenticatedProducaoRoute: AuthenticatedProducaoRouteWithChildren,
+  AuthenticatedProducaoRoute: AuthenticatedProducaoRoute,
   AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
+  AuthenticatedSeparacaoRoute: AuthenticatedSeparacaoRoute,
+  AuthenticatedBipagemOrderIdRoute: AuthenticatedBipagemOrderIdRoute,
   AuthenticatedCrmClientIdRoute: AuthenticatedCrmClientIdRoute,
   AuthenticatedPedidosIdRoute: AuthenticatedPedidosIdRoute,
   AuthenticatedPedidosOrderIdRoute: AuthenticatedPedidosOrderIdRoute,

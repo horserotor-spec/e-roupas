@@ -275,11 +275,11 @@ function ProducaoPage() {
                             <button 
                               onMouseUp={(e) => {
                                 e.stopPropagation();
-                                navigate({ to: "/producao/separacao", search: { orderId: order.id } });
+                                navigate({ to: "/separacao", search: { orderId: order.id } });
                               }}
                               onTouchEnd={(e) => {
                                 e.stopPropagation();
-                                navigate({ to: "/producao/separacao", search: { orderId: order.id } });
+                                navigate({ to: "/separacao", search: { orderId: order.id } });
                               }}
                               onClick={(e) => {
                                 e.preventDefault();

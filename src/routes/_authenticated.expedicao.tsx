@@ -108,7 +108,7 @@ function Col({ title, subtitle, items, empty, icon, borderClass, bgClass }: { ti
                 </Button>
               </Link>
               {!o.tracking_code && (
-                <Link to="/expedicao/bipagem/$orderId" params={{ orderId: o.id }}>
+                <Link to="/bipagem/$orderId" params={{ orderId: o.id }}>
                   <Button size="sm" className="h-7 text-[10px] bg-primary text-primary-foreground hover:bg-primary/90">
                     <PackageCheck className="size-3 mr-1.5" /> Conferência
                   </Button>

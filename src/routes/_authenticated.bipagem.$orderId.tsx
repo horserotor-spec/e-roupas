@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Html5Qrcode } from "html5-qrcode";
 
-export const Route = createFileRoute("/_authenticated/expedicao/bipagem/$orderId")({
+export const Route = createFileRoute("/_authenticated/bipagem/$orderId")({
   component: ExpeditionScanPage,
 });
 
