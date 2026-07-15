@@ -256,32 +256,38 @@ function ProducaoPage() {
                         {order.status === "separacao" && (
                           <div className="flex gap-2 mt-1 mb-2.5 w-full">
                             <button 
-                              draggable={true}
-                              onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                              onPointerDown={(e) => e.stopPropagation()}
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onClick={(e) => {
-                                e.preventDefault();
+                              onMouseUp={(e) => {
                                 e.stopPropagation();
                                 window.open(`/print/operacional?orderId=${order.id}`, '_blank');
                               }}
-                              className="flex-1 h-7 rounded bg-slate-800 hover:bg-slate-900 text-[10px] font-bold text-white flex items-center justify-center gap-1 uppercase transition-colors"
-                            >
-                              <Printer className="size-3.5" /> Imprimir Etqs.
-                            </button>
-                            <button 
-                              draggable={true}
-                              onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                              onPointerDown={(e) => e.stopPropagation()}
-                              onMouseDown={(e) => e.stopPropagation()}
+                              onTouchEnd={(e) => {
+                                e.stopPropagation();
+                                window.open(`/print/operacional?orderId=${order.id}`, '_blank');
+                              }}
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
+                              }}
+                              className="flex-1 h-7 rounded bg-slate-800 hover:bg-slate-900 text-[10px] font-bold text-white flex items-center justify-center gap-1 uppercase transition-colors relative z-50 cursor-pointer"
+                            >
+                              <Printer className="size-3.5 pointer-events-none" /> <span className="pointer-events-none">Imprimir Etqs.</span>
+                            </button>
+                            <button 
+                              onMouseUp={(e) => {
+                                e.stopPropagation();
                                 navigate({ to: "/producao/separacao", search: { orderId: order.id } });
                               }}
-                              className="flex-1 h-7 rounded bg-amber-500 hover:bg-amber-600 text-[10px] font-bold text-slate-950 flex items-center justify-center gap-1 uppercase transition-colors"
+                              onTouchEnd={(e) => {
+                                e.stopPropagation();
+                                navigate({ to: "/producao/separacao", search: { orderId: order.id } });
+                              }}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                              }}
+                              className="flex-1 h-7 rounded bg-amber-500 hover:bg-amber-600 text-[10px] font-bold text-slate-950 flex items-center justify-center gap-1 uppercase transition-colors relative z-50 cursor-pointer"
                             >
-                              <Barcode className="size-3.5" /> Bipar (Separação)
+                              <Barcode className="size-3.5 pointer-events-none" /> <span className="pointer-events-none">Bipar (Separação)</span>
                             </button>
                           </div>
                         )}
