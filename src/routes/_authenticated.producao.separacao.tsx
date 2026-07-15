@@ -424,11 +424,11 @@ function SeparationPage() {
                   onChange={(e) => setBarcode(e.target.value)}
                   placeholder="Escaneie o código de barras da matéria-prima..."
                   disabled={isBiping}
-                  className="h-16 pl-14 pr-4 bg-slate-900 border-2 border-slate-800 text-white rounded-2xl text-lg font-bold placeholder-slate-600 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all shadow-inner w-full"
+                  className="h-16 pl-14 pr-24 bg-slate-900 border-2 border-slate-800 text-white rounded-2xl text-lg font-bold placeholder-slate-600 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 focus:outline-none transition-all shadow-inner w-full"
                 />
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                  <span className="text-[10px] font-bold text-slate-500 bg-slate-800/80 px-2 py-1 rounded border border-slate-700 uppercase tracking-widest">Aguardando Scanner</span>
-                </div>
+                <button type="submit" disabled={isBiping || !barcode.trim()} className="absolute right-2 top-1/2 -translate-y-1/2 h-12 flex items-center justify-center bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:bg-slate-700 text-slate-950 px-4 rounded-xl font-bold uppercase tracking-widest text-xs transition-colors">
+                  Bipar
+                </button>
               </form>
               <Button
                 type="button"

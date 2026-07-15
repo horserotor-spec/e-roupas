@@ -371,11 +371,11 @@ function ExpeditionScanPage() {
                   onChange={(e) => setBarcode(e.target.value)}
                   placeholder="Escaneie a etiqueta da peça pronta..."
                   disabled={isBiping}
-                  className="h-16 pl-14 pr-4 bg-slate-900 border-2 border-slate-800 text-white rounded-2xl text-lg font-bold placeholder-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all shadow-inner w-full"
+                  className="h-16 pl-14 pr-24 bg-slate-900 border-2 border-slate-800 text-white rounded-2xl text-lg font-bold placeholder-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all shadow-inner w-full"
                 />
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                  <span className="text-[10px] font-bold text-slate-500 bg-slate-800/80 px-2 py-1 rounded border border-slate-700 uppercase tracking-widest">Scanner</span>
-                </div>
+                <button type="submit" disabled={isBiping || !barcode.trim()} className="absolute right-2 top-1/2 -translate-y-1/2 h-12 flex items-center justify-center bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:bg-slate-700 text-white px-4 rounded-xl font-bold uppercase tracking-widest text-xs transition-colors">
+                  Bipar
+                </button>
               </form>
               <Button
                 type="button"
