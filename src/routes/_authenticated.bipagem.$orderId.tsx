@@ -71,6 +71,22 @@ function ExpeditionScanPage() {
     }
   }, [activeItemIndex, bipResult, cameraOpen]);
 
+  // Captura global de teclado para scanners físicos (pistola)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        !cameraOpen &&
+        barcodeInputRef.current &&
+        document.activeElement !== barcodeInputRef.current &&
+        e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey
+      ) {
+        barcodeInputRef.current.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [cameraOpen]);
+
   useEffect(() => {
     if (cameraOpen) {
       setCameraError(null);

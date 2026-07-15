@@ -74,7 +74,8 @@ function PrintOperacionalPage() {
         fabric: fabricSigla,
         color: colorSigla,
         size: sizeStr,
-        barcode: exactSku
+        barcode: `${exactSku}|${item.id}|${i + 1}`,
+        unitText: `${i + 1}/${qty}`
       });
     }
   });
@@ -181,6 +182,7 @@ function PrintOperacionalPage() {
               {/* Topo: Pedido e Tamanho Destacado */}
               <div className="flex justify-between items-center text-[8px] font-bold leading-none">
                 <span>Ped: {lbl.orderCode}</span>
+                <span className="text-[7px] text-slate-600 bg-slate-100 px-1 rounded">{lbl.unitText}</span>
                 <span className="bg-black text-white text-[10px] px-1 py-0.5 rounded font-black tracking-wider flex items-center justify-center min-w-[16px] h-[14px] leading-none">
                   {lbl.size}
                 </span>

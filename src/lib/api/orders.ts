@@ -476,6 +476,7 @@ export async function bipSeparationItem(
       gender,
       quantity,
       quantity_separated,
+      scanned_labels,
       products:product_id (
         model_id,
         fabric_id,
@@ -507,12 +508,19 @@ export async function bipSeparationItem(
 
   // Normalizar bipagem
   const cleanBiped = barcodeBipado.trim().toUpperCase();
+  const bipedBase = cleanBiped.split('|')[0]; // Extrai apenas a parte principal do SKU
+  
+  // Validar se a etiqueta específica já foi bipada (se houver sufixo de unidade)
+  const scannedLabels = (item as any).scanned_labels || [];
+  if (scannedLabels.includes(cleanBiped)) {
+    return { success: false, message: `ERRO: Esta etiqueta específica já foi conferida nesta etapa.` };
+  }
 
-  // 2. Validar anti-erro
-  if (cleanBiped !== expectedBarcode) {
+  // 2. Validar anti-erro (compara a base)
+  if (bipedBase !== expectedBarcode) {
     // Tenta identificar o que foi bipado com base na nomenclatura MP-REG-MALHA-COR-TAMANHO
-    const parts = cleanBiped.split('-');
-    let bipedDetails = cleanBiped;
+    const parts = bipedBase.split('-');
+    let bipedDetails = bipedBase;
     if (parts.length >= 5) {
       const bipedFabric = parts[2];
       const bipedColor = parts[3];
@@ -605,9 +613,13 @@ export async function bipSeparationItem(
 
   // Incrementar quantidade separada do item
   const newSeparated = (Number(item.quantity_separated) || 0) + qtyToConsume;
+  const newScannedLabels = [...scannedLabels, cleanBiped];
   await supabase
     .from("order_items")
-    .update({ quantity_separated: newSeparated })
+    .update({ 
+      quantity_separated: newSeparated,
+      scanned_labels: newScannedLabels
+    })
     .eq("id", orderItemId);
 
   // Registrar log de separação
