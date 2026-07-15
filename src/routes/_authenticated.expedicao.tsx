@@ -101,12 +101,19 @@ function Col({ title, subtitle, items, empty, icon, borderClass, bgClass }: { ti
             </div>
 
             {/* Quick Actions (z-10 makes it clickable over the absolute Link) */}
-            <div className="z-10 flex gap-2 mt-2 pt-2 border-t border-slate-100 ml-1 justify-end">
+            <div className="z-10 flex flex-wrap gap-2 mt-2 pt-2 border-t border-slate-100 ml-1 justify-end">
               <Link to="/print/etiqueta/$id" params={{ id: o.id }} target="_blank">
                 <Button size="sm" variant="secondary" className="h-7 text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700">
-                  <Printer className="size-3 mr-1.5" /> Ver Etiqueta PLP
+                  <Printer className="size-3 mr-1.5" /> PLP
                 </Button>
               </Link>
+              {!o.tracking_code && (
+                <Link to="/expedicao/bipagem/$orderId" params={{ orderId: o.id }}>
+                  <Button size="sm" className="h-7 text-[10px] bg-primary text-primary-foreground hover:bg-primary/90">
+                    <PackageCheck className="size-3 mr-1.5" /> Conferência
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         ))}

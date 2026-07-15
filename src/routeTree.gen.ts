@@ -45,6 +45,7 @@ import { Route as AuthenticatedFinanceiroDreRouteImport } from './routes/_authen
 import { Route as AuthenticatedFinanceiroConciliacaoRouteImport } from './routes/_authenticated.financeiro.conciliacao'
 import { Route as AuthenticatedFinanceiroCentroCustosRouteImport } from './routes/_authenticated.financeiro.centro-custos'
 import { Route as AuthenticatedCrmClientIdRouteImport } from './routes/_authenticated.crm.$clientId'
+import { Route as AuthenticatedExpedicaoBipagemOrderIdRouteImport } from './routes/_authenticated.expedicao.bipagem.$orderId'
 
 const RedefinirSenhaRoute = RedefinirSenhaRouteImport.update({
   id: '/redefinir-senha',
@@ -243,6 +244,12 @@ const AuthenticatedCrmClientIdRoute =
     path: '/crm/$clientId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedExpedicaoBipagemOrderIdRoute =
+  AuthenticatedExpedicaoBipagemOrderIdRouteImport.update({
+    id: '/bipagem/$orderId',
+    path: '/bipagem/$orderId',
+    getParentRoute: () => AuthenticatedExpedicaoRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -252,7 +259,7 @@ export interface FileRoutesByFullPath {
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/estoque': typeof AuthenticatedEstoqueRoute
-  '/expedicao': typeof AuthenticatedExpedicaoRoute
+  '/expedicao': typeof AuthenticatedExpedicaoRouteWithChildren
   '/financeiro': typeof AuthenticatedFinanceiroRouteWithChildren
   '/ia': typeof AuthenticatedIaRoute
   '/producao': typeof AuthenticatedProducaoRouteWithChildren
@@ -280,6 +287,7 @@ export interface FileRoutesByFullPath {
   '/pedidos/': typeof AuthenticatedPedidosIndexRoute
   '/produtos/': typeof AuthenticatedProdutosIndexRoute
   '/usuarios/': typeof AuthenticatedUsuariosIndexRoute
+  '/expedicao/bipagem/$orderId': typeof AuthenticatedExpedicaoBipagemOrderIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -289,7 +297,7 @@ export interface FileRoutesByTo {
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/estoque': typeof AuthenticatedEstoqueRoute
-  '/expedicao': typeof AuthenticatedExpedicaoRoute
+  '/expedicao': typeof AuthenticatedExpedicaoRouteWithChildren
   '/ia': typeof AuthenticatedIaRoute
   '/producao': typeof AuthenticatedProducaoRouteWithChildren
   '/relatorios': typeof AuthenticatedRelatoriosRoute
@@ -316,6 +324,7 @@ export interface FileRoutesByTo {
   '/pedidos': typeof AuthenticatedPedidosIndexRoute
   '/produtos': typeof AuthenticatedProdutosIndexRoute
   '/usuarios': typeof AuthenticatedUsuariosIndexRoute
+  '/expedicao/bipagem/$orderId': typeof AuthenticatedExpedicaoBipagemOrderIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -327,7 +336,7 @@ export interface FileRoutesById {
   '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/estoque': typeof AuthenticatedEstoqueRoute
-  '/_authenticated/expedicao': typeof AuthenticatedExpedicaoRoute
+  '/_authenticated/expedicao': typeof AuthenticatedExpedicaoRouteWithChildren
   '/_authenticated/financeiro': typeof AuthenticatedFinanceiroRouteWithChildren
   '/_authenticated/ia': typeof AuthenticatedIaRoute
   '/_authenticated/producao': typeof AuthenticatedProducaoRouteWithChildren
@@ -355,6 +364,7 @@ export interface FileRoutesById {
   '/_authenticated/pedidos/': typeof AuthenticatedPedidosIndexRoute
   '/_authenticated/produtos/': typeof AuthenticatedProdutosIndexRoute
   '/_authenticated/usuarios/': typeof AuthenticatedUsuariosIndexRoute
+  '/_authenticated/expedicao/bipagem/$orderId': typeof AuthenticatedExpedicaoBipagemOrderIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -394,6 +404,7 @@ export interface FileRouteTypes {
     | '/pedidos/'
     | '/produtos/'
     | '/usuarios/'
+    | '/expedicao/bipagem/$orderId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -430,6 +441,7 @@ export interface FileRouteTypes {
     | '/pedidos'
     | '/produtos'
     | '/usuarios'
+    | '/expedicao/bipagem/$orderId'
   id:
     | '__root__'
     | '/'
@@ -468,6 +480,7 @@ export interface FileRouteTypes {
     | '/_authenticated/pedidos/'
     | '/_authenticated/produtos/'
     | '/_authenticated/usuarios/'
+    | '/_authenticated/expedicao/bipagem/$orderId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -735,8 +748,30 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCrmClientIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/expedicao/bipagem/$orderId': {
+      id: '/_authenticated/expedicao/bipagem/$orderId'
+      path: '/bipagem/$orderId'
+      fullPath: '/expedicao/bipagem/$orderId'
+      preLoaderRoute: typeof AuthenticatedExpedicaoBipagemOrderIdRouteImport
+      parentRoute: typeof AuthenticatedExpedicaoRoute
+    }
   }
 }
+
+interface AuthenticatedExpedicaoRouteChildren {
+  AuthenticatedExpedicaoBipagemOrderIdRoute: typeof AuthenticatedExpedicaoBipagemOrderIdRoute
+}
+
+const AuthenticatedExpedicaoRouteChildren: AuthenticatedExpedicaoRouteChildren =
+  {
+    AuthenticatedExpedicaoBipagemOrderIdRoute:
+      AuthenticatedExpedicaoBipagemOrderIdRoute,
+  }
+
+const AuthenticatedExpedicaoRouteWithChildren =
+  AuthenticatedExpedicaoRoute._addFileChildren(
+    AuthenticatedExpedicaoRouteChildren,
+  )
 
 interface AuthenticatedFinanceiroRouteChildren {
   AuthenticatedFinanceiroCentroCustosRoute: typeof AuthenticatedFinanceiroCentroCustosRoute
@@ -787,7 +822,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedEstoqueRoute: typeof AuthenticatedEstoqueRoute
-  AuthenticatedExpedicaoRoute: typeof AuthenticatedExpedicaoRoute
+  AuthenticatedExpedicaoRoute: typeof AuthenticatedExpedicaoRouteWithChildren
   AuthenticatedFinanceiroRoute: typeof AuthenticatedFinanceiroRouteWithChildren
   AuthenticatedIaRoute: typeof AuthenticatedIaRoute
   AuthenticatedProducaoRoute: typeof AuthenticatedProducaoRouteWithChildren
@@ -809,7 +844,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedEstoqueRoute: AuthenticatedEstoqueRoute,
-  AuthenticatedExpedicaoRoute: AuthenticatedExpedicaoRoute,
+  AuthenticatedExpedicaoRoute: AuthenticatedExpedicaoRouteWithChildren,
   AuthenticatedFinanceiroRoute: AuthenticatedFinanceiroRouteWithChildren,
   AuthenticatedIaRoute: AuthenticatedIaRoute,
   AuthenticatedProducaoRoute: AuthenticatedProducaoRouteWithChildren,

@@ -25,6 +25,20 @@ function PrintPage() {
     };
   }, []);
 
+  // Update document title so that PDF export proposes a nice filename
+  useEffect(() => {
+    if (order) {
+      const originalTitle = document.title;
+      const type = order.status === "orcamento" ? "Orcamento" : "Pedido";
+      const dateStr = new Date(order.created_at || Date.now()).toISOString().split("T")[0];
+      document.title = `${type}_${order.code}_${dateStr}`;
+      
+      return () => {
+        document.title = originalTitle;
+      };
+    }
+  }, [order]);
+
   if (isLoading) {
     return <div className="flex h-screen items-center justify-center"><Loader2 className="size-8 animate-spin text-primary" /></div>;
   }

@@ -642,6 +642,86 @@ export async function bipSeparationItem(
   return { success: true, message: "🟢 MP VALIDADO" };
 }
 
+export async function bipExpeditionItem(
+  orderId: string,
+  orderItemId: string,
+  barcodeBipado: string,
+  operatorId?: string
+): Promise<BipSeparationResult> {
+  // 1. Obter o item do pedido para validar
+  const { data: item, error: itemError } = await supabase
+    .from("order_items")
+    .select(`
+      id,
+      product_name,
+      sku,
+      size,
+      quantity,
+      quantity_dispatched,
+      products (
+        model_id,
+        fabric_id,
+        color_id,
+        models (name),
+        fabrics (name, code),
+        canonical_colors (name, code)
+      )
+    `)
+    .eq("id", orderItemId)
+    .single();
+
+  if (itemError || !item) {
+    return { success: false, message: "Item do pedido não encontrado." };
+  }
+
+  const prod = item.products as any;
+  const expectedModel = prod?.models?.name || "";
+  const expectedFabric = prod?.fabrics?.name || "";
+  const expectedColor = prod?.canonical_colors?.name || "";
+  const expectedSize = item.size || "";
+
+  // O barcode esperado na Expedição é o próprio SKU do produto ou a regra ART-REG-MALHA-COR-TAMANHO
+  const artCode = (item.sku?.split('-')[0] || "ART").toUpperCase();
+  const fabricCode = (prod?.fabrics?.code || "GEN").toUpperCase();
+  const colorCode = (prod?.canonical_colors?.code || "GEN").toUpperCase();
+  const sizeCode = expectedSize.toUpperCase();
+  const expectedBarcode = `${artCode}-REG-${fabricCode}-${colorCode}-${sizeCode}`;
+  
+  const cleanBiped = barcodeBipado.trim().toUpperCase();
+
+  // Validar anti-erro (aceita tanto o SKU padrão do produto quanto o código de peças padrão)
+  if (cleanBiped !== expectedBarcode && cleanBiped !== item.sku?.toUpperCase()) {
+    return {
+      success: false,
+      message: "🔴 PRODUTO INCORRETO",
+      expected: {
+        model: expectedModel,
+        fabric: expectedFabric,
+        color: expectedColor,
+        size: expectedSize,
+        barcode: expectedBarcode
+      },
+      biped: {
+        details: "Produto ou Variante diferente do esperado",
+        barcode: cleanBiped
+      }
+    };
+  }
+
+  // Chamar RPC para atualizar
+  const { error: rpcError } = await supabase.rpc("bip_expedition_item", {
+    p_order_id: orderId,
+    p_order_item_id: orderItemId,
+    p_operator_id: operatorId || null
+  });
+
+  if (rpcError) {
+    return { success: false, message: rpcError.message || "Erro ao registrar conferência." };
+  }
+
+  return { success: true, message: "🟢 PRODUTO CONFERIDO" };
+}
+
 
 export function useOrders(search?: string) {
   return useQuery({
