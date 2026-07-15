@@ -76,7 +76,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
         isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
       )}>
         <div className="h-14 px-5 flex items-center justify-between hairline-b">
-          <img src="/logo.png" alt="e-roupas logo" style={{ width: '169px', height: '35px' }} className="object-contain" />
+          <img src="/logo.png" alt="e-roupas logo" style={{ width: '169px', height: '35px' }} className="object-contain dark:brightness-0 dark:invert" />
           <button onClick={onClose} className="md:hidden text-muted-foreground p-1 hover:text-foreground">
             <X className="size-5" />
           </button>

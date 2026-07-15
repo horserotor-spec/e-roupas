@@ -41,7 +41,7 @@ function LoginPage() {
       <div className="flex flex-col justify-center px-8 sm:px-16 py-12">
         <div className="mx-auto w-full max-w-sm">
           <div className="flex flex-col items-center justify-center space-y-2 mb-8">
-            <img src="/logo.png" alt="e-roupas logo" style={{ width: '169px', height: '35px' }} className="object-contain" />
+            <img src="/logo.png" alt="e-roupas logo" style={{ width: '169px', height: '35px' }} className="object-contain dark:brightness-0 dark:invert" />
             <div className="text-[11px] text-muted-foreground">Operating system têxtil</div>
           </div>
 
