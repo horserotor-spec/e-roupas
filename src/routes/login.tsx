@@ -40,8 +40,8 @@ function LoginPage() {
     <div className="min-h-screen grid lg:grid-cols-2 bg-background">
       <div className="flex flex-col justify-center px-8 sm:px-16 py-12">
         <div className="mx-auto w-full max-w-sm">
-          <div className="flex flex-col gap-2 mb-12">
-            <img src="/logo.png" alt="e-roupas logo" style={{ width: '169px', height: '35px' }} className="object-contain dark:invert" />
+          <div className="flex flex-col items-center justify-center space-y-2 mb-8">
+            <img src="/logo.png" alt="e-roupas logo" style={{ width: '169px', height: '35px' }} className="object-contain" />
             <div className="text-[11px] text-muted-foreground">Operating system têxtil</div>
           </div>
 
