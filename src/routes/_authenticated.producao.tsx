@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useOrders, Order } from "@/lib/api/orders";
 import { Loader2, ArrowRight, Clock, Box, ShieldAlert, AlertTriangle, User, Search, Filter, Barcode, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,7 @@ function ProducaoPage() {
   const { data: orders = [], isLoading } = useOrders();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const navigate = useNavigate();
   
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
