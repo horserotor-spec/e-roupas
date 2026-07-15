@@ -256,7 +256,10 @@ function ProducaoPage() {
                         {order.status === "separacao" && (
                           <div className="flex gap-2 mt-1 mb-2.5 w-full">
                             <button 
+                              onPointerDown={(e) => e.stopPropagation()}
+                              onMouseDown={(e) => e.stopPropagation()}
                               onClick={(e) => {
+                                e.preventDefault();
                                 e.stopPropagation();
                                 window.open(`/print/etiqueta/${order.id}`, '_blank');
                               }}
@@ -265,7 +268,10 @@ function ProducaoPage() {
                               <Printer className="size-3.5" /> Imprimir Etqs.
                             </button>
                             <button 
+                              onPointerDown={(e) => e.stopPropagation()}
+                              onMouseDown={(e) => e.stopPropagation()}
                               onClick={(e) => {
+                                e.preventDefault();
                                 e.stopPropagation();
                                 navigate({ to: "/producao/separacao", search: { orderId: order.id } });
                               }}
