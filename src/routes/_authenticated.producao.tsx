@@ -261,7 +261,7 @@ function ProducaoPage() {
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                window.open(`/print/etiqueta/${order.id}`, '_blank');
+                                window.open(`/print/operacional?orderId=${order.id}`, '_blank');
                               }}
                               className="flex-1 h-7 rounded bg-slate-800 hover:bg-slate-900 text-[10px] font-bold text-white flex items-center justify-center gap-1 uppercase transition-colors"
                             >
