@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Html5Qrcode } from "html5-qrcode";
+import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
 
 export const Route = createFileRoute("/_authenticated/separacao")({
   validateSearch: (search: Record<string, unknown>) => {
@@ -35,7 +35,17 @@ function SeparationPage() {
   // Estados do Scanner por Câmera
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
+
+  const handleCameraScan = async (scannedCode: string) => {
+    setCameraOpen(false);
+    await processBip(scannedCode);
+  };
+
+  const { videoRef, error: scannerError } = useBarcodeScanner(handleCameraScan, cameraOpen);
+
+  useEffect(() => {
+    if (scannerError) setCameraError(scannerError);
+  }, [scannerError]);
 
   // Busca dados detalhados do pedido
   const { data: order, isLoading } = useQuery({
@@ -96,53 +106,6 @@ function SeparationPage() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [cameraOpen]);
-
-  // Instanciar e controlar a Câmera quando o modal abrir
-  useEffect(() => {
-    if (cameraOpen) {
-      setCameraError(null);
-      const timer = setTimeout(() => {
-        const html5QrCode = new Html5Qrcode("camera-scanner-view");
-        html5QrCodeRef.current = html5QrCode;
-        
-        html5QrCode.start(
-          { facingMode: "environment" },
-          {
-            fps: 10,
-            qrbox: (width, height) => {
-              return { width: Math.min(width * 0.85, 280), height: 100 };
-            }
-          },
-          (decodedText) => {
-            handleCameraScan(decodedText);
-          },
-          () => {
-            // Callback silencioso para falha de detecção contínua
-          }
-        ).catch(err => {
-          console.error("Erro ao iniciar câmera:", err);
-          setCameraError("Acesso à câmera negado ou não disponível.");
-        });
-      }, 300);
-
-      return () => {
-        clearTimeout(timer);
-        if (html5QrCodeRef.current) {
-          if (html5QrCodeRef.current.isScanning) {
-            html5QrCodeRef.current.stop().catch(err => console.error("Erro ao fechar scanner:", err));
-          }
-        }
-      };
-    }
-  }, [cameraOpen, activeItemIndex]);
-
-  const handleCameraScan = async (scannedCode: string) => {
-    if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
-      await html5QrCodeRef.current.stop().catch(err => console.error(err));
-    }
-    setCameraOpen(false);
-    await processBip(scannedCode);
-  };
 
   // Manter foco ao clicar em qualquer lugar da tela
   const handleScreenClick = () => {
@@ -516,7 +479,7 @@ function SeparationPage() {
               </div>
             ) : (
               <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black border border-slate-800">
-                <div id="camera-scanner-view" className="w-full h-full" />
+                <video ref={videoRef} className="w-full h-full object-cover" muted playsInline />
                 <div className="absolute inset-x-0 top-1/2 h-0.5 bg-red-500/80 animate-pulse shadow-md shadow-red-500/50 pointer-events-none" />
               </div>
             )}

@@ -3,7 +3,7 @@ import { useOrder } from "@/lib/api/orders";
 import { Loader2, Printer, Grid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
-import Barcode from "react-barcode";
+import { BWIPJS } from "@/components/ui/bwipjs";
 
 export const Route = createFileRoute("/print/operacional")({
   validateSearch: (search: Record<string, unknown>) => {
@@ -65,7 +65,8 @@ function PrintOperacionalPage() {
       const sizeStr = (item.size || "G").toUpperCase();
       const artCode = (item.sku?.split('-')[0] || "ART").toUpperCase();
       
-      const shortId = item.id.split('-')[0].toUpperCase();
+      const shortId = item.id.substring(0, 4).toUpperCase();
+      const pieceStr = String(i + 1).padStart(3, '0');
 
       labelsToPrint.push({
         orderCode: order.code,
@@ -74,7 +75,7 @@ function PrintOperacionalPage() {
         fabric: fabricSigla,
         color: colorSigla,
         size: sizeStr,
-        barcode: `${shortId}.${i + 1}`,
+        barcode: `ER${order.code}-${shortId}-${pieceStr}`,
         unitText: `${i + 1}/${qty}`
       });
     }
@@ -194,15 +195,13 @@ function PrintOperacionalPage() {
               </div>
 
               {/* Barcode Principal Legível pela Pistola (ID Curto) */}
-                <div className="w-full flex justify-center overflow-hidden py-1">
-                  <Barcode 
-                    value={lbl.barcode} 
-                    width={1.4}
-                    height={35}
-                    fontSize={10}
-                    displayValue={false}
-                    margin={0}
-                    background="transparent"
+                <div className="w-full flex justify-center py-1">
+                  <BWIPJS 
+                    bcid="code128"
+                    text={lbl.barcode}
+                    scale={2}
+                    height={10}
+                    includetext={false}
                   />
                 </div>
             </div>
