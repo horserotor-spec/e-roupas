@@ -203,6 +203,7 @@ function PrintOperacionalPage() {
                   scale={2}
                   height={10}
                   includetext={false}
+                  className="w-full h-[14px]"
                 />
               </div>
             </div>

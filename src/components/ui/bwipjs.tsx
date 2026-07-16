@@ -30,9 +30,9 @@ export const BWIPJS: React.FC<BWIPJSProps> = ({
       let finalSvg = rawSvg;
       const viewBoxMatch = rawSvg.match(/viewBox="0 0 (\d+(?:\.\d+)?) (\d+(?:\.\d+)?)"/);
       if (viewBoxMatch) {
-        finalSvg = rawSvg.replace('<svg ', `<svg width="${viewBoxMatch[1]}" height="${viewBoxMatch[2]}" shape-rendering="crispEdges" `);
+        finalSvg = rawSvg.replace('<svg ', `<svg width="100%" height="100%" preserveAspectRatio="xMidYMid meet" shape-rendering="crispEdges" `);
       } else {
-        finalSvg = rawSvg.replace('<svg ', '<svg shape-rendering="crispEdges" ');
+        finalSvg = rawSvg.replace('<svg ', '<svg width="100%" height="100%" shape-rendering="crispEdges" ');
       }
       return finalSvg;
     } catch (e) {
