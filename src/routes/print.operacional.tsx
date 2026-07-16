@@ -95,7 +95,7 @@ function PrintOperacionalPage() {
       const pieceNum = i + 1;
       const numericBarcode = buildNumericBarcode(order.code, item.id, pieceNum);
       const humanReadable  = buildHumanReadable(order.code, item.id, pieceNum);
-      const visualLine2    = `${artCode}-${fabricCode}-${modelCode}-${colorCode}-${sizeStr}-${brandCode}.${String(pieceNum).padStart(3, "0")}`;
+      const visualLine2    = `${artCode}-${modelCode}-${fabricCode}-${colorCode}-${sizeStr}-${brandCode}.${String(pieceNum).padStart(3, "0")}`;
 
       labelsToPrint.push({
         orderCode: order.code,
