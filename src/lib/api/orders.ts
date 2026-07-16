@@ -539,19 +539,81 @@ export async function bipSeparationItem(
   const lastDotIndex = cleanBiped.lastIndexOf('.');
   const bipedBase = lastDotIndex !== -1 ? cleanBiped.substring(0, lastDotIndex) : cleanBiped;
 
-  // Verificar se é o novo formato numérico Code 128C (18 dígitos)
-  const { data: orderData2 } = await supabase.from("orders").select("code").eq("id", orderId).single();
-  const orderCodeForBip = orderData2?.code || "";
-  const isNumericMatch = numericBarcodeMatchesItem(cleanBiped, orderCodeForBip, item.id);
+  // ── NOVO FORMATO: código numérico de 12 dígitos (Code 128C) ─────────────
+  // Decodifica o item REAL pelo hash embutido no barcode e faz o bip diretamente,
+  // sem depender do item selecionado na tela de separação.
+  if (/^\d{12}$/.test(cleanBiped)) {
+    const bipOrderSeq = cleanBiped.substring(0, 4);
+    const bipItemDec  = cleanBiped.substring(4, 9);
+    const bipItemHex  = parseInt(bipItemDec, 10).toString(16).toUpperCase().padStart(4, '0');
 
-  // Validar se a etiqueta específica já foi bipada (se houver sufixo de unidade)
+    const { data: orderData2 } = await supabase.from("orders").select("code").eq("id", orderId).single();
+    const orderCodeForBip = orderData2?.code || "";
+    const orderSeq = orderCodeForBip.replace(/\D/g, '').slice(-4).padStart(4, '0');
+
+    // Barcode de outro pedido?
+    if (bipOrderSeq !== orderSeq) {
+      return {
+        success: false,
+        message: "🔴 CÓDIGO DE OUTRO PEDIDO",
+        biped: { details: `Código pertence ao pedido seq. ${bipOrderSeq}`, barcode: cleanBiped }
+      };
+    }
+
+    // Localizar o item correto pelo hash do UUID
+    const { data: allItems } = await supabase
+      .from("order_items")
+      .select("id, product_name, size, quantity, quantity_separated, scanned_labels")
+      .eq("order_id", orderId);
+
+    const targetItem = allItems?.find(i => i.id.substring(0, 4).toUpperCase() === bipItemHex);
+
+    if (!targetItem) {
+      return {
+        success: false,
+        message: "🔴 ETIQUETA NÃO RECONHECIDA",
+        biped: { details: `Item ${bipItemHex} não encontrado neste pedido`, barcode: cleanBiped }
+      };
+    }
+
+    // Duplicidade?
+    const tScanned = (targetItem.scanned_labels as string[] || []);
+    if (tScanned.includes(cleanBiped)) {
+      return { success: false, message: "ERRO: Esta etiqueta já foi bipada anteriormente." };
+    }
+
+    // Item já completo?
+    if ((Number(targetItem.quantity_separated) || 0) >= Number(targetItem.quantity)) {
+      return { success: false, message: `🔴 ITEM JÁ COMPLETO: ${targetItem.product_name} (${targetItem.size}) já tem todas as peças separadas.` };
+    }
+
+    // Registrar separação
+    const newSep = (Number(targetItem.quantity_separated) || 0) + 1;
+    await supabase.from("order_items")
+      .update({ quantity_separated: newSep, scanned_labels: [...tScanned, cleanBiped] })
+      .eq("id", targetItem.id);
+
+    await supabase.from("separation_logs").insert([{
+      order_id: orderId,
+      order_item_id: targetItem.id,
+      barcode: cleanBiped,
+      quantity: 1,
+      operator_id: operatorId || null
+    }]);
+
+    return {
+      success: true,
+      message: `🟢 MP VALIDADO — ${targetItem.product_name} (${targetItem.size}) · Peça ${newSep}/${targetItem.quantity}`
+    };
+  }
+
+  // ── FLUXO LEGADO: formatos antigos de barcode (não-numérico) ────────────
   const scannedLabels = (item as any).scanned_labels || [];
   if (scannedLabels.includes(cleanBiped)) {
     return { success: false, message: `ERRO: Esta etiqueta específica já foi conferida nesta etapa.` };
   }
 
-  // 2. Validar anti-erro (aceita: novo numérico, formato antigo, SKU)
-  if (!isNumericMatch && bipedBase !== expectedBarcodeNew && bipedBase !== expectedBarcodeOld && bipedBase !== item.sku?.toUpperCase()) {
+  if (bipedBase !== expectedBarcodeNew && bipedBase !== expectedBarcodeOld && bipedBase !== item.sku?.toUpperCase()) {
     // Tenta identificar o que foi bipado com base na nomenclatura MP-REG-MALHA-COR-TAMANHO
     const parts = bipedBase.split('-');
     let bipedDetails = bipedBase;
