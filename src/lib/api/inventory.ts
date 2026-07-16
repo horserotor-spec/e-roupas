@@ -679,30 +679,7 @@ export function useAdjustInventoryBatch() {
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData?.user?.id;
 
-      // 1. Fetch current batch quantities
-      const { data: currentBatch, error: cbErr } = await supabase
-        .from("inventory_batches")
-        .select("quantity_available, quantity_total")
-        .eq("id", payload.batch_id)
-        .single();
-      
-      if (cbErr) throw cbErr;
-
-      const newAvailable = Number(currentBatch.quantity_available) + Number(payload.adjustment);
-      const newTotal = Number(currentBatch.quantity_total) + Number(payload.adjustment);
-
-      // 2. Update the batch directly (since there's no DB trigger)
-      const { error: updErr } = await supabase
-        .from("inventory_batches")
-        .update({
-          quantity_available: newAvailable,
-          quantity_total: newTotal
-        })
-        .eq("id", payload.batch_id);
-
-      if (updErr) throw updErr;
-
-      // 3. Record movement
+      // 1. Record movement (Trigger no DB atualizará o inventory_batches)
       const { data: movData, error: movErr } = await supabase
         .from("inventory_movements")
         .insert([{
