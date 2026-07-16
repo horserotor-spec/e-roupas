@@ -27,7 +27,7 @@ export const BWIPJS: React.FC<BWIPJSProps> = ({
         height,
         includetext
       });
-      return rawSvg.replace('<svg ', '<svg width="100%" height="100%" preserveAspectRatio="xMidYMid meet" shape-rendering="crispEdges" ');
+      return rawSvg.replace('<svg ', '<svg shape-rendering="crispEdges" ');
     } catch (e) {
       console.error("Erro ao gerar barcode BWIP-JS:", e);
       return '';
@@ -38,7 +38,7 @@ export const BWIPJS: React.FC<BWIPJSProps> = ({
 
   return (
     <div 
-      className={`flex justify-center items-center overflow-hidden [&>svg]:w-full [&>svg]:h-full [&>svg]:max-w-full [&>svg]:max-h-full ${className || ''}`}
+      className={`flex justify-center items-center overflow-hidden ${className || ''}`}
       dangerouslySetInnerHTML={{ __html: svgString }} 
     />
   );

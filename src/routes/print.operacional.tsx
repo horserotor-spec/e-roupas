@@ -195,16 +195,16 @@ function PrintOperacionalPage() {
               </div>
 
               {/* Barcode Principal Legível pela Pistola (ID Curto) */}
-                <div className="w-full h-[35px] flex justify-center py-0.5 px-4 bg-white">
-                  <BWIPJS 
-                    bcid="code128"
-                    text={lbl.barcode}
-                    scale={2}
-                    height={10}
-                    includetext={false}
-                    className="h-full w-full object-contain"
-                  />
-                </div>
+              <div className="flex flex-col items-center justify-center pt-0.5 bg-white">
+                <span className="text-[6px] font-bold font-mono tracking-widest">{lbl.barcode}</span>
+                <BWIPJS 
+                  bcid="code128"
+                  text={lbl.barcode}
+                  scale={2}
+                  height={10}
+                  includetext={false}
+                />
+              </div>
             </div>
           );
         })}
