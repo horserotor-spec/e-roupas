@@ -29,7 +29,7 @@ const KANBAN_STAGES: { id: OrderStatus; label: string; tone: string }[] = [
   { id: "bordado", label: "Bordado", tone: "bg-slate-100 text-slate-700 border-slate-200" },
   { id: "impressao", label: "Impressão", tone: "bg-slate-100 text-slate-700 border-slate-200" },
   { id: "prensa", label: "Prensa", tone: "bg-slate-100 text-slate-700 border-slate-200" },
-  { id: "qualidade", label: "Qualidade", tone: "bg-pink-50 text-pink-700 border-pink-200" },
+  { id: "qualidade", label: "MANUSEIO/QUALIDADE", tone: "bg-pink-50 text-pink-700 border-pink-200" },
   { id: "expedicao", label: "Expedição", tone: "bg-green-50 text-green-700 border-green-200" },
 ];
 
@@ -117,10 +117,17 @@ function ProducaoPage() {
 
     const order = orders.find(o => o.id === orderId);
     const hasBipedItems = order?.items?.some(item => (item.quantity_separated || 0) > 0);
+    const hasBipedQualityItems = order?.items?.some(item => (item.quantity_dispatched || 0) > 0);
 
     // REGRA DE OURO DA SPRINT 2.10: Não permite bypass/avançar de Separação se já começou a bipar
     if (currentStatus === "separacao" && hasBipedItems && !allowUrgentMove) {
       toast.error("Separação iniciada! Complete a separação física via scanner no 'Modo Separação'.");
+      return;
+    }
+
+    // Regra similar para Qualidade: se já começou a bipar na qualidade, não permite mover soltando o card
+    if (currentStatus === "qualidade" && hasBipedQualityItems && !allowUrgentMove) {
+      toast.error("Conferência iniciada! Complete a bipagem via scanner para avançar o pedido.");
       return;
     }
 
@@ -305,6 +312,28 @@ function ProducaoPage() {
                           >
                             ✔ Aplicar Prensa (Visual)
                           </button>
+                        )}
+
+                        {order.status === "qualidade" && (
+                          <div className="flex flex-col gap-1 mt-1 mb-2.5">
+                            <button 
+                              onMouseUp={(e) => {
+                                e.stopPropagation();
+                                navigate({ to: "/bipagem/$orderId", params: { orderId: order.id } });
+                              }}
+                              onTouchEnd={(e) => {
+                                e.stopPropagation();
+                                navigate({ to: "/bipagem/$orderId", params: { orderId: order.id } });
+                              }}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                              }}
+                              className="w-full h-7 rounded bg-pink-600 hover:bg-pink-700 text-[10px] font-bold text-white flex items-center justify-center gap-1 uppercase transition-colors relative z-50 cursor-pointer"
+                            >
+                              <Barcode className="size-3.5 pointer-events-none" /> <span className="pointer-events-none">Bipar (Qualidade)</span>
+                            </button>
+                          </div>
                         )}
 
                         <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">

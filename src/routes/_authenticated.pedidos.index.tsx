@@ -32,7 +32,7 @@ const secondaryFilters: { key: OrderStatus; label: string }[] = [
   { key: "bordado", label: "Bordado" },
   { key: "impressao", label: "Impressão" },
   { key: "prensa", label: "Prensa" },
-  { key: "qualidade", label: "Qualidade" },
+  { key: "qualidade", label: "MANUSEIO/QUALIDADE" },
   { key: "expedicao", label: "Expedição" },
   { key: "entregue", label: "Entregue" },
 ];

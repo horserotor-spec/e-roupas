@@ -220,7 +220,7 @@ function ExpeditionScanPage() {
           </Link>
           <div>
             <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-              Conferência Expedição <Badge variant="secondary" className="bg-blue-600 text-white border-blue-500">Checkout</Badge>
+              Manuseio/Qualidade <Badge variant="secondary" className="bg-pink-600 text-white border-pink-500">Checkout</Badge>
             </h1>
             <p className="text-xs text-slate-400 font-mono mt-0.5">
               Pedido: <span className="text-slate-200 font-bold">{order.code}</span> · Cliente: <span className="text-slate-200 font-bold">{order.clients?.name}</span>
