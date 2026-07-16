@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { bipSeparationItem, BipSeparationResult } from "@/lib/api/orders";
-import { ArrowLeft, Barcode, CheckCircle2, AlertOctagon, Loader2, Sparkles, Printer, UserCheck, Camera, X } from "lucide-react";
+import { ArrowLeft, Barcode, CheckCircle2, AlertOctagon, Loader2, Sparkles, Printer, UserCheck, Camera, X, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
