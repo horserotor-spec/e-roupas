@@ -1,7 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useOrder } from "@/lib/api/orders";
-import { Loader2, Printer, Grid } from "lucide-react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useOrder, useOrders } from "@/lib/api/orders";
+import { Loader2, Printer, Grid, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
 import { BWIPJS } from "@/components/ui/bwipjs";
 
@@ -47,9 +48,14 @@ function buildHumanReadable(orderCode: string, itemId: string, pieceNum: number)
 
 function PrintOperacionalPage() {
   const params = Route.useSearch() as { orderId?: string };
-  const orderId = params.orderId || "";
-  const { data: order, isLoading, error } = useOrder(orderId);
+  const navigate = useNavigate();
+  const [searchInput, setSearchInput] = useState("");
+  const [activeOrderId, setActiveOrderId] = useState(params.orderId || "");
   const [startPosition, setStartPosition] = useState<number>(0);
+
+  const { data: order, isLoading } = useOrder(activeOrderId);
+  // Busca pelo código do pedido (ex: "ER-260715-0001")
+  const { data: searchResults } = useOrders(searchInput.length >= 3 ? searchInput : undefined);
 
   useEffect(() => {
     const html = document.documentElement;
@@ -58,18 +64,50 @@ function PrintOperacionalPage() {
     return () => { if (isDark) html.classList.add("dark"); };
   }, []);
 
+  // Painel de busca de pedido (sempre visível no topo da toolbar)
+  const OrderSelector = (
+    <div className="mb-5 pb-5 border-b border-slate-100">
+      <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Número do Pedido</label>
+      <div className="relative flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+          <Input
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+            placeholder="Digite o código do pedido (ex: ER-260715-0001)"
+            className="pl-9 h-9 text-sm"
+          />
+          {/* Dropdown de resultados */}
+          {searchResults && searchResults.length > 0 && searchInput.length >= 3 && (
+            <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+              {searchResults.map((o: any) => (
+                <button
+                  key={o.id}
+                  onClick={() => {
+                    setActiveOrderId(o.id);
+                    setSearchInput(o.code);
+                    setStartPosition(0);
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 border-b border-slate-100 last:border-0"
+                >
+                  <span className="font-bold text-slate-800">{o.code}</span>
+                  <span className="text-slate-500 ml-2 text-xs">{o.client_name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        {order && (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs font-semibold text-emerald-700 whitespace-nowrap">
+            ✓ {order.code} — {order.items?.length || 0} item(s)
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   if (isLoading) {
     return <div className="flex h-screen items-center justify-center"><Loader2 className="size-8 animate-spin text-primary" /></div>;
-  }
-
-  if (!order) {
-    return (
-      <div className="flex flex-col h-screen items-center justify-center text-slate-500 font-medium">
-        <p>Pedido não encontrado.</p>
-        <p className="text-sm mt-2">ID recebido: {orderId || "NENHUM"}</p>
-        {error && <p className="text-xs text-red-500 mt-2">Erro interno: {(error as any).message || String(error)}</p>}
-      </div>
-    );
   }
 
   const totalLabelsOnSheet = 65;
@@ -116,11 +154,15 @@ function PrintOperacionalPage() {
     <div className="min-h-screen print:min-h-0 print:h-auto print:block bg-slate-100 py-10 print:py-0 print:bg-white flex flex-col items-center">
       {/* TOOLBAR */}
       <div className="w-[210mm] bg-white border border-slate-200 shadow-sm rounded-xl p-6 mb-6 print:hidden">
-        <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-2">
-          <Grid className="size-5 text-primary" /> Configuração de Impressão de Etiquetas
+        <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
+          <Grid className="size-5 text-primary" /> Impressão de Etiquetas Operacionais
         </h2>
-        <p className="text-xs text-muted-foreground mb-4">
-          Layout: <strong>38,1x21,2mm em Folha A4 (5 Colunas x 13 Linhas)</strong>. Clique na posição inicial:
+
+        {/* SELETOR DE PEDIDO */}
+        {OrderSelector}
+
+        <p className="text-xs text-muted-foreground mb-3">
+          Layout: <strong>38,1x21,2mm (5 Colunas x 13 Linhas)</strong>. Clique na posição inicial:
         </p>
 
         <div className="grid grid-cols-5 gap-1 border border-slate-200 p-2 rounded-lg bg-slate-50 w-full max-w-[400px] mx-auto mb-6">

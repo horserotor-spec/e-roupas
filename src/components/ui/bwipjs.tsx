@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useEffect, useRef } from 'react';
 import bwipjs from 'bwip-js';
 
 export interface BWIPJSProps {
@@ -10,43 +10,57 @@ export interface BWIPJSProps {
   className?: string;
 }
 
-export const BWIPJS: React.FC<BWIPJSProps> = ({ 
-  bcid, 
-  text, 
-  scale = 3, 
-  height = 12, 
-  includetext = false, 
-  className 
+/**
+ * Componente de código de barras baseado em CANVAS (não SVG).
+ *
+ * Por que Canvas e não SVG?
+ * Impressoras HP LaserJet (e a maioria das laser/jato de tinta) recebem do
+ * navegador um bitmap rasterizado a 96 DPI. SVG com barras finas some nesse
+ * processo. Canvas já é um bitmap — o que o bwip-js desenhar é exatamente o
+ * que sai no papel.
+ *
+ * A estratégia de alta resolução:
+ * - Renderizamos o canvas internamente em scale ALTO (ex: scale=6)
+ * - O CSS encolhe o canvas para caber na etiqueta (width: 100%)
+ * - O navegador envia para a impressora o canvas em sua resolução NATIVA (alta)
+ * - A impressora recebe um bitmap nítido e imprime barras perfeitamente definidas
+ */
+export const BWIPJS: React.FC<BWIPJSProps> = ({
+  bcid,
+  text,
+  scale = 4,
+  height = 12,
+  includetext = false,
+  className,
 }) => {
-  const svgString = useMemo(() => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    if (!canvasRef.current || !text) return;
     try {
-      const rawSvg = bwipjs.toSVG({
+      bwipjs.toCanvas(canvasRef.current, {
         bcid,
         text,
         scale,
         height,
-        includetext
+        includetext,
+        backgroundcolor: 'ffffff',
       });
-      let finalSvg = rawSvg;
-      const viewBoxMatch = rawSvg.match(/viewBox="0 0 (\d+(?:\.\d+)?) (\d+(?:\.\d+)?)"/);
-      if (viewBoxMatch) {
-        finalSvg = rawSvg.replace('<svg ', `<svg width="100%" height="100%" preserveAspectRatio="xMidYMid meet" shape-rendering="crispEdges" `);
-      } else {
-        finalSvg = rawSvg.replace('<svg ', '<svg width="100%" height="100%" shape-rendering="crispEdges" ');
-      }
-      return finalSvg;
     } catch (e) {
-      console.error("Erro ao gerar barcode BWIP-JS:", e);
-      return '';
+      console.error('BWIPJS Canvas Error:', e);
     }
   }, [bcid, text, scale, height, includetext]);
 
-  if (!svgString) return null;
-
   return (
-    <div 
-      className={`flex justify-center items-center overflow-hidden ${className || ''}`}
-      dangerouslySetInnerHTML={{ __html: svgString }} 
+    <canvas
+      ref={canvasRef}
+      className={className}
+      style={{
+        display: 'block',
+        width: '100%',
+        height: 'auto',
+        imageRendering: 'pixelated',
+      }}
     />
   );
 };
