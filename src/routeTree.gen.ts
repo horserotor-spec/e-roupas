@@ -17,6 +17,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as PrintOperacionalRouteImport } from './routes/print.operacional'
 import { Route as PrintIdRouteImport } from './routes/print.$id'
 import { Route as AuthenticatedSeparacaoRouteImport } from './routes/_authenticated.separacao'
+import { Route as AuthenticatedResetRouteImport } from './routes/_authenticated.reset'
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated.relatorios'
 import { Route as AuthenticatedProducaoRouteImport } from './routes/_authenticated.producao'
 import { Route as AuthenticatedIaRouteImport } from './routes/_authenticated.ia'
@@ -84,6 +85,11 @@ const PrintIdRoute = PrintIdRouteImport.update({
 const AuthenticatedSeparacaoRoute = AuthenticatedSeparacaoRouteImport.update({
   id: '/separacao',
   path: '/separacao',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedResetRoute = AuthenticatedResetRouteImport.update({
+  id: '/reset',
+  path: '/reset',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedRelatoriosRoute = AuthenticatedRelatoriosRouteImport.update({
@@ -263,6 +269,7 @@ export interface FileRoutesByFullPath {
   '/ia': typeof AuthenticatedIaRoute
   '/producao': typeof AuthenticatedProducaoRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/reset': typeof AuthenticatedResetRoute
   '/separacao': typeof AuthenticatedSeparacaoRoute
   '/print/$id': typeof PrintIdRoute
   '/print/operacional': typeof PrintOperacionalRoute
@@ -300,6 +307,7 @@ export interface FileRoutesByTo {
   '/ia': typeof AuthenticatedIaRoute
   '/producao': typeof AuthenticatedProducaoRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/reset': typeof AuthenticatedResetRoute
   '/separacao': typeof AuthenticatedSeparacaoRoute
   '/print/$id': typeof PrintIdRoute
   '/print/operacional': typeof PrintOperacionalRoute
@@ -340,6 +348,7 @@ export interface FileRoutesById {
   '/_authenticated/ia': typeof AuthenticatedIaRoute
   '/_authenticated/producao': typeof AuthenticatedProducaoRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/_authenticated/reset': typeof AuthenticatedResetRoute
   '/_authenticated/separacao': typeof AuthenticatedSeparacaoRoute
   '/print/$id': typeof PrintIdRoute
   '/print/operacional': typeof PrintOperacionalRoute
@@ -380,6 +389,7 @@ export interface FileRouteTypes {
     | '/ia'
     | '/producao'
     | '/relatorios'
+    | '/reset'
     | '/separacao'
     | '/print/$id'
     | '/print/operacional'
@@ -417,6 +427,7 @@ export interface FileRouteTypes {
     | '/ia'
     | '/producao'
     | '/relatorios'
+    | '/reset'
     | '/separacao'
     | '/print/$id'
     | '/print/operacional'
@@ -456,6 +467,7 @@ export interface FileRouteTypes {
     | '/_authenticated/ia'
     | '/_authenticated/producao'
     | '/_authenticated/relatorios'
+    | '/_authenticated/reset'
     | '/_authenticated/separacao'
     | '/print/$id'
     | '/print/operacional'
@@ -549,6 +561,13 @@ declare module '@tanstack/react-router' {
       path: '/separacao'
       fullPath: '/separacao'
       preLoaderRoute: typeof AuthenticatedSeparacaoRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/reset': {
+      id: '/_authenticated/reset'
+      path: '/reset'
+      fullPath: '/reset'
+      preLoaderRoute: typeof AuthenticatedResetRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/relatorios': {
@@ -798,6 +817,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedIaRoute: typeof AuthenticatedIaRoute
   AuthenticatedProducaoRoute: typeof AuthenticatedProducaoRoute
   AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
+  AuthenticatedResetRoute: typeof AuthenticatedResetRoute
   AuthenticatedSeparacaoRoute: typeof AuthenticatedSeparacaoRoute
   AuthenticatedBipagemOrderIdRoute: typeof AuthenticatedBipagemOrderIdRoute
   AuthenticatedCrmClientIdRoute: typeof AuthenticatedCrmClientIdRoute
@@ -822,6 +842,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedIaRoute: AuthenticatedIaRoute,
   AuthenticatedProducaoRoute: AuthenticatedProducaoRoute,
   AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
+  AuthenticatedResetRoute: AuthenticatedResetRoute,
   AuthenticatedSeparacaoRoute: AuthenticatedSeparacaoRoute,
   AuthenticatedBipagemOrderIdRoute: AuthenticatedBipagemOrderIdRoute,
   AuthenticatedCrmClientIdRoute: AuthenticatedCrmClientIdRoute,
