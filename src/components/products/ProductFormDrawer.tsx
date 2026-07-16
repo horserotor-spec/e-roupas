@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Switch } from "../ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Product, ProductVariation, useCreateProduct, useUpdateProduct, useProductRelationships } from "@/lib/api/products";
-import { useModels, useFabrics, useColors, useSuppliersCRM, useSizeGrids, useCategories, useDeleteModel, useDeleteFabric, useDeleteColor, useDeleteSizeGrid, useDeleteCategory, useCreateInventoryEntryGrid } from "@/lib/api/inventory";
+import { useModels, useFabrics, useColors, useSuppliersCRM, useSizeGrids, useCategories, useDeleteModel, useDeleteFabric, useDeleteColor, useDeleteSizeGrid, useDeleteCategory, useCreateInventoryEntryGrid, useProductStockSummary } from "@/lib/api/inventory";
 import { QuickAddModelagem, QuickAddTecido, QuickAddCor, QuickAddGrade, QuickAddCategoria, QuickAddFornecedor } from "./QuickAddDialogs";
 import { ProductStockTab } from "./ProductStockTab";
 import { useSkuRules } from "@/lib/api/skuRules";
@@ -78,6 +78,7 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
   const createGridMutation = useCreateInventoryEntryGrid();
 
   const { data: paRelationships = [] } = useProductRelationships(product?.id);
+  const { data: stockSummary = [] } = useProductStockSummary(product?.id || "");
 
   const { data: models = [] } = useModels();
   const { data: fabrics = [] } = useFabrics();
@@ -516,7 +517,7 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
             {formData.format === "MP" && formData.size_grid && sizeGrids.find(g => g.name === formData.size_grid) && (
               <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-slate-800 tracking-tight">Estoque Inicial (Opcional)</h3>
+                  <h3 className="text-sm font-semibold text-slate-800 tracking-tight">{isEditing ? "Adicionar Lote / Estoque Atual" : "Estoque Inicial (Opcional)"}</h3>
                   <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100">
                     Gera Variações Automaticamente
                   </span>
@@ -525,35 +526,44 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
                   Preencha a quantidade inicial para cada tamanho. O sistema criará as variações (P, M, G, etc.) e o lote de estoque inicial automaticamente ao salvar. Necessita fornecedor selecionado.
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 mt-3">
-                  {sizeGrids.find(g => g.name === formData.size_grid)!.sizes.map(size => (
-                    <div key={size} className="space-y-1.5 p-2 bg-slate-50 border border-slate-100 rounded-md">
-                      <Label className="text-xs text-slate-600 text-center block font-medium mb-2">{size}</Label>
-                      <div className="space-y-2">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[10px] text-slate-500 font-medium">Estoque Inicial</span>
-                          <Input
-                            type="number"
-                            min="0"
-                            placeholder="0"
-                            className="h-8 text-center bg-white text-xs"
-                            value={initialStockGrid[size] || ""}
-                            onChange={e => setInitialStockGrid({ ...initialStockGrid, [size]: parseInt(e.target.value) || 0 })}
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[10px] text-slate-500 font-medium">Estoque Mínimo</span>
-                          <Input
-                            type="number"
-                            min="0"
-                            placeholder="0"
-                            className="h-8 text-center bg-white text-xs border-orange-200 focus-visible:ring-orange-500"
-                            value={minStockGrid[size] || ""}
-                            onChange={e => setMinStockGrid({ ...minStockGrid, [size]: parseInt(e.target.value) || 0 })}
-                          />
+                  {sizeGrids.find(g => g.name === formData.size_grid)!.sizes.map(size => {
+                    const currentStock = stockSummary.find((s: any) => s.size === size)?.available_qty || 0;
+                    return (
+                      <div key={size} className="space-y-1.5 p-2 bg-slate-50 border border-slate-100 rounded-md">
+                        <Label className="text-xs text-slate-600 text-center block font-medium mb-2">{size}</Label>
+                        <div className="space-y-2">
+                          {isEditing && (
+                            <div className="flex justify-between items-center bg-blue-50 px-2 py-1 rounded text-[10px]">
+                              <span className="text-blue-700 font-medium">Atual:</span>
+                              <span className="font-bold text-blue-800">{currentStock}</span>
+                            </div>
+                          )}
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[10px] text-slate-500 font-medium">{isEditing ? "+ Adicionar" : "Estoque Inicial"}</span>
+                            <Input
+                              type="number"
+                              min="0"
+                              placeholder="0"
+                              className="h-8 text-center bg-white text-xs"
+                              value={initialStockGrid[size] || ""}
+                              onChange={e => setInitialStockGrid({ ...initialStockGrid, [size]: parseInt(e.target.value) || 0 })}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[10px] text-slate-500 font-medium">Estoque Mínimo</span>
+                            <Input
+                              type="number"
+                              min="0"
+                              placeholder="0"
+                              className="h-8 text-center bg-white text-xs border-orange-200 focus-visible:ring-orange-500"
+                              value={minStockGrid[size] || ""}
+                              onChange={e => setMinStockGrid({ ...minStockGrid, [size]: parseInt(e.target.value) || 0 })}
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
