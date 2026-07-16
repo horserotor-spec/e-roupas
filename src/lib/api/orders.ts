@@ -913,7 +913,7 @@ export function useOrder(id: string) {
             brands(id, name, code),
             seller:users!orders_seller_id_fkey(id, name),
             salesperson:clients!orders_salesperson_id_fkey(id, name, commission_percent),
-            order_items(*, products(model_id, fabric_id, color_id, models(code, name), fabrics(code, name), canonical_colors(code, name))),
+            order_items(*, products(model_id, fabric_id, color_id, models:model_id(code, name), fabrics:fabric_id(code, name), canonical_colors:color_id(code, name))),
             order_payments(*)
           `)
         .eq("id", id)
