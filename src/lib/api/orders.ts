@@ -458,6 +458,32 @@ export interface BipSeparationResult {
   biped?: any;
 }
 
+/**
+ * Reconstrói o código numérico de barras esperado para validação de bipagem.
+ * Mesmo algoritmo usado em print.operacional.tsx.
+ * Formato: orderDigits(10) + hexDecimal(5) + pieceNum(3) = 18 dígitos
+ */
+function buildNumericBarcodeForItem(orderCode: string, itemId: string, pieceNum: number): string {
+  const orderDigits = orderCode.replace(/\D/g, '').slice(0, 10).padStart(10, '0');
+  const hexPart = itemId.substring(0, 4).toUpperCase();
+  const decimalPart = String(parseInt(hexPart, 16)).padStart(5, '0');
+  const pieceStr = String(pieceNum).padStart(3, '0');
+  return `${orderDigits}${decimalPart}${pieceStr}`;
+}
+
+/**
+ * Verifica se um código bipado (numérico 18 dígitos) pertence ao item especificado.
+ * Valida a parte do orderCode e do itemId, ignorando o número da peça.
+ */
+function numericBarcodeMatchesItem(biped: string, orderCode: string, itemId: string): boolean {
+  if (!/^\d{18}$/.test(biped)) return false;
+  const orderDigits = orderCode.replace(/\D/g, '').slice(0, 10).padStart(10, '0');
+  const hexPart = itemId.substring(0, 4).toUpperCase();
+  const expectedDecimal = String(parseInt(hexPart, 16)).padStart(5, '0');
+  // Os 10 primeiros = pedido, os 5 seguintes = item hash
+  return biped.startsWith(orderDigits) && biped.substring(10, 15) === expectedDecimal;
+}
+
 export async function bipSeparationItem(
   orderId: string,
   orderItemId: string,
@@ -510,16 +536,21 @@ export async function bipSeparationItem(
   // Normalizar bipagem
   const cleanBiped = barcodeBipado.trim().toUpperCase();
   const lastDotIndex = cleanBiped.lastIndexOf('.');
-  const bipedBase = lastDotIndex !== -1 ? cleanBiped.substring(0, lastDotIndex) : cleanBiped; // Extrai apenas a parte principal do SKU
-  
+  const bipedBase = lastDotIndex !== -1 ? cleanBiped.substring(0, lastDotIndex) : cleanBiped;
+
+  // Verificar se é o novo formato numérico Code 128C (18 dígitos)
+  const { data: orderData2 } = await supabase.from("orders").select("code").eq("id", orderId).single();
+  const orderCodeForBip = orderData2?.code || "";
+  const isNumericMatch = numericBarcodeMatchesItem(cleanBiped, orderCodeForBip, item.id);
+
   // Validar se a etiqueta específica já foi bipada (se houver sufixo de unidade)
   const scannedLabels = (item as any).scanned_labels || [];
   if (scannedLabels.includes(cleanBiped)) {
     return { success: false, message: `ERRO: Esta etiqueta específica já foi conferida nesta etapa.` };
   }
 
-  // 2. Validar anti-erro (compara a base)
-  if (bipedBase !== expectedBarcodeNew && bipedBase !== expectedBarcodeOld && bipedBase !== item.sku?.toUpperCase()) {
+  // 2. Validar anti-erro (aceita: novo numérico, formato antigo, SKU)
+  if (!isNumericMatch && bipedBase !== expectedBarcodeNew && bipedBase !== expectedBarcodeOld && bipedBase !== item.sku?.toUpperCase()) {
     // Tenta identificar o que foi bipado com base na nomenclatura MP-REG-MALHA-COR-TAMANHO
     const parts = bipedBase.split('-');
     let bipedDetails = bipedBase;
@@ -701,13 +732,18 @@ export async function bipExpeditionItem(
   const sizeCode = expectedSize.toUpperCase();
   const expectedBarcodeOld = `${artCode}-REG-${fabricCode}-${colorCode}-${sizeCode}`;
   const expectedBarcodeNew = item.id.split('-')[0].toUpperCase();
-  
+
   const cleanBiped = barcodeBipado.trim().toUpperCase();
   const lastDotIndex = cleanBiped.lastIndexOf('.');
   const bipedBase = lastDotIndex !== -1 ? cleanBiped.substring(0, lastDotIndex) : cleanBiped;
 
-  // Validar anti-erro (aceita tanto o SKU padrão do produto quanto o código de peças padrão e o novo ID encurtado)
-  if (bipedBase !== expectedBarcodeNew && bipedBase !== expectedBarcodeOld && bipedBase !== item.sku?.toUpperCase()) {
+  // Verificar se é o novo formato numérico Code 128C (18 dígitos)
+  const { data: orderDataExp } = await supabase.from("orders").select("code").eq("id", orderId).single();
+  const orderCodeForExp = orderDataExp?.code || "";
+  const isNumericMatchExp = numericBarcodeMatchesItem(cleanBiped, orderCodeForExp, item.id);
+
+  // Validar anti-erro (aceita: novo numérico, formato antigo, SKU)
+  if (!isNumericMatchExp && bipedBase !== expectedBarcodeNew && bipedBase !== expectedBarcodeOld && bipedBase !== item.sku?.toUpperCase()) {
     return {
       success: false,
       message: "🔴 PRODUTO INCORRETO",

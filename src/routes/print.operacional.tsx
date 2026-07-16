@@ -14,23 +14,49 @@ export const Route = createFileRoute("/print/operacional")({
   component: PrintOperacionalPage,
 });
 
+/**
+ * Gera um código de barras PURAMENTE NUMÉRICO a partir dos dados da etiqueta.
+ * Isso ativa o modo Code 128C (supercompressão) no bwip-js, reduzindo o código
+ * de ~280 barras (modo misto) para ~60 barras, cabendo perfeitamente em 38mm.
+ *
+ * Formato: DDMMYY (6) + SEQPED (4) + ITEMHEX->DEC (5) + PEÇA (3) = 18 dígitos
+ *   Ex: "ER-260715-0001" + item "6EDE" peça 1
+ *   → "260715" + "0001" + "28382" + "001" = "260715000128382001"
+ *
+ * Reversível: o sistema consegue decodificar de volta ao identificador original.
+ */
+function buildNumericBarcode(orderCode: string, itemId: string, pieceNum: number): string {
+  // Extrair apenas dígitos do código do pedido: "ER-260715-0001" → "2607150001"
+  const orderDigits = orderCode.replace(/\D/g, "").slice(0, 10).padStart(10, "0");
+  // Converter os 4 primeiros chars do UUID do item (hex) para decimal 5 dígitos
+  const hexPart = itemId.substring(0, 4).toUpperCase();
+  const decimalPart = String(parseInt(hexPart, 16)).padStart(5, "0");
+  // Número da peça com 3 dígitos
+  const pieceStr = String(pieceNum).padStart(3, "0");
+  return `${orderDigits}${decimalPart}${pieceStr}`;
+}
+
+/**
+ * Gera o identificador humano único da etiqueta.
+ * Ex: "ER-260715-0001-6EDE-001"
+ */
+function buildHumanReadable(orderCode: string, itemId: string, pieceNum: number): string {
+  const shortId = itemId.substring(0, 4).toUpperCase();
+  const pieceStr = String(pieceNum).padStart(3, "0");
+  return `${orderCode}-${shortId}-${pieceStr}`;
+}
+
 function PrintOperacionalPage() {
   const params = Route.useSearch() as { orderId?: string };
   const orderId = params.orderId || "";
   const { data: order, isLoading, error } = useOrder(orderId);
-  const [startPosition, setStartPosition] = useState<number>(0); // 0-indexed (0 a 95)
+  const [startPosition, setStartPosition] = useState<number>(0);
 
   useEffect(() => {
     const html = document.documentElement;
     const isDark = html.classList.contains("dark");
-    if (isDark) {
-      html.classList.remove("dark");
-    }
-    return () => {
-      if (isDark) {
-        html.classList.add("dark");
-      }
-    };
+    if (isDark) html.classList.remove("dark");
+    return () => { if (isDark) html.classList.add("dark"); };
   }, []);
 
   if (isLoading) {
@@ -47,55 +73,57 @@ function PrintOperacionalPage() {
     );
   }
 
-  // A4 layout para 65 etiquetas (38,1x21,2mm por etiqueta)
-  // Folha de 5 colunas por 13 linhas
   const totalLabelsOnSheet = 65;
 
-  // Gerar array de etiquetas para impressão correspondente a todas as peças do pedido
+  // Código da marca: primeiros 2 chars do brand_code ou do code do pedido
+  const brandCode = (order.brand_code || order.code || "ER").substring(0, 2).toUpperCase();
+
+  // Gerar etiquetas — uma por peça de cada item do pedido
   const labelsToPrint: any[] = [];
   order.items.forEach((item: any) => {
-    // Para cada item, gerar tantas etiquetas quanto a quantidade do item
     const qty = Number(item.quantity) || 0;
+    const prod = item.products || {};
+
+    // Códigos dos campos técnicos
+    const artCode   = (item.art_code || item.sku?.split("-")[0] || "ART").toUpperCase();
+    const fabricCode = (prod.fabrics?.code || prod.fabric?.code || "GEN").toUpperCase();
+    const modelCode  = (prod.models?.code || prod.model?.code  || "MLD").toUpperCase();
+    const colorCode  = (prod.canonical_colors?.code || prod.color?.code || "GEN").toUpperCase();
+    const sizeStr    = (item.size || "G").toUpperCase();
+
     for (let i = 0; i < qty; i++) {
-      // Determinar sigla das malhas/cores pelos códigos reais (se disponíveis)
-      const prod = item.products || {};
-      const fabricSigla = (prod.fabrics?.code || item.fabric?.substring(0, 3) || "GEN").toUpperCase();
-      const colorSigla = (prod.canonical_colors?.code || item.color?.substring(0, 3) || "GEN").toUpperCase();
-      const modelSigla = "REG"; // Fixo REG como combinado
-      const sizeStr = (item.size || "G").toUpperCase();
-      const artCode = (item.sku?.split('-')[0] || "ART").toUpperCase();
-      
-      const shortId = item.id.substring(0, 4).toUpperCase();
-      const pieceStr = String(i + 1).padStart(3, '0');
+      const pieceNum = i + 1;
+      const numericBarcode  = buildNumericBarcode(order.code, item.id, pieceNum);
+      const humanReadable   = buildHumanReadable(order.code, item.id, pieceNum);
+
+      // Linha 2 visual: FLA001-CMS-MML-PTO-P-ER.001
+      const visualLine2 = `${artCode}-${fabricCode}-${modelCode}-${colorCode}-${sizeStr}-${brandCode}.${String(pieceNum).padStart(3, "0")}`;
 
       labelsToPrint.push({
-        orderCode: order.code,
-        art: artCode,
-        model: modelSigla,
-        fabric: fabricSigla,
-        color: colorSigla,
+        orderCode:      order.code,
+        priority:       (order.priority || "N").toUpperCase().charAt(0),
+        unitText:       `${pieceNum}/${qty}`,
+        visualLine2,
+        numericBarcode,
+        humanReadable,
         size: sizeStr,
-        barcode: `${order.code}-${shortId}-${pieceStr}`,
-        unitText: `${i + 1}/${qty}`
       });
     }
   });
 
-  // Preencher com espaços em branco as posições anteriores ao início desejado
   const finalSheetLabels: (any | null)[] = Array(startPosition).fill(null).concat(labelsToPrint);
 
   return (
     <div className="min-h-screen print:min-h-0 print:h-auto print:block bg-slate-100 py-10 print:py-0 print:bg-white flex flex-col items-center">
-      {/* SELETOR E TOOLBAR */}
+      {/* TOOLBAR */}
       <div className="w-[210mm] bg-white border border-slate-200 shadow-sm rounded-xl p-6 mb-6 print:hidden">
         <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-2">
           <Grid className="size-5 text-primary" /> Configuração de Impressão de Etiquetas
         </h2>
         <p className="text-xs text-muted-foreground mb-4">
-          Layout: <strong>38,1x21,2mm em Folha A4 (5 Colunas x 13 Linhas)</strong>. Clique na grade abaixo para escolher a partir de qual posição deseja iniciar a impressão:
+          Layout: <strong>38,1x21,2mm em Folha A4 (5 Colunas x 13 Linhas)</strong>. Clique na posição inicial:
         </p>
 
-        {/* GRADE CLICÁVEL DO A4 */}
         <div className="grid grid-cols-5 gap-1 border border-slate-200 p-2 rounded-lg bg-slate-50 w-full max-w-[400px] mx-auto mb-6">
           {Array.from({ length: totalLabelsOnSheet }).map((_, idx) => {
             const isSelected = startPosition === idx;
@@ -104,8 +132,8 @@ function PrintOperacionalPage() {
                 key={idx}
                 onClick={() => setStartPosition(idx)}
                 className={`aspect-[381/212] border text-[8px] flex items-center justify-center font-bold rounded transition-colors ${
-                  isSelected 
-                    ? "bg-primary text-white border-primary shadow-sm" 
+                  isSelected
+                    ? "bg-primary text-white border-primary shadow-sm"
                     : "bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-700 border-slate-200"
                 }`}
               >
@@ -130,27 +158,21 @@ function PrintOperacionalPage() {
           @media print {
             body, html { margin: 0; padding: 0; background: white; height: 100%; }
             .print-hidden { display: none !important; }
-            @page {
-              size: A4 portrait;
-              margin: 0;
-            }
+            @page { size: A4 portrait; margin: 0; }
             .a4-sheet {
               width: 210mm !important;
               height: 297mm !important;
               box-shadow: none !important;
               border: none !important;
-              page-break-after: avoid;
-              break-after: avoid;
             }
           }
-          /* Estilo A4 estruturado de 5 colunas e 13 linhas (38,1x21,2mm) */
           .a4-sheet {
             display: grid;
             grid-template-columns: repeat(5, 38.1mm);
             grid-template-rows: repeat(13, 21.2mm);
             column-gap: 2.65mm;
             row-gap: 0mm;
-            padding: 10.9mm 4.49mm; /* Borda cima/baixo: 10.90mm, Borda esq/dir: 4.49mm */
+            padding: 10.9mm 4.49mm;
             width: 210mm;
             height: 297mm;
             max-height: 297mm;
@@ -161,51 +183,60 @@ function PrintOperacionalPage() {
           }
           .label-cell {
             box-sizing: border-box;
-            border: 0.1mm dotted rgba(0, 0, 0, 0.08); /* Delinear as bordas de forma sutil */
-            padding: 1.5mm 1mm;
+            border: 0.1mm dotted rgba(0,0,0,0.08);
+            padding: 1mm 1.5mm 0.5mm 1.5mm;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             overflow: hidden;
+            background: white;
           }
         `}
       </style>
 
-      {/* RENDERIZADOR A4 REAL EM GRADE */}
+      {/* FOLHA A4 */}
       <div className="a4-sheet shadow-lg">
         {finalSheetLabels.map((lbl, idx) => {
-          if (!lbl) {
-            return <div key={`empty-${idx}`} className="label-cell" />;
-          }
+          if (!lbl) return <div key={`empty-${idx}`} className="label-cell" />;
 
           return (
             <div key={idx} className="label-cell text-black">
-              {/* Topo: Pedido e Tamanho Destacado */}
-              <div className="flex justify-between items-center text-[8px] font-bold leading-none mb-0.5">
-                <span>Ped: {lbl.orderCode}</span>
-                <span className="text-[7px] text-slate-600 bg-slate-100 px-1 rounded">{lbl.unitText}</span>
-                <span className="bg-black text-white text-[10px] px-1 py-0.5 rounded font-black tracking-wider flex items-center justify-center min-w-[16px] h-[14px] leading-none">
-                  {lbl.size}
+
+              {/* LINHA 1: Pedido | Peça X/Y | Prioridade */}
+              <div className="flex justify-between items-center leading-none">
+                <span style={{ fontSize: "6px", fontWeight: 700 }}>{lbl.orderCode}</span>
+                <span style={{ fontSize: "5.5px", color: "#555" }}>{lbl.unitText}</span>
+                <span style={{
+                  fontSize: "8px", fontWeight: 900,
+                  background: "#000", color: "#fff",
+                  padding: "1px 3px", borderRadius: "2px",
+                  lineHeight: 1.2, minWidth: "13px", textAlign: "center"
+                }}>
+                  {lbl.priority}
                 </span>
               </div>
-              
-              {/* Código Visual Humano (Arte-Malha-Cor) */}
-              <div className="text-[6.5px] font-bold text-center leading-[1.2] break-words w-full">
-                {lbl.art} • {lbl.fabric} • {lbl.color}
+
+              {/* LINHA 2: Arte-Malha-Modelo-Cor-Tamanho-Marca.Peça */}
+              <div style={{ fontSize: "6px", fontWeight: 700, textAlign: "center", letterSpacing: "0.01em", lineHeight: 1.2 }}>
+                {lbl.visualLine2}
               </div>
 
-              {/* Barcode Principal Legível pela Pistola (ID Curto) */}
-              <div className="flex flex-col items-center justify-center pt-0.5 bg-white">
-                <span className="text-[6px] font-bold font-mono tracking-widest">{lbl.barcode}</span>
-                <BWIPJS 
+              {/* CÓDIGO DE BARRAS (Code 128C numérico — barra grossa, leitura garantida) */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", background: "#fff" }}>
+                <BWIPJS
                   bcid="code128"
-                  text={lbl.barcode}
-                  scale={2}
-                  height={10}
+                  text={lbl.numericBarcode}
+                  scale={1}
+                  height={8}
                   includetext={false}
-                  className="w-full h-[14px]"
+                  className="w-full"
                 />
+                {/* Texto humano único ABAIXO das barras */}
+                <span style={{ fontSize: "5px", fontFamily: "monospace", letterSpacing: "0.03em", marginTop: "0.5px" }}>
+                  {lbl.humanReadable}
+                </span>
               </div>
+
             </div>
           );
         })}
