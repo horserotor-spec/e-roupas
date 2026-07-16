@@ -15,25 +15,24 @@ export const Route = createFileRoute("/print/operacional")({
 });
 
 /**
- * Gera um código de barras PURAMENTE NUMÉRICO a partir dos dados da etiqueta.
- * Isso ativa o modo Code 128C (supercompressão) no bwip-js, reduzindo o código
- * de ~280 barras (modo misto) para ~60 barras, cabendo perfeitamente em 38mm.
+ * Gera um código de barras PURAMENTE NUMÉRICO de 12 dígitos.
+ * Usa Code 128C (supercompressão), gerando apenas ~30 módulos.
+ * Em 38mm isso resulta em barras de ~1,26mm — perfeito para laser e jato de tinta.
  *
- * Formato: DDMMYY (6) + SEQPED (4) + ITEMHEX->DEC (5) + PEÇA (3) = 18 dígitos
- *   Ex: "ER-260715-0001" + item "6EDE" peça 1
- *   → "260715" + "0001" + "28382" + "001" = "260715000128382001"
- *
- * Reversível: o sistema consegue decodificar de volta ao identificador original.
+ * Formato: SEQPED(4) + ITEMHEX→DEC(5) + PEÇA(3) = 12 dígitos
+ *   Ex: pedido "0001" + item "6EDE"→28382 + peça 1
+ *   → "0001" + "28382" + "001" = "000128382001"
  */
 function buildNumericBarcode(orderCode: string, itemId: string, pieceNum: number): string {
-  // Extrair apenas dígitos do código do pedido: "ER-260715-0001" → "2607150001"
-  const orderDigits = orderCode.replace(/\D/g, "").slice(0, 10).padStart(10, "0");
+  // Extrair apenas a sequência numérica do pedido (ex: "ER-260715-0001" → últimos 4 dígitos = "0001")
+  const digits = orderCode.replace(/\D/g, '');
+  const orderSeq = digits.slice(-4).padStart(4, '0');
   // Converter os 4 primeiros chars do UUID do item (hex) para decimal 5 dígitos
   const hexPart = itemId.substring(0, 4).toUpperCase();
-  const decimalPart = String(parseInt(hexPart, 16)).padStart(5, "0");
+  const decimalPart = String(parseInt(hexPart, 16)).padStart(5, '0');
   // Número da peça com 3 dígitos
-  const pieceStr = String(pieceNum).padStart(3, "0");
-  return `${orderDigits}${decimalPart}${pieceStr}`;
+  const pieceStr = String(pieceNum).padStart(3, '0');
+  return `${orderSeq}${decimalPart}${pieceStr}`;
 }
 
 /**
@@ -226,8 +225,8 @@ function PrintOperacionalPage() {
                 <BWIPJS
                   bcid="code128"
                   text={lbl.numericBarcode}
-                  scale={1}
-                  height={8}
+                  scale={3}
+                  height={12}
                   includetext={false}
                   className="w-full"
                 />

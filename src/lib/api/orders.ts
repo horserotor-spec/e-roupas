@@ -460,28 +460,29 @@ export interface BipSeparationResult {
 
 /**
  * Reconstrói o código numérico de barras esperado para validação de bipagem.
- * Mesmo algoritmo usado em print.operacional.tsx.
- * Formato: orderDigits(10) + hexDecimal(5) + pieceNum(3) = 18 dígitos
+ * Formato: SEQPED(4) + ITEMHEX→DEC(5) + PEÇA(3) = 12 dígitos
  */
 function buildNumericBarcodeForItem(orderCode: string, itemId: string, pieceNum: number): string {
-  const orderDigits = orderCode.replace(/\D/g, '').slice(0, 10).padStart(10, '0');
+  const digits = orderCode.replace(/\D/g, '');
+  const orderSeq = digits.slice(-4).padStart(4, '0');
   const hexPart = itemId.substring(0, 4).toUpperCase();
   const decimalPart = String(parseInt(hexPart, 16)).padStart(5, '0');
   const pieceStr = String(pieceNum).padStart(3, '0');
-  return `${orderDigits}${decimalPart}${pieceStr}`;
+  return `${orderSeq}${decimalPart}${pieceStr}`;
 }
 
 /**
- * Verifica se um código bipado (numérico 18 dígitos) pertence ao item especificado.
- * Valida a parte do orderCode e do itemId, ignorando o número da peça.
+ * Verifica se um código bipado (12 dígitos numéricos) pertence ao item do pedido.
+ * Valida seqPedido + itemHash, ignora número da peça (qualquer peça daquele item é válida).
  */
 function numericBarcodeMatchesItem(biped: string, orderCode: string, itemId: string): boolean {
-  if (!/^\d{18}$/.test(biped)) return false;
-  const orderDigits = orderCode.replace(/\D/g, '').slice(0, 10).padStart(10, '0');
+  if (!/^\d{12}$/.test(biped)) return false;
+  const digits = orderCode.replace(/\D/g, '');
+  const orderSeq = digits.slice(-4).padStart(4, '0');
   const hexPart = itemId.substring(0, 4).toUpperCase();
   const expectedDecimal = String(parseInt(hexPart, 16)).padStart(5, '0');
-  // Os 10 primeiros = pedido, os 5 seguintes = item hash
-  return biped.startsWith(orderDigits) && biped.substring(10, 15) === expectedDecimal;
+  // Os 4 primeiros = seq do pedido, os 5 seguintes = hash do item
+  return biped.startsWith(orderSeq) && biped.substring(4, 9) === expectedDecimal;
 }
 
 export async function bipSeparationItem(
