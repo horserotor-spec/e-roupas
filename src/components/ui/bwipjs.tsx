@@ -27,7 +27,7 @@ export const BWIPJS: React.FC<BWIPJSProps> = ({
         height,
         includetext
       });
-      return rawSvg.replace('<svg ', '<svg width="100%" height="100%" preserveAspectRatio="xMidYMid meet" ');
+      return rawSvg.replace('<svg ', '<svg width="100%" height="100%" preserveAspectRatio="xMidYMid meet" shape-rendering="crispEdges" ');
     } catch (e) {
       console.error("Erro ao gerar barcode BWIP-JS:", e);
       return '';
