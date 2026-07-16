@@ -566,7 +566,7 @@ export async function bipSeparationItem(
     await supabase.from("separation_errors").insert([{
       order_id: orderId,
       order_item_id: orderItemId,
-      expected_barcode: expectedBarcode,
+      expected_barcode: expectedBarcodeNew,
       biped_barcode: cleanBiped,
       operator_id: operatorId || null
     }]);
@@ -579,7 +579,7 @@ export async function bipSeparationItem(
         fabric: expectedFabric,
         color: expectedColor,
         size: expectedSize,
-        barcode: expectedBarcode
+        barcode: expectedBarcodeNew
       },
       biped: {
         details: bipedDetails,
@@ -753,7 +753,7 @@ export async function bipExpeditionItem(
         fabric: expectedFabric,
         color: expectedColor,
         size: expectedSize,
-        barcode: expectedBarcode
+        barcode: expectedBarcodeNew
       },
       biped: {
         details: "Produto ou Variante diferente do esperado",
