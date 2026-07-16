@@ -26,8 +26,14 @@ export const BWIPJS: React.FC<BWIPJSProps> = ({
         scale,
         height,
         includetext
-      });
-      return rawSvg.replace('<svg ', '<svg shape-rendering="crispEdges" ');
+      let finalSvg = rawSvg;
+      const viewBoxMatch = rawSvg.match(/viewBox="0 0 (\d+(?:\.\d+)?) (\d+(?:\.\d+)?)"/);
+      if (viewBoxMatch) {
+        finalSvg = rawSvg.replace('<svg ', `<svg width="${viewBoxMatch[1]}" height="${viewBoxMatch[2]}" shape-rendering="crispEdges" `);
+      } else {
+        finalSvg = rawSvg.replace('<svg ', '<svg shape-rendering="crispEdges" ');
+      }
+      return finalSvg;
     } catch (e) {
       console.error("Erro ao gerar barcode BWIP-JS:", e);
       return '';

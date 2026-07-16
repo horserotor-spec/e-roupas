@@ -75,7 +75,7 @@ function PrintOperacionalPage() {
         fabric: fabricSigla,
         color: colorSigla,
         size: sizeStr,
-        barcode: `ER${order.code}-${shortId}-${pieceStr}`,
+        barcode: `${order.code}-${shortId}-${pieceStr}`,
         unitText: `${i + 1}/${qty}`
       });
     }
