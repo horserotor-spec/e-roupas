@@ -180,7 +180,7 @@ function PrintOperacionalPage() {
           return (
             <div key={idx} className="label-cell text-black">
               {/* Topo: Pedido e Tamanho Destacado */}
-              <div className="flex justify-between items-center text-[8px] font-bold leading-none">
+              <div className="flex justify-between items-center text-[8px] font-bold leading-none mb-0.5">
                 <span>Ped: {lbl.orderCode}</span>
                 <span className="text-[7px] text-slate-600 bg-slate-100 px-1 rounded">{lbl.unitText}</span>
                 <span className="bg-black text-white text-[10px] px-1 py-0.5 rounded font-black tracking-wider flex items-center justify-center min-w-[16px] h-[14px] leading-none">
@@ -188,12 +188,12 @@ function PrintOperacionalPage() {
                 </span>
               </div>
               
-              {/* Código Completo com a Arte */}
-              <div className="text-[7.5px] font-bold text-center leading-none truncate max-w-full my-0.5">
-                {lbl.barcode}
+              {/* Código Visual Humano (Arte-Malha-Cor) */}
+              <div className="text-[6.5px] font-bold text-center leading-[1.2] break-words w-full">
+                {lbl.art} • {lbl.fabric} • {lbl.color}
               </div>
 
-              {/* Barcode Principal Legível */}
+              {/* Barcode Principal Legível pela Pistola (ID Curto) */}
                 <div className="w-full flex justify-center overflow-hidden py-1">
                   <Barcode 
                     value={lbl.barcode} 
