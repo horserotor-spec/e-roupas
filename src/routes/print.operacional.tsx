@@ -212,7 +212,7 @@ function PrintOperacionalPage() {
                   padding: "1px 3px", borderRadius: "2px",
                   lineHeight: 1.2, minWidth: "13px", textAlign: "center"
                 }}>
-                  {lbl.priority}
+                  {lbl.size}
                 </span>
               </div>
 
