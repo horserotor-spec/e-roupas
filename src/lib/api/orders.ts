@@ -539,9 +539,11 @@ export async function bipSeparationItem(
   const lastDotIndex = cleanBiped.lastIndexOf('.');
   const bipedBase = lastDotIndex !== -1 ? cleanBiped.substring(0, lastDotIndex) : cleanBiped;
 
+  let finalItemId = orderItemId;
+  let finalItem: any = item;
+  let tScanned: string[] = [];
+
   // ── NOVO FORMATO: código numérico de 12 dígitos (Code 128C) ─────────────
-  // Decodifica o item REAL pelo hash embutido no barcode e faz o bip diretamente,
-  // sem depender do item selecionado na tela de separação.
   if (/^\d{12}$/.test(cleanBiped)) {
     const bipOrderSeq = cleanBiped.substring(0, 4);
     const bipItemDec  = cleanBiped.substring(4, 9);
@@ -576,85 +578,70 @@ export async function bipSeparationItem(
       };
     }
 
-    // Duplicidade?
-    const tScanned = (targetItem.scanned_labels as string[] || []);
+    finalItemId = targetItem.id;
+    finalItem = targetItem;
+    tScanned = (finalItem.scanned_labels as string[] || []);
+
     if (tScanned.includes(cleanBiped)) {
       return { success: false, message: "ERRO: Esta etiqueta já foi bipada anteriormente." };
     }
 
-    // Item já completo?
-    if ((Number(targetItem.quantity_separated) || 0) >= Number(targetItem.quantity)) {
-      return { success: false, message: `🔴 ITEM JÁ COMPLETO: ${targetItem.product_name} (${targetItem.size}) já tem todas as peças separadas.` };
+    if ((Number(finalItem.quantity_separated) || 0) >= Number(finalItem.quantity)) {
+      return { success: false, message: `🔴 ITEM JÁ COMPLETO: ${finalItem.product_name} (${finalItem.size}) já tem todas as peças separadas.` };
     }
-
-    // Registrar separação
-    const newSep = (Number(targetItem.quantity_separated) || 0) + 1;
-    await supabase.from("order_items")
-      .update({ quantity_separated: newSep, scanned_labels: [...tScanned, cleanBiped] })
-      .eq("id", targetItem.id);
-
-    await supabase.from("separation_logs").insert([{
-      order_id: orderId,
-      order_item_id: targetItem.id,
-      barcode: cleanBiped,
-      quantity: 1,
-      operator_id: operatorId || null
-    }]);
-
-    return {
-      success: true,
-      message: `🟢 MP VALIDADO — ${targetItem.product_name} (${targetItem.size}) · Peça ${newSep}/${targetItem.quantity}`
-    };
-  }
-
+  } 
   // ── FLUXO LEGADO: formatos antigos de barcode (não-numérico) ────────────
-  const scannedLabels = (item as any).scanned_labels || [];
-  if (scannedLabels.includes(cleanBiped)) {
-    return { success: false, message: `ERRO: Esta etiqueta específica já foi conferida nesta etapa.` };
-  }
-
-  if (bipedBase !== expectedBarcodeNew && bipedBase !== expectedBarcodeOld && bipedBase !== item.sku?.toUpperCase()) {
-    // Tenta identificar o que foi bipado com base na nomenclatura MP-REG-MALHA-COR-TAMANHO
-    const parts = bipedBase.split('-');
-    let bipedDetails = bipedBase;
-    if (parts.length >= 5) {
-      const bipedFabric = parts[2];
-      const bipedColor = parts[3];
-      const bipedSize = parts[4];
-      bipedDetails = `Regular / Malha: ${bipedFabric} / Cor: ${bipedColor} / Tam: ${bipedSize}`;
+  else {
+    tScanned = (item.scanned_labels as string[] || []);
+    if (tScanned.includes(cleanBiped)) {
+      return { success: false, message: `ERRO: Esta etiqueta específica já foi conferida nesta etapa.` };
     }
 
-    // Registrar erro no banco
-    await supabase.from("separation_errors").insert([{
-      order_id: orderId,
-      order_item_id: orderItemId,
-      expected_barcode: expectedBarcodeNew,
-      biped_barcode: cleanBiped,
-      operator_id: operatorId || null
-    }]);
-
-    return {
-      success: false,
-      message: "🔴 MP INCORRETO",
-      expected: {
-        model: expectedModel,
-        fabric: expectedFabric,
-        color: expectedColor,
-        size: expectedSize,
-        barcode: expectedBarcodeNew
-      },
-      biped: {
-        details: bipedDetails,
-        barcode: cleanBiped
+    if (bipedBase !== expectedBarcodeNew && bipedBase !== expectedBarcodeOld && bipedBase !== item.sku?.toUpperCase()) {
+      const parts = bipedBase.split('-');
+      let bipedDetails = bipedBase;
+      if (parts.length >= 5) {
+        const bipedFabric = parts[2];
+        const bipedColor = parts[3];
+        const bipedSize = parts[4];
+        bipedDetails = `Regular / Malha: ${bipedFabric} / Cor: ${bipedColor} / Tam: ${bipedSize}`;
       }
-    };
+
+      await supabase.from("separation_errors").insert([{
+        order_id: orderId,
+        order_item_id: orderItemId,
+        expected_barcode: expectedBarcodeNew,
+        biped_barcode: cleanBiped,
+        operator_id: operatorId || null
+      }]);
+
+      return {
+        success: false,
+        message: "🔴 MP INCORRETO",
+        expected: {
+          model: expectedModel,
+          fabric: expectedFabric,
+          color: expectedColor,
+          size: expectedSize,
+          barcode: expectedBarcodeNew
+        },
+        biped: {
+          details: bipedDetails,
+          barcode: cleanBiped
+        }
+      };
+    }
+    
+    if ((Number(finalItem.quantity_separated) || 0) >= Number(finalItem.quantity)) {
+      return { success: false, message: `🔴 ITEM JÁ COMPLETO: ${finalItem.product_name} (${finalItem.size}) já tem todas as peças separadas.` };
+    }
   }
 
-  // 3. Se correto: Executar baixa real de estoque do lote associado a reserva
+  // 3. Executar baixa real de estoque do lote associado a reserva
   const { data: reservations } = await supabase
     .from("stock_reservations")
     .select("id, batch_id, quantity")
-    .eq("order_item_id", orderItemId)
+    .eq("order_item_id", finalItemId)
     .limit(1);
 
   if (!reservations || reservations.length === 0) {
@@ -708,20 +695,20 @@ export async function bipSeparationItem(
   }
 
   // Incrementar quantidade separada do item
-  const newSeparated = (Number(item.quantity_separated) || 0) + qtyToConsume;
-  const newScannedLabels = [...scannedLabels, cleanBiped];
+  const newSeparated = (Number(finalItem.quantity_separated) || 0) + qtyToConsume;
+  const newScannedLabels = [...tScanned, cleanBiped];
   await supabase
     .from("order_items")
     .update({ 
       quantity_separated: newSeparated,
       scanned_labels: newScannedLabels
     })
-    .eq("id", orderItemId);
+    .eq("id", finalItemId);
 
   // Registrar log de separação
   await supabase.from("separation_logs").insert([{
     order_id: orderId,
-    order_item_id: orderItemId,
+    order_item_id: finalItemId,
     barcode: cleanBiped,
     quantity: qtyToConsume,
     operator_id: operatorId || null
@@ -730,12 +717,12 @@ export async function bipSeparationItem(
   // Gerar identidade única da peça (ex: ER-20260609-0042-01)
   const { data: orderData } = await supabase.from("orders").select("code").eq("id", orderId).single();
   const orderCode = orderData?.code || "ER-TEMP";
-  const pieceCode = `${orderCode}-${orderItemId.substring(0, 4)}-${newSeparated}`;
+  const pieceCode = `${orderCode}-${finalItemId.substring(0, 4)}-${newSeparated}`;
 
   await supabase.from("piece_identities").insert([{
     piece_code: pieceCode,
     order_id: orderId,
-    order_item_id: orderItemId,
+    order_item_id: finalItemId,
     status: 'separado'
   }]);
 
@@ -744,12 +731,14 @@ export async function bipSeparationItem(
     order_id: orderId,
     user_id: operatorId || null,
     event_type: "separacao_validada",
-    description: `Separação validada: 1 un. de ${item.product_name} (${expectedSize}) via barcode ${cleanBiped}.`
+    description: `Separação validada: 1 un. de ${finalItem.product_name} (${finalItem.size || expectedSize}) via barcode ${cleanBiped}.`
   }]);
 
-  return { success: true, message: "🟢 MP VALIDADO" };
+  return {
+    success: true,
+    message: `🟢 MP VALIDADO — ${finalItem.product_name} (${finalItem.size || expectedSize}) · Peça ${newSeparated}/${finalItem.quantity}`
+  };
 }
-
 export async function bipExpeditionItem(
   orderId: string,
   orderItemId: string,
@@ -800,34 +789,68 @@ export async function bipExpeditionItem(
   const lastDotIndex = cleanBiped.lastIndexOf('.');
   const bipedBase = lastDotIndex !== -1 ? cleanBiped.substring(0, lastDotIndex) : cleanBiped;
 
-  // Verificar se é o novo formato numérico Code 128C (18 dígitos)
-  const { data: orderDataExp } = await supabase.from("orders").select("code").eq("id", orderId).single();
-  const orderCodeForExp = orderDataExp?.code || "";
-  const isNumericMatchExp = numericBarcodeMatchesItem(cleanBiped, orderCodeForExp, item.id);
+  let finalItemId = orderItemId;
 
-  // Validar anti-erro (aceita: novo numérico, formato antigo, SKU)
-  if (!isNumericMatchExp && bipedBase !== expectedBarcodeNew && bipedBase !== expectedBarcodeOld && bipedBase !== item.sku?.toUpperCase()) {
-    return {
-      success: false,
-      message: "🔴 PRODUTO INCORRETO",
-      expected: {
-        model: expectedModel,
-        fabric: expectedFabric,
-        color: expectedColor,
-        size: expectedSize,
-        barcode: expectedBarcodeNew
-      },
-      biped: {
-        details: "Produto ou Variante diferente do esperado",
-        barcode: cleanBiped
-      }
-    };
+  // ── NOVO FORMATO: código numérico de 12 dígitos (Code 128C) ─────────────
+  if (/^\d{12}$/.test(cleanBiped)) {
+    const bipOrderSeq = cleanBiped.substring(0, 4);
+    const bipItemDec  = cleanBiped.substring(4, 9);
+    const bipItemHex  = parseInt(bipItemDec, 10).toString(16).toUpperCase().padStart(4, '0');
+
+    const { data: orderDataExp } = await supabase.from("orders").select("code").eq("id", orderId).single();
+    const orderCodeForExp = orderDataExp?.code || "";
+    const orderSeq = orderCodeForExp.replace(/\D/g, '').slice(-4).padStart(4, '0');
+
+    if (bipOrderSeq !== orderSeq) {
+      return {
+        success: false,
+        message: "🔴 CÓDIGO DE OUTRO PEDIDO",
+        biped: { details: `Código pertence ao pedido seq. ${bipOrderSeq}`, barcode: cleanBiped }
+      };
+    }
+
+    // Localizar o item correto pelo hash do UUID
+    const { data: allItems } = await supabase
+      .from("order_items")
+      .select("id")
+      .eq("order_id", orderId);
+
+    const targetItem = allItems?.find(i => i.id.substring(0, 4).toUpperCase() === bipItemHex);
+    if (!targetItem) {
+      return {
+        success: false,
+        message: "🔴 ETIQUETA NÃO RECONHECIDA",
+        biped: { details: `Item ${bipItemHex} não encontrado neste pedido`, barcode: cleanBiped }
+      };
+    }
+    
+    finalItemId = targetItem.id;
+  }
+  // ── FLUXO LEGADO ────────────
+  else {
+    if (bipedBase !== expectedBarcodeNew && bipedBase !== expectedBarcodeOld && bipedBase !== item.sku?.toUpperCase()) {
+      return {
+        success: false,
+        message: "🔴 PRODUTO INCORRETO",
+        expected: {
+          model: expectedModel,
+          fabric: expectedFabric,
+          color: expectedColor,
+          size: expectedSize,
+          barcode: expectedBarcodeNew
+        },
+        biped: {
+          details: "Produto ou Variante diferente do esperado",
+          barcode: cleanBiped
+        }
+      };
+    }
   }
 
   // Chamar RPC para atualizar
   const { error: rpcError } = await supabase.rpc("bip_expedition_item", {
     p_order_id: orderId,
-    p_order_item_id: orderItemId,
+    p_order_item_id: finalItemId,
     p_operator_id: operatorId || null
   });
 
@@ -837,8 +860,6 @@ export async function bipExpeditionItem(
 
   return { success: true, message: "🟢 PRODUTO CONFERIDO" };
 }
-
-
 export function useOrders(search?: string) {
   return useQuery({
     queryKey: ["orders", search],
