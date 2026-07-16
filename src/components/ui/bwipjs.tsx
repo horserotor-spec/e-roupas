@@ -26,6 +26,7 @@ export const BWIPJS: React.FC<BWIPJSProps> = ({
         scale,
         height,
         includetext
+      });
       let finalSvg = rawSvg;
       const viewBoxMatch = rawSvg.match(/viewBox="0 0 (\d+(?:\.\d+)?) (\d+(?:\.\d+)?)"/);
       if (viewBoxMatch) {
