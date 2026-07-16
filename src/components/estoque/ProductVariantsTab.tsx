@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useProductVariants, useSaveProductVariant, ProductVariant, useModels, useLines, useFabrics, useColors } from "@/lib/api/inventory";
+import { useProductVariants, useSaveProductVariant, ProductVariant, useModels, useLines, useFabrics, useColors, useAllVariantStockSummary } from "@/lib/api/inventory";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 export function ProductVariantsTab() {
   const [search, setSearch] = useState("");
   const { data: variants = [], isLoading } = useProductVariants(search);
+  const { data: stockSummary = [] } = useAllVariantStockSummary();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingVariant, setEditingVariant] = useState<Partial<ProductVariant> | null>(null);
 
@@ -48,6 +49,7 @@ export function ProductVariantsTab() {
               <th className="text-left font-medium px-4 py-2.5">SKU / Modelo</th>
               <th className="text-left font-medium px-4 py-2.5">Composição</th>
               <th className="text-left font-medium px-4 py-2.5">Tamanho / Gênero</th>
+              <th className="text-right font-medium px-4 py-2.5">Estoque Atual</th>
               <th className="text-right font-medium px-4 py-2.5">Ações</th>
             </tr>
           </thead>
@@ -75,6 +77,16 @@ export function ProductVariantsTab() {
                   <div className="text-xs text-muted-foreground">{v.gender}</div>
                 </td>
                 <td className="px-4 py-3 text-right">
+                  {(() => {
+                    const currentStock = stockSummary.find((s: any) => s.variant_id === v.id)?.available_qty || 0;
+                    return (
+                      <Badge variant="outline" className={`font-bold text-sm px-2 py-1 ${currentStock > 0 ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                        {currentStock} un
+                      </Badge>
+                    );
+                  })()}
+                </td>
+                <td className="px-4 py-3 text-right">
                   <Button variant="ghost" size="icon" onClick={() => openEdit(v)} className="h-8 w-8 text-muted-foreground hover:text-primary">
                     <Edit2 className="size-4" />
                   </Button>
@@ -82,7 +94,7 @@ export function ProductVariantsTab() {
               </tr>
             ))}
             {!isLoading && variants.length === 0 && (
-              <tr><td colSpan={4} className="px-4 py-12 text-center text-sm text-muted-foreground">Nenhuma variante de produto cadastrada.</td></tr>
+              <tr><td colSpan={5} className="px-4 py-12 text-center text-sm text-muted-foreground">Nenhuma variante de produto cadastrada.</td></tr>
             )}
           </tbody>
         </table>

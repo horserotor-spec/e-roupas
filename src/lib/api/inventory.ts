@@ -479,13 +479,11 @@ export function useProductVariants(search?: string) {
       // We do manual search filtering here because ilike on multiple relations is tricky in PostgREST
       let variants = data as ProductVariant[];
       if (search) {
-        const lowerQ = search.toLowerCase();
-        variants = variants.filter(v => 
-          v.sku_internal?.toLowerCase().includes(lowerQ) ||
-          v.models?.name.toLowerCase().includes(lowerQ) ||
-          v.fabrics?.name.toLowerCase().includes(lowerQ) ||
-          v.canonical_colors?.name.toLowerCase().includes(lowerQ)
-        );
+        const terms = search.toLowerCase().split(" ").filter(t => t.trim().length > 0);
+        variants = variants.filter(v => {
+          const searchableText = `${v.sku_internal || ""} ${v.models?.name || ""} ${v.fabrics?.name || ""} ${v.canonical_colors?.name || ""} ${v.size || ""}`.toLowerCase();
+          return terms.every(term => searchableText.includes(term));
+        });
       }
       return variants;
     },
@@ -516,6 +514,19 @@ export function useAllProductsStockSummary() {
       const { data, error } = await supabase
         .from("vw_stock_summary")
         .select("product_id, available_qty");
+      if (error) throw error;
+      return data;
+    }
+  });
+}
+
+export function useAllVariantStockSummary() {
+  return useQuery({
+    queryKey: ["all_variant_stock_summary"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vw_stock_summary")
+        .select("variant_id, available_qty");
       if (error) throw error;
       return data;
     }
