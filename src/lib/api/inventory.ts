@@ -668,6 +668,30 @@ export function useAdjustInventoryBatch() {
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData?.user?.id;
 
+      // 1. Fetch current batch quantities
+      const { data: currentBatch, error: cbErr } = await supabase
+        .from("inventory_batches")
+        .select("quantity_available, quantity_total")
+        .eq("id", payload.batch_id)
+        .single();
+      
+      if (cbErr) throw cbErr;
+
+      const newAvailable = Number(currentBatch.quantity_available) + Number(payload.adjustment);
+      const newTotal = Number(currentBatch.quantity_total) + Number(payload.adjustment);
+
+      // 2. Update the batch directly (since there's no DB trigger)
+      const { error: updErr } = await supabase
+        .from("inventory_batches")
+        .update({
+          quantity_available: newAvailable,
+          quantity_total: newTotal
+        })
+        .eq("id", payload.batch_id);
+
+      if (updErr) throw updErr;
+
+      // 3. Record movement
       const { data: movData, error: movErr } = await supabase
         .from("inventory_movements")
         .insert([{
@@ -850,15 +874,15 @@ export function useCreateInventoryEntryGrid() {
           }
         }
 
-        // 3. Criar lote de estoque (inventory_batches) com saldo 0
+        // 3. Criar lote de estoque (inventory_batches) com o saldo preenchido
         const { data: batch, error: batchErr } = await supabase
           .from("inventory_batches")
           .insert([{
             product_variant_id: variant.id,
             supplier_id: payload.supplier_id,
             batch_code: payload.batch_code,
-            quantity_total: 0,
-            quantity_available: 0,
+            quantity_total: qty,
+            quantity_available: qty,
             quantity_reserved: 0,
             average_cost: payload.average_cost,
             quality_notes: payload.quality_notes
