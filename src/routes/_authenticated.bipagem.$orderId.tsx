@@ -3,12 +3,15 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { bipExpeditionItem, BipSeparationResult } from "@/lib/api/orders";
-import { ArrowLeft, Barcode, CheckCircle2, AlertOctagon, Loader2, PackageCheck, Camera, AlertTriangle } from "lucide-react";
+import { criarPrepostagemSGPWeb, obterEtiquetaSGPWeb, SGPWEB_SERVICES, SGPWebService } from "@/lib/api/sgpweb";
+import { ArrowLeft, Barcode, CheckCircle2, AlertOctagon, Loader2, PackageCheck, Camera, AlertTriangle, Truck, Download, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
 
 export const Route = createFileRoute("/_authenticated/bipagem/$orderId")({
@@ -28,6 +31,20 @@ function ExpeditionScanPage() {
 
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+
+  // Modal de geração de etiqueta SGPWeb
+  const [labelModalOpen, setLabelModalOpen] = useState(false);
+  const [isGeneratingLabel, setIsGeneratingLabel] = useState(false);
+  const [labelForm, setLabelForm] = useState({
+    service: "PAC" as SGPWebService,
+    peso: "0.5",
+    altura: "5",
+    largura: "20",
+    comprimento: "30",
+    valorDeclarado: "",
+    observacao: "",
+  });
+  const [generatedPedidoId, setGeneratedPedidoId] = useState<string | null>(null);
 
   const handleCameraScan = async (scannedCode: string) => {
     setCameraOpen(false);
@@ -192,6 +209,63 @@ function ExpeditionScanPage() {
 
     toast.success(isPartial ? "Conferência parcial registrada!" : "Conferência total concluída!");
     navigate({ to: "/expedicao" });
+  };
+
+  const handleGenerateLabel = async () => {
+    if (!order) return;
+    setIsGeneratingLabel(true);
+
+    try {
+      const result = await criarPrepostagemSGPWeb({
+        orderId,
+        orderCode: order.code,
+        service: labelForm.service,
+        destinatario: {
+          nome: order.delivery_name || order.clients?.name || "",
+          cpf_cnpj: order.delivery_document || order.clients?.document || "",
+          fone: order.delivery_phone || order.clients?.phone || "",
+          logradouro: order.delivery_street || "",
+          numero: order.delivery_number || "S/N",
+          complemento: order.delivery_complement || "",
+          bairro: order.delivery_neighborhood || "",
+          cidade: order.delivery_city || "",
+          uf: order.delivery_state || "",
+          cep: order.delivery_zip || "",
+        },
+        volume: {
+          peso: parseFloat(labelForm.peso) || 0.5,
+          altura: parseFloat(labelForm.altura) || 5,
+          largura: parseFloat(labelForm.largura) || 20,
+          comprimento: parseFloat(labelForm.comprimento) || 30,
+        },
+        valorDeclarado: labelForm.valorDeclarado ? parseFloat(labelForm.valorDeclarado) : undefined,
+        observacao: labelForm.observacao || order.code,
+      });
+
+      if (result.success) {
+        setGeneratedPedidoId(result.pedidoId || null);
+        toast.success("Pré-postagem criada! Baixando etiqueta...");
+        queryClient.invalidateQueries({ queryKey: ["expedicao_pedido", orderId] });
+
+        // Tentar baixar o PDF automaticamente
+        if (result.pedidoId) {
+          setTimeout(async () => {
+            const pdfResult = await obterEtiquetaSGPWeb(result.pedidoId!, order.code);
+            if (!pdfResult.success) {
+              toast.warning("Pré-postagem criada, mas não foi possível baixar o PDF automaticamente. Use o botão de download.");
+            }
+          }, 1500);
+        }
+
+        setLabelModalOpen(false);
+      } else {
+        toast.error(result.message || "Erro ao gerar etiqueta");
+      }
+    } catch (err: any) {
+      toast.error("Erro inesperado: " + err.message);
+    } finally {
+      setIsGeneratingLabel(false);
+    }
   };
 
   if (isLoading) {
@@ -387,6 +461,15 @@ function ExpeditionScanPage() {
                 </Button>
               )}
 
+              {isAllDispatched && (
+                <Button
+                  onClick={() => setLabelModalOpen(true)}
+                  className="h-11 px-6 rounded-full font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
+                >
+                  <Truck className="size-4 mr-2" /> Gerar Etiqueta SGPWeb
+                </Button>
+              )}
+
               <Button
                 onClick={() => handleFinishExpedition(false)}
                 disabled={!isAllDispatched}
@@ -426,6 +509,128 @@ function ExpeditionScanPage() {
             <p className="text-xs text-slate-400 text-center mt-4">
               Aponte a câmera para o QR Code / Código de barras do produto.
             </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── MODAL: Gerar Etiqueta SGPWeb ─────────────────────── */}
+      <Dialog open={labelModalOpen} onOpenChange={setLabelModalOpen}>
+        <DialogContent className="max-w-lg bg-slate-900 border-slate-700 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2 text-lg font-bold">
+              <Truck className="size-5 text-emerald-400" />
+              Gerar Etiqueta de Envio — SGPWeb
+            </DialogTitle>
+            <DialogDescription className="text-slate-400 text-xs">
+              Pedido: <span className="text-white font-bold font-mono">{order?.code}</span>
+              &nbsp;·&nbsp;Destinatário: <span className="text-white font-bold">{order?.delivery_name || order?.clients?.name}</span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            {/* Serviço */}
+            <div>
+              <Label className="text-slate-300 text-xs font-bold uppercase tracking-wider mb-1.5 block">Serviço dos Correios</Label>
+              <Select
+                value={labelForm.service}
+                onValueChange={(v) => setLabelForm(f => ({ ...f, service: v as SGPWebService }))}
+              >
+                <SelectTrigger className="bg-slate-800 border-slate-700 text-white h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                  {Object.entries(SGPWEB_SERVICES).map(([key, { label }]) => (
+                    <SelectItem key={key} value={key} className="text-white focus:bg-slate-700">{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Peso + Dimensões */}
+            <div>
+              <Label className="text-slate-300 text-xs font-bold uppercase tracking-wider mb-1.5 block">Peso e Dimensões do Pacote</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { key: "peso", label: "Peso (kg)", placeholder: "0.5" },
+                  { key: "altura", label: "Alt. (cm)", placeholder: "5" },
+                  { key: "largura", label: "Larg. (cm)", placeholder: "20" },
+                  { key: "comprimento", label: "Comp. (cm)", placeholder: "30" },
+                ].map(({ key, label, placeholder }) => (
+                  <div key={key}>
+                    <span className="text-[10px] text-slate-500 font-semibold uppercase block mb-1">{label}</span>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={labelForm[key as keyof typeof labelForm]}
+                      onChange={(e) => setLabelForm(f => ({ ...f, [key]: e.target.value }))}
+                      placeholder={placeholder}
+                      className="bg-slate-800 border-slate-700 text-white h-9 text-sm font-mono"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Valor declarado */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-slate-300 text-xs font-bold uppercase tracking-wider mb-1.5 block">Valor Declarado (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={labelForm.valorDeclarado}
+                  onChange={(e) => setLabelForm(f => ({ ...f, valorDeclarado: e.target.value }))}
+                  placeholder="Opcional"
+                  className="bg-slate-800 border-slate-700 text-white h-9 text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-slate-300 text-xs font-bold uppercase tracking-wider mb-1.5 block">Observação</Label>
+                <Input
+                  value={labelForm.observacao}
+                  onChange={(e) => setLabelForm(f => ({ ...f, observacao: e.target.value }))}
+                  placeholder={order?.code || ""}
+                  className="bg-slate-800 border-slate-700 text-white h-9 text-sm"
+                />
+              </div>
+            </div>
+
+            {/* Endereço de entrega (exibição) */}
+            {order?.delivery_zip && (
+              <div className="bg-slate-800/60 rounded-xl p-3 border border-slate-700/50">
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block mb-1">Endereço de Entrega</span>
+                <p className="text-xs text-slate-300">
+                  {order.delivery_street}, {order.delivery_number}{order.delivery_complement ? ` — ${order.delivery_complement}` : ""}
+                  <br />
+                  {order.delivery_neighborhood} · {order.delivery_city}/{order.delivery_state} · CEP {order.delivery_zip}
+                </p>
+              </div>
+            )}
+
+            {/* Botões */}
+            <div className="flex gap-3 justify-end pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setLabelModalOpen(false)}
+                disabled={isGeneratingLabel}
+                className="border-slate-700 text-slate-300 hover:bg-slate-800"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleGenerateLabel}
+                disabled={isGeneratingLabel}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6"
+              >
+                {isGeneratingLabel ? (
+                  <><Loader2 className="size-4 mr-2 animate-spin" /> Gerando...</>
+                ) : (
+                  <><Download className="size-4 mr-2" /> Gerar e Baixar PDF</>
+                )}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
