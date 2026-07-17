@@ -745,51 +745,10 @@ export async function bipExpeditionItem(
   barcodeBipado: string,
   operatorId?: string
 ): Promise<BipSeparationResult> {
-  // 1. Obter o item do pedido para validar
-  const { data: item, error: itemError } = await supabase
-    .from("order_items")
-    .select(`
-      id,
-      product_name,
-      sku,
-      size,
-      quantity,
-      quantity_dispatched,
-      products (
-        model_id,
-        fabric_id,
-        color_id,
-        models (name),
-        fabrics (name, code),
-        canonical_colors (name, code)
-      )
-    `)
-    .eq("id", orderItemId)
-    .single();
-
-  if (itemError || !item) {
-    return { success: false, message: "Item do pedido não encontrado." };
-  }
-
-  const prod = item.products as any;
-  const expectedModel = prod?.models?.name || "";
-  const expectedFabric = prod?.fabrics?.name || "";
-  const expectedColor = prod?.canonical_colors?.name || "";
-  const expectedSize = item.size || "";
-
-  // O barcode esperado na Expedição é o próprio SKU do produto ou a regra ART-REG-MALHA-COR-TAMANHO
-  const artCode = (item.sku?.split('-')[0] || "ART").toUpperCase();
-  const fabricCode = (prod?.fabrics?.code || "GEN").toUpperCase();
-  const colorCode = (prod?.canonical_colors?.code || "GEN").toUpperCase();
-  const sizeCode = expectedSize.toUpperCase();
-  const expectedBarcodeOld = `${artCode}-REG-${fabricCode}-${colorCode}-${sizeCode}`;
-  const expectedBarcodeNew = item.id.split('-')[0].toUpperCase();
-
   const cleanBiped = barcodeBipado.trim().toUpperCase();
-  const lastDotIndex = cleanBiped.lastIndexOf('.');
-  const bipedBase = lastDotIndex !== -1 ? cleanBiped.substring(0, lastDotIndex) : cleanBiped;
 
   let finalItemId = orderItemId;
+  let finalItem: any = null;
 
   // ── NOVO FORMATO: código numérico de 12 dígitos (Code 128C) ─────────────
   if (/^\d{12}$/.test(cleanBiped)) {
@@ -809,10 +768,10 @@ export async function bipExpeditionItem(
       };
     }
 
-    // Localizar o item correto pelo hash do UUID
+    // Localizar o item correto pelo hash do UUID, trazendo scanned_labels e quantity_quality
     const { data: allItems } = await supabase
       .from("order_items")
-      .select("id")
+      .select("id, product_name, size, quantity, quantity_dispatched, scanned_labels, quality_scanned_labels")
       .eq("order_id", orderId);
 
     const targetItem = allItems?.find(i => i.id.substring(0, 4).toUpperCase() === bipItemHex);
@@ -823,42 +782,81 @@ export async function bipExpeditionItem(
         biped: { details: `Item ${bipItemHex} não encontrado neste pedido`, barcode: cleanBiped }
       };
     }
-    
+
     finalItemId = targetItem.id;
+    finalItem = targetItem;
   }
   // ── FLUXO LEGADO ────────────
   else {
-    if (bipedBase !== expectedBarcodeNew && bipedBase !== expectedBarcodeOld && bipedBase !== item.sku?.toUpperCase()) {
-      return {
-        success: false,
-        message: "🔴 PRODUTO INCORRETO",
-        expected: {
-          model: expectedModel,
-          fabric: expectedFabric,
-          color: expectedColor,
-          size: expectedSize,
-          barcode: expectedBarcodeNew
-        },
-        biped: {
-          details: "Produto ou Variante diferente do esperado",
-          barcode: cleanBiped
-        }
-      };
-    }
+    const { data: legacyItem } = await supabase
+      .from("order_items")
+      .select("id, product_name, size, quantity, quantity_dispatched, scanned_labels, quality_scanned_labels, sku")
+      .eq("id", orderItemId)
+      .single();
+
+    if (!legacyItem) return { success: false, message: "Item não encontrado." };
+    finalItem = legacyItem;
   }
 
-  // Chamar RPC para atualizar
-  const { error: rpcError } = await supabase.rpc("bip_expedition_item", {
-    p_order_id: orderId,
-    p_order_item_id: finalItemId,
-    p_operator_id: operatorId || null
-  });
-
-  if (rpcError) {
-    return { success: false, message: rpcError.message || "Erro ao registrar conferência." };
+  // ── REGRA DE NEGÓCIO: a etiqueta deve ter sido bipada na Separação ─────
+  const scannedInSeparation: string[] = (finalItem.scanned_labels as string[] || []);
+  if (!scannedInSeparation.includes(cleanBiped)) {
+    return {
+      success: false,
+      message: "🔴 ETIQUETA NÃO SEPARADA",
+      biped: {
+        details: "Esta etiqueta não passou pela Separação. Verifique se a peça foi separada corretamente.",
+        barcode: cleanBiped
+      }
+    };
   }
 
-  return { success: true, message: "🟢 PRODUTO CONFERIDO" };
+  // Verificar duplicidade no Manuseio/Qualidade
+  const qualityScanned: string[] = (finalItem.quality_scanned_labels as string[] || []);
+  if (qualityScanned.includes(cleanBiped)) {
+    return { success: false, message: "ERRO: Esta etiqueta já foi conferida no Manuseio/Qualidade." };
+  }
+
+  // Verificar se o item já está completo no Manuseio
+  if ((Number(finalItem.quantity_dispatched) || 0) >= Number(finalItem.quantity)) {
+    return {
+      success: false,
+      message: `🔴 ITEM JÁ COMPLETO: ${finalItem.product_name} (${finalItem.size}) já tem todas as peças conferidas no Manuseio.`
+    };
+  }
+
+  // ── REGISTRAR CONFERÊNCIA DE MANUSEIO/QUALIDADE (sem baixa de estoque) ──
+  const newDispatched = (Number(finalItem.quantity_dispatched) || 0) + 1;
+  const newQualityScanned = [...qualityScanned, cleanBiped];
+
+  const { error: updateError } = await supabase
+    .from("order_items")
+    .update({
+      quantity_dispatched: newDispatched,
+      quality_scanned_labels: newQualityScanned
+    })
+    .eq("id", finalItemId);
+
+  if (updateError) {
+    // Fallback: se a coluna quality_scanned_labels não existir, atualizar só quantity_dispatched
+    await supabase
+      .from("order_items")
+      .update({ quantity_dispatched: newDispatched })
+      .eq("id", finalItemId);
+  }
+
+  // Timeline
+  await supabase.from("order_timeline").insert([{
+    order_id: orderId,
+    user_id: operatorId || null,
+    event_type: "qualidade_conferida",
+    description: `Conferência Manuseio/Qualidade: 1 un. de ${finalItem.product_name} (${finalItem.size}) via barcode ${cleanBiped}.`
+  }]);
+
+  return {
+    success: true,
+    message: `🟢 CONFERIDO — ${finalItem.product_name} (${finalItem.size}) · Peça ${newDispatched}/${finalItem.quantity}`
+  };
 }
 export function useOrders(search?: string) {
   return useQuery({
