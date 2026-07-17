@@ -559,9 +559,8 @@ function ExpeditionScanPage() {
                   <div key={key}>
                     <span className="text-[10px] text-slate-500 font-semibold uppercase block mb-1">{label}</span>
                     <Input
-                      type="number"
-                      step="0.1"
-                      min="0"
+                      type="text"
+                      inputMode="decimal"
                       value={labelForm[key as keyof typeof labelForm]}
                       onChange={(e) => setLabelForm(f => ({ ...f, [key]: e.target.value }))}
                       placeholder={placeholder}
@@ -577,9 +576,8 @@ function ExpeditionScanPage() {
               <div>
                 <Label className="text-slate-300 text-xs font-bold uppercase tracking-wider mb-1.5 block">Valor Declarado (R$)</Label>
                 <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="text"
+                  inputMode="decimal"
                   value={labelForm.valorDeclarado}
                   onChange={(e) => setLabelForm(f => ({ ...f, valorDeclarado: e.target.value }))}
                   placeholder="Opcional"
