@@ -236,6 +236,7 @@ function BatchFormDrawer({ open, onOpenChange }: { open: boolean, onOpenChange: 
   const [productId, setProductId] = useState<string>("");
   const [supplierId, setSupplierId] = useState<string>("");
   const [batchCode, setBatchCode] = useState<string>("");
+  const [nfNumber, setNfNumber] = useState<string>("");
   const [averageCost, setAverageCost] = useState<number>(0);
   const [qualityNotes, setQualityNotes] = useState<string>("");
   const [gradeType, setGradeType] = useState<"adulto" | "infantil">("adulto");
@@ -286,6 +287,7 @@ function BatchFormDrawer({ open, onOpenChange }: { open: boolean, onOpenChange: 
           setBatchCode(`${prefix}01`);
         });
       setAverageCost(0);
+      setNfNumber("");
       setQualityNotes("");
     }
   }, [open]);
@@ -320,6 +322,7 @@ function BatchFormDrawer({ open, onOpenChange }: { open: boolean, onOpenChange: 
         batch_code: batchCode,
         average_cost: averageCost,
         quality_notes: qualityNotes,
+        nf_number: nfNumber || undefined,
         grid
       });
       toast.success("Entrada de estoque por grade realizada com sucesso!");
@@ -366,6 +369,15 @@ function BatchFormDrawer({ open, onOpenChange }: { open: boolean, onOpenChange: 
             <div className="space-y-2">
               <Label>Código do Lote *</Label>
               <Input value={batchCode} onChange={e => setBatchCode(e.target.value)} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Nota Fiscal (opcional)</Label>
+              <Input
+                value={nfNumber}
+                onChange={e => setNfNumber(e.target.value)}
+                placeholder="Ex: NF-001234"
+              />
             </div>
 
             <div className="space-y-2">

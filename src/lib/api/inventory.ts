@@ -635,19 +635,22 @@ export function useCreateInventoryBatch() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload: Partial<InventoryBatch>) => {
-      // Create batch
+      const qtyToInsert = Number(payload.quantity_total) || 0;
+      
+      // Create batch (start at 0, trigger will update it)
       const { data: batch, error } = await supabase.from("inventory_batches").insert([{
         ...payload,
-        quantity_available: payload.quantity_total // Initially available = total
+        quantity_total: 0,
+        quantity_available: 0
       }]).select().single();
       
       if (error) throw error;
 
-      // Log movement (Extrato imutável)
+      // Log movement (Extrato imutável) - trigger updates batch balance
       const { error: movError } = await supabase.from("inventory_movements").insert([{
         batch_id: batch.id,
         movement_type: "compra",
-        quantity: batch.quantity_total,
+        quantity: qtyToInsert,
         notes: "Entrada inicial de lote"
       }]);
 
@@ -698,6 +701,8 @@ export function useAdjustInventoryBatch() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventory_batches"] });
+      queryClient.invalidateQueries({ queryKey: ["all_variant_stock_summary"] });
+      queryClient.invalidateQueries({ queryKey: ["stock_movements"] });
     },
   });
 }
@@ -769,13 +774,24 @@ export async function reserveStock(
       mixing_notes: mixingNotes
     }]);
 
-    // 2. Update batch quantities
+    // 2. Update batch quantities directly (FIFO logic requires manual control)
     await supabase.from("inventory_batches")
       .update({
         quantity_available: availableInBatch - toReserveInThisBatch,
         quantity_reserved: Number(batch.quantity_reserved) + toReserveInThisBatch
       })
       .eq("id", batch.id);
+
+    // 3. Log-only movement for audit trail (qty=0 so trigger doesn't double-count)
+    //    quantity_reserved is managed above; this entry exists only for the report.
+    await supabase.from("inventory_movements").insert([{
+      batch_id: batch.id,
+      movement_type: "reserva",
+      quantity: 0,
+      notes: `Reserva de ${toReserveInThisBatch} un para pedido #${orderId}${
+        mixingApproved ? ` (mistura aprovada: ${mixingNotes})` : ''
+      }`
+    }]);
 
     remainingToReserve -= toReserveInThisBatch;
   }
@@ -792,8 +808,9 @@ export function useCreateInventoryEntryGrid() {
       batch_code: string;
       average_cost: number;
       quality_notes: string;
+      nf_number?: string;
       grid: Record<string, number>;
-        minStockGrid?: Record<string, number>;
+      minStockGrid?: Record<string, number>;
     }) => {
       // 1. Buscar produto pai com os relacionamentos de engenharia
       const { data: prod, error: prodErr } = await supabase
@@ -862,15 +879,15 @@ export function useCreateInventoryEntryGrid() {
           }
         }
 
-        // 3. Criar lote de estoque (inventory_batches) com o saldo preenchido
+        // 3. Criar lote de estoque (inventory_batches) com o saldo 0 (trigger preenche)
         const { data: batch, error: batchErr } = await supabase
           .from("inventory_batches")
           .insert([{
             product_variant_id: variant.id,
             supplier_id: payload.supplier_id,
             batch_code: payload.batch_code,
-            quantity_total: qty,
-            quantity_available: qty,
+            quantity_total: 0,
+            quantity_available: 0,
             quantity_reserved: 0,
             average_cost: payload.average_cost,
             quality_notes: payload.quality_notes
@@ -881,13 +898,19 @@ export function useCreateInventoryEntryGrid() {
         if (batchErr) throw batchErr;
 
         // 4. Registrar movimento de estoque (inventory_movements)
+        const movNotes = [
+          `Entrada por grade no lote ${payload.batch_code}`,
+          payload.nf_number ? `NF: ${payload.nf_number}` : null,
+          payload.quality_notes ? payload.quality_notes : null
+        ].filter(Boolean).join(' | ');
+
         const { error: movErr } = await supabase
           .from("inventory_movements")
           .insert([{
             batch_id: batch.id,
             movement_type: "compra",
             quantity: qty,
-            notes: `Entrada por grade no lote ${payload.batch_code}`
+            notes: movNotes
           }]);
 
         if (movErr) console.error("Error logging movement", movErr);
@@ -1006,46 +1029,58 @@ export function useEditInventoryBatch() {
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData?.user?.id;
 
-      const { data: currentBatch, error: cbErr } = await supabase.from("inventory_batches").select("quantity_available, quantity_total").eq("id", payload.batch_id).single();
-      if(cbErr) throw cbErr;
+      const { data: currentBatch, error: cbErr } = await supabase
+        .from("inventory_batches")
+        .select("quantity_available, quantity_total")
+        .eq("id", payload.batch_id)
+        .single();
+      if (cbErr) throw cbErr;
 
       const diff = payload.quantity_total - currentBatch.quantity_total;
-      const newAvailable = currentBatch.quantity_available + diff;
 
+      // 1. Update only non-quantity fields (supplier) — quantities are handled by the trigger below
       const { error: updErr } = await supabase
         .from("inventory_batches")
-        .update({ 
-          supplier_id: payload.supplier_id,
-          quantity_total: payload.quantity_total,
-          quantity_available: newAvailable
-        })
+        .update({ supplier_id: payload.supplier_id })
         .eq("id", payload.batch_id);
       if (updErr) throw updErr;
 
+      // 2. Update min_stock on the variant
       const { error: varErr } = await supabase
         .from("product_variants")
         .update({ min_stock: payload.min_stock })
         .eq("id", payload.variant_id);
       if (varErr) throw varErr;
 
-      const { error: movErr } = await supabase
-        .from("inventory_movements")
-        .insert([{
-          batch_id: payload.batch_id,
-          movement_type: "ajuste_entrada",
-          quantity: diff,
-          notes: "EDI��O DE LOTE: " + payload.reason,
-          created_by: userId || null
-        }]);
-      if (movErr) throw movErr;
+      // 3. Only insert a movement if the quantity actually changed.
+      //    The trigger will correctly update quantity_available/total AND
+      //    fill quantity_before/quantity_after for the audit report.
+      if (diff !== 0) {
+        // Use the correct movement type so the trigger applies the right sign:
+        // ajuste_entrada → trigger does +abs(qty)
+        // ajuste_saida   → trigger does -abs(qty)
+        const movType = diff > 0 ? "ajuste_entrada" : "ajuste_saida";
+        const movQty = Math.abs(diff);
+
+        const { error: movErr } = await supabase
+          .from("inventory_movements")
+          .insert([{
+            batch_id: payload.batch_id,
+            movement_type: movType,
+            quantity: movQty,
+            notes: "Edicao de lote: " + payload.reason,
+            created_by: userId || null
+          }]);
+        if (movErr) throw movErr;
+      }
 
       return true;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventory_batches"] });
+      queryClient.invalidateQueries({ queryKey: ["all_variant_stock_summary"] });
       queryClient.invalidateQueries({ queryKey: ["stock_movements"] });
       queryClient.invalidateQueries({ queryKey: ["product_variants"] });
     }
   });
 }
-

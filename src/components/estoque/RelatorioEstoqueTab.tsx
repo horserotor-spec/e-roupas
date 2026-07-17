@@ -122,6 +122,7 @@ export function RelatorioEstoqueTab() {
                 <SelectItem value="ajuste_entrada">Ajuste de Entrada</SelectItem>
                 <SelectItem value="ajuste_saida">Saída (Ajuste)</SelectItem>
                 <SelectItem value="perda">Perda / Avaria</SelectItem>
+                <SelectItem value="reserva">Reserva de Pedido</SelectItem>
                 <SelectItem value="transferencia">Transferência Interna</SelectItem>
                 <SelectItem value="consumo">Consumo de Produção</SelectItem>
                 <SelectItem value="excluir_produto">Excluir Produto</SelectItem>
