@@ -37,12 +37,6 @@ function ExpeditionScanPage() {
   const [isGeneratingLabel, setIsGeneratingLabel] = useState(false);
   const [labelForm, setLabelForm] = useState({
     service: "PAC" as SGPWebService,
-    peso: "0.5",
-    altura: "5",
-    largura: "20",
-    comprimento: "30",
-    valorDeclarado: "",
-    observacao: "",
   });
   const [generatedPedidoId, setGeneratedPedidoId] = useState<string | null>(null);
 
@@ -211,51 +205,7 @@ function ExpeditionScanPage() {
     navigate({ to: "/expedicao" });
   };
 
-  const handleGenerateLabel = async () => {
-    if (!order) return;
-    setIsGeneratingLabel(true);
 
-    try {
-      const result = await criarPrepostagemSGPWeb({
-        orderId,
-        orderCode: order.code,
-        service: labelForm.service,
-        destinatario: {
-          nome: order.delivery_name || order.clients?.name || "",
-          cpf_cnpj: order.delivery_document || order.clients?.document || "",
-          fone: order.delivery_phone || order.clients?.phone || "",
-          logradouro: order.delivery_street || "",
-          numero: order.delivery_number || "S/N",
-          complemento: order.delivery_complement || "",
-          bairro: order.delivery_neighborhood || "",
-          cidade: order.delivery_city || "",
-          uf: order.delivery_state || "",
-          cep: order.delivery_zip || "",
-        },
-        volume: {
-          peso: parseFloat(labelForm.peso) || 0.5,
-          altura: parseFloat(labelForm.altura) || 5,
-          largura: parseFloat(labelForm.largura) || 20,
-          comprimento: parseFloat(labelForm.comprimento) || 30,
-        },
-        valorDeclarado: labelForm.valorDeclarado ? parseFloat(labelForm.valorDeclarado) : undefined,
-        observacao: labelForm.observacao || order.code,
-      });
-
-      if (result.success) {
-        setGeneratedPedidoId(result.pedidoId || null);
-        toast.success("Pré-postagem criada! Baixando etiqueta...");
-        queryClient.invalidateQueries({ queryKey: ["expedicao_pedido", orderId] });
-
-        // Tentar baixar o PDF automaticamente
-        if (result.pedidoId) {
-          setTimeout(async () => {
-            const pdfResult = await obterEtiquetaSGPWeb(result.pedidoId!, order.code);
-            if (!pdfResult.success) {
-              toast.warning("Pré-postagem criada, mas não foi possível baixar o PDF automaticamente. Use o botão de download.");
-            }
-          }, 1500);
-        }
 
   const handleGenerateLabel = async () => {
     if (!order) return;
@@ -268,6 +218,14 @@ function ExpeditionScanPage() {
     };
 
     try {
+      // Lê os valores diretamente do DOM para evitar qualquer bug de re-render ou perda de foco no React
+      const pesoInput = (document.getElementById("input_peso") as HTMLInputElement)?.value || "0.5";
+      const alturaInput = (document.getElementById("input_altura") as HTMLInputElement)?.value || "5";
+      const larguraInput = (document.getElementById("input_largura") as HTMLInputElement)?.value || "20";
+      const compInput = (document.getElementById("input_comp") as HTMLInputElement)?.value || "30";
+      const valorDeclInput = (document.getElementById("input_valor") as HTMLInputElement)?.value || "";
+      const obsInput = (document.getElementById("input_obs") as HTMLInputElement)?.value || "";
+
       const result = await criarPrepostagemSGPWeb({
         orderId,
         orderCode: order.code,
@@ -285,13 +243,13 @@ function ExpeditionScanPage() {
           cep: order.delivery_zip || "",
         },
         volume: {
-          peso: parseNum(labelForm.peso, 0.5),
-          altura: parseNum(labelForm.altura, 5),
-          largura: parseNum(labelForm.largura, 20),
-          comprimento: parseNum(labelForm.comprimento, 30),
+          peso: parseNum(pesoInput, 0.5),
+          altura: parseNum(alturaInput, 5),
+          largura: parseNum(larguraInput, 20),
+          comprimento: parseNum(compInput, 30),
         },
-        valorDeclarado: labelForm.valorDeclarado ? parseNum(labelForm.valorDeclarado, 0) : undefined,
-        observacao: labelForm.observacao || order.code,
+        valorDeclarado: valorDeclInput ? parseNum(valorDeclInput, 0) : undefined,
+        observacao: obsInput || order.code,
       });
 
       if (result.success) {
@@ -604,10 +562,10 @@ function ExpeditionScanPage() {
                 <div>
                   <span className="text-[10px] text-slate-500 font-semibold uppercase block mb-1">Peso (kg)</span>
                   <Input
+                    id="input_peso"
                     type="text"
                     inputMode="decimal"
-                    value={labelForm.peso}
-                    onChange={(e) => setLabelForm(f => ({ ...f, peso: e.target.value }))}
+                    defaultValue="0.5"
                     placeholder="0.5"
                     className="bg-slate-800 border-slate-700 text-white h-9 text-sm font-mono"
                   />
@@ -615,10 +573,10 @@ function ExpeditionScanPage() {
                 <div>
                   <span className="text-[10px] text-slate-500 font-semibold uppercase block mb-1">Alt. (cm)</span>
                   <Input
+                    id="input_altura"
                     type="text"
                     inputMode="decimal"
-                    value={labelForm.altura}
-                    onChange={(e) => setLabelForm(f => ({ ...f, altura: e.target.value }))}
+                    defaultValue="5"
                     placeholder="5"
                     className="bg-slate-800 border-slate-700 text-white h-9 text-sm font-mono"
                   />
@@ -626,10 +584,10 @@ function ExpeditionScanPage() {
                 <div>
                   <span className="text-[10px] text-slate-500 font-semibold uppercase block mb-1">Larg. (cm)</span>
                   <Input
+                    id="input_largura"
                     type="text"
                     inputMode="decimal"
-                    value={labelForm.largura}
-                    onChange={(e) => setLabelForm(f => ({ ...f, largura: e.target.value }))}
+                    defaultValue="20"
                     placeholder="20"
                     className="bg-slate-800 border-slate-700 text-white h-9 text-sm font-mono"
                   />
@@ -637,10 +595,10 @@ function ExpeditionScanPage() {
                 <div>
                   <span className="text-[10px] text-slate-500 font-semibold uppercase block mb-1">Comp. (cm)</span>
                   <Input
+                    id="input_comp"
                     type="text"
                     inputMode="decimal"
-                    value={labelForm.comprimento}
-                    onChange={(e) => setLabelForm(f => ({ ...f, comprimento: e.target.value }))}
+                    defaultValue="30"
                     placeholder="30"
                     className="bg-slate-800 border-slate-700 text-white h-9 text-sm font-mono"
                   />
@@ -653,10 +611,10 @@ function ExpeditionScanPage() {
               <div>
                 <Label className="text-slate-300 text-xs font-bold uppercase tracking-wider mb-1.5 block">Valor Declarado (R$)</Label>
                 <Input
+                  id="input_valor"
                   type="text"
                   inputMode="decimal"
-                  value={labelForm.valorDeclarado}
-                  onChange={(e) => setLabelForm(f => ({ ...f, valorDeclarado: e.target.value }))}
+                  defaultValue=""
                   placeholder="Opcional"
                   className="bg-slate-800 border-slate-700 text-white h-9 text-sm"
                 />
@@ -664,8 +622,8 @@ function ExpeditionScanPage() {
               <div>
                 <Label className="text-slate-300 text-xs font-bold uppercase tracking-wider mb-1.5 block">Observação</Label>
                 <Input
-                  value={labelForm.observacao}
-                  onChange={(e) => setLabelForm(f => ({ ...f, observacao: e.target.value }))}
+                  id="input_obs"
+                  defaultValue={order?.code || ""}
                   placeholder={order?.code || ""}
                   className="bg-slate-800 border-slate-700 text-white h-9 text-sm"
                 />
