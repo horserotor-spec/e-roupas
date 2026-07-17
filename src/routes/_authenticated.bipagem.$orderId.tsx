@@ -268,6 +268,19 @@ function ExpeditionScanPage() {
     }
   };
 
+  const handleNumberChange = (key: string, value: string) => {
+    // Permite números, pontos e vírgulas. Troca vírgula por ponto.
+    let sanitized = value.replace(/[^0-9.,]/g, "").replace(",", ".");
+    
+    // Evita múltiplos pontos
+    const parts = sanitized.split(".");
+    if (parts.length > 2) {
+      sanitized = parts[0] + "." + parts.slice(1).join("");
+    }
+    
+    setLabelForm(f => ({ ...f, [key]: sanitized }));
+  };
+
   if (isLoading) {
     return <div className="flex h-screen items-center justify-center"><Loader2 className="size-8 animate-spin text-primary" /></div>;
   }
@@ -562,7 +575,7 @@ function ExpeditionScanPage() {
                       type="text"
                       inputMode="decimal"
                       value={labelForm[key as keyof typeof labelForm]}
-                      onChange={(e) => setLabelForm(f => ({ ...f, [key]: e.target.value }))}
+                      onChange={(e) => handleNumberChange(key, e.target.value)}
                       placeholder={placeholder}
                       className="bg-slate-800 border-slate-700 text-white h-9 text-sm font-mono"
                     />
@@ -579,7 +592,7 @@ function ExpeditionScanPage() {
                   type="text"
                   inputMode="decimal"
                   value={labelForm.valorDeclarado}
-                  onChange={(e) => setLabelForm(f => ({ ...f, valorDeclarado: e.target.value }))}
+                  onChange={(e) => handleNumberChange("valorDeclarado", e.target.value)}
                   placeholder="Opcional"
                   className="bg-slate-800 border-slate-700 text-white h-9 text-sm"
                 />

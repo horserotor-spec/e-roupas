@@ -34,8 +34,7 @@ export interface SGPWebPrepostagemPayload {
 
 // ─── Server Function: criar pré-postagem ─────────────────────────────────────
 export const criarPrepostagemServer = createServerFn({ method: "POST" })
-  .validator((data: SGPWebPrepostagemPayload) => data)
-  .handler(async ({ data }) => {
+  .handler(async ({ data }: { data: SGPWebPrepostagemPayload }) => {
     const payload = {
       token: SGPWEB_TOKEN,
       app: SGPWEB_APP,
@@ -91,8 +90,7 @@ export const criarPrepostagemServer = createServerFn({ method: "POST" })
 
 // ─── Server Function: obter etiqueta PDF (bytes em base64) ───────────────────
 export const obterEtiquetaServer = createServerFn({ method: "GET" })
-  .validator((data: { pedidoId: string }) => data)
-  .handler(async ({ data }) => {
+  .handler(async ({ data }: { data: { pedidoId: string } }) => {
     const urls = [
       `${SGPWEB_BASE}/api/etiqueta/${data.pedidoId}?token=${SGPWEB_TOKEN}&app=${SGPWEB_APP}`,
       `${SGPWEB_BASE}/api/prepostagem/${data.pedidoId}/etiqueta?token=${SGPWEB_TOKEN}&app=${SGPWEB_APP}`,
