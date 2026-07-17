@@ -257,6 +257,57 @@ function ExpeditionScanPage() {
           }, 1500);
         }
 
+  const handleGenerateLabel = async () => {
+    if (!order) return;
+    setIsGeneratingLabel(true);
+
+    // Converte vírgula para ponto e parseia para float no momento do envio
+    const parseNum = (val: string | number, fallback: number) => {
+      const parsed = parseFloat(String(val).replace(",", "."));
+      return isNaN(parsed) ? fallback : parsed;
+    };
+
+    try {
+      const result = await criarPrepostagemSGPWeb({
+        orderId,
+        orderCode: order.code,
+        service: labelForm.service,
+        destinatario: {
+          nome: order.delivery_name || order.clients?.name || "",
+          cpf_cnpj: order.delivery_document || order.clients?.document || "",
+          fone: order.delivery_phone || order.clients?.phone || "",
+          logradouro: order.delivery_street || "",
+          numero: order.delivery_number || "S/N",
+          complemento: order.delivery_complement || "",
+          bairro: order.delivery_neighborhood || "",
+          cidade: order.delivery_city || "",
+          uf: order.delivery_state || "",
+          cep: order.delivery_zip || "",
+        },
+        volume: {
+          peso: parseNum(labelForm.peso, 0.5),
+          altura: parseNum(labelForm.altura, 5),
+          largura: parseNum(labelForm.largura, 20),
+          comprimento: parseNum(labelForm.comprimento, 30),
+        },
+        valorDeclarado: labelForm.valorDeclarado ? parseNum(labelForm.valorDeclarado, 0) : undefined,
+        observacao: labelForm.observacao || order.code,
+      });
+
+      if (result.success) {
+        setGeneratedPedidoId(result.pedidoId || null);
+        toast.success("Pré-postagem criada! Baixando etiqueta...");
+        queryClient.invalidateQueries({ queryKey: ["expedicao_pedido", orderId] });
+
+        if (result.pedidoId) {
+          setTimeout(async () => {
+            const pdfResult = await obterEtiquetaSGPWeb(result.pedidoId!, order.code);
+            if (!pdfResult.success) {
+              toast.warning("Pré-postagem criada, mas não foi possível baixar o PDF automaticamente. Use o botão de download.");
+            }
+          }, 1500);
+        }
+
         setLabelModalOpen(false);
       } else {
         toast.error(result.message || "Erro ao gerar etiqueta");
@@ -266,19 +317,6 @@ function ExpeditionScanPage() {
     } finally {
       setIsGeneratingLabel(false);
     }
-  };
-
-  const handleNumberChange = (key: string, value: string) => {
-    // Permite números, pontos e vírgulas. Troca vírgula por ponto.
-    let sanitized = value.replace(/[^0-9.,]/g, "").replace(",", ".");
-    
-    // Evita múltiplos pontos
-    const parts = sanitized.split(".");
-    if (parts.length > 2) {
-      sanitized = parts[0] + "." + parts.slice(1).join("");
-    }
-    
-    setLabelForm(f => ({ ...f, [key]: sanitized }));
   };
 
   if (isLoading) {
@@ -563,24 +601,50 @@ function ExpeditionScanPage() {
             <div>
               <Label className="text-slate-300 text-xs font-bold uppercase tracking-wider mb-1.5 block">Peso e Dimensões do Pacote</Label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {[
-                  { key: "peso", label: "Peso (kg)", placeholder: "0.5" },
-                  { key: "altura", label: "Alt. (cm)", placeholder: "5" },
-                  { key: "largura", label: "Larg. (cm)", placeholder: "20" },
-                  { key: "comprimento", label: "Comp. (cm)", placeholder: "30" },
-                ].map(({ key, label, placeholder }) => (
-                  <div key={key}>
-                    <span className="text-[10px] text-slate-500 font-semibold uppercase block mb-1">{label}</span>
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      value={labelForm[key as keyof typeof labelForm]}
-                      onChange={(e) => handleNumberChange(key, e.target.value)}
-                      placeholder={placeholder}
-                      className="bg-slate-800 border-slate-700 text-white h-9 text-sm font-mono"
-                    />
-                  </div>
-                ))}
+                <div>
+                  <span className="text-[10px] text-slate-500 font-semibold uppercase block mb-1">Peso (kg)</span>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={labelForm.peso}
+                    onChange={(e) => setLabelForm(f => ({ ...f, peso: e.target.value }))}
+                    placeholder="0.5"
+                    className="bg-slate-800 border-slate-700 text-white h-9 text-sm font-mono"
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 font-semibold uppercase block mb-1">Alt. (cm)</span>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={labelForm.altura}
+                    onChange={(e) => setLabelForm(f => ({ ...f, altura: e.target.value }))}
+                    placeholder="5"
+                    className="bg-slate-800 border-slate-700 text-white h-9 text-sm font-mono"
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 font-semibold uppercase block mb-1">Larg. (cm)</span>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={labelForm.largura}
+                    onChange={(e) => setLabelForm(f => ({ ...f, largura: e.target.value }))}
+                    placeholder="20"
+                    className="bg-slate-800 border-slate-700 text-white h-9 text-sm font-mono"
+                  />
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 font-semibold uppercase block mb-1">Comp. (cm)</span>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={labelForm.comprimento}
+                    onChange={(e) => setLabelForm(f => ({ ...f, comprimento: e.target.value }))}
+                    placeholder="30"
+                    className="bg-slate-800 border-slate-700 text-white h-9 text-sm font-mono"
+                  />
+                </div>
               </div>
             </div>
 
@@ -592,7 +656,7 @@ function ExpeditionScanPage() {
                   type="text"
                   inputMode="decimal"
                   value={labelForm.valorDeclarado}
-                  onChange={(e) => handleNumberChange("valorDeclarado", e.target.value)}
+                  onChange={(e) => setLabelForm(f => ({ ...f, valorDeclarado: e.target.value }))}
                   placeholder="Opcional"
                   className="bg-slate-800 border-slate-700 text-white h-9 text-sm"
                 />

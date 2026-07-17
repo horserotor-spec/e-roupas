@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 // ─── Configuração SGPWeb (server-side, nunca exposta ao browser) ──────────────
 const SGPWEB_TOKEN = "ua79VynzrgETLsmqUEoQgYjCZV7CrGaUoN9Gh1qY";
 const SGPWEB_APP   = "76268b2de7402b74bd6d9b645725c5ff";
-const SGPWEB_BASE  = "https://novo.sgpweb.com.br";
+const SGPWEB_BASE  = "https://www.sgpweb.com.br/novo";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface SGPWebPrepostagemPayload {
