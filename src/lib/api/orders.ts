@@ -768,11 +768,15 @@ export async function bipExpeditionItem(
       };
     }
 
-    // Localizar o item correto pelo hash do UUID, trazendo scanned_labels e quantity_quality
-    const { data: allItems } = await supabase
+    // Localizar o item correto pelo hash do UUID, trazendo scanned_labels
+    const { data: allItems, error: allItemsError } = await supabase
       .from("order_items")
-      .select("id, product_name, size, quantity, quantity_dispatched, scanned_labels, quality_scanned_labels")
+      .select("id, product_name, size, quantity, quantity_dispatched, scanned_labels")
       .eq("order_id", orderId);
+
+    if (allItemsError) {
+      return { success: false, message: "Erro ao buscar itens: " + allItemsError.message };
+    }
 
     const targetItem = allItems?.find(i => i.id.substring(0, 4).toUpperCase() === bipItemHex);
     if (!targetItem) {
@@ -790,7 +794,7 @@ export async function bipExpeditionItem(
   else {
     const { data: legacyItem } = await supabase
       .from("order_items")
-      .select("id, product_name, size, quantity, quantity_dispatched, scanned_labels, quality_scanned_labels, sku")
+      .select("id, product_name, size, quantity, quantity_dispatched, scanned_labels, sku")
       .eq("id", orderItemId)
       .single();
 
@@ -811,12 +815,6 @@ export async function bipExpeditionItem(
     };
   }
 
-  // Verificar duplicidade no Manuseio/Qualidade
-  const qualityScanned: string[] = (finalItem.quality_scanned_labels as string[] || []);
-  if (qualityScanned.includes(cleanBiped)) {
-    return { success: false, message: "ERRO: Esta etiqueta já foi conferida no Manuseio/Qualidade." };
-  }
-
   // Verificar se o item já está completo no Manuseio
   if ((Number(finalItem.quantity_dispatched) || 0) >= Number(finalItem.quantity)) {
     return {
@@ -827,23 +825,11 @@ export async function bipExpeditionItem(
 
   // ── REGISTRAR CONFERÊNCIA DE MANUSEIO/QUALIDADE (sem baixa de estoque) ──
   const newDispatched = (Number(finalItem.quantity_dispatched) || 0) + 1;
-  const newQualityScanned = [...qualityScanned, cleanBiped];
 
-  const { error: updateError } = await supabase
+  await supabase
     .from("order_items")
-    .update({
-      quantity_dispatched: newDispatched,
-      quality_scanned_labels: newQualityScanned
-    })
+    .update({ quantity_dispatched: newDispatched })
     .eq("id", finalItemId);
-
-  if (updateError) {
-    // Fallback: se a coluna quality_scanned_labels não existir, atualizar só quantity_dispatched
-    await supabase
-      .from("order_items")
-      .update({ quantity_dispatched: newDispatched })
-      .eq("id", finalItemId);
-  }
 
   // Timeline
   await supabase.from("order_timeline").insert([{
