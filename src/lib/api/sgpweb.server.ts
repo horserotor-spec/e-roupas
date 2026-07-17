@@ -42,7 +42,7 @@ export const criarPrepostagemServer = createServerFn({ method: "POST" })
     };
 
     try {
-      const response = await fetch(`${SGPWEB_BASE}/api/prepostagem`, {
+      const response = await fetch(`${SGPWEB_BASE}/api/pre-postagem`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -93,7 +93,8 @@ export const obterEtiquetaServer = createServerFn({ method: "GET" })
   .handler(async ({ data }: { data: { pedidoId: string } }) => {
     const urls = [
       `${SGPWEB_BASE}/api/etiqueta/${data.pedidoId}?token=${SGPWEB_TOKEN}&app=${SGPWEB_APP}`,
-      `${SGPWEB_BASE}/api/prepostagem/${data.pedidoId}/etiqueta?token=${SGPWEB_TOKEN}&app=${SGPWEB_APP}`,
+      `${SGPWEB_BASE}/api/pre-postagem/${data.pedidoId}/etiqueta?token=${SGPWEB_TOKEN}&app=${SGPWEB_APP}`,
+      `${SGPWEB_BASE}/api/pre-postagem/etiqueta/${data.pedidoId}?token=${SGPWEB_TOKEN}&app=${SGPWEB_APP}`,
     ];
 
     for (const url of urls) {
