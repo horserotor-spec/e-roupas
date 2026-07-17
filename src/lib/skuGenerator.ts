@@ -5,12 +5,16 @@ interface SkuContext {
   modelName?: string | null;
   fabricName?: string | null;
   colorName?: string | null;
+  modelCode?: string | null;
+  fabricCode?: string | null;
+  colorCode?: string | null;
   artCode?: string | null; // Para PF
 }
 
 export function generateSku(context: SkuContext, rules: SkuRule[]): string {
   // Encontra as abreviações correspondentes, com fallback de pegar as 3 primeiras consoantes/letras
-  const getAbbr = (type: SkuRule['rule_type'], name: string | null | undefined): string => {
+  const getAbbr = (type: SkuRule['rule_type'], name: string | null | undefined, code: string | null | undefined): string => {
+    if (code) return code.toUpperCase();
     if (!name) return "XXX";
     const rule = rules.find(r => r.rule_type === type && r.name === name);
     if (rule) return rule.abbreviation;
@@ -20,17 +24,17 @@ export function generateSku(context: SkuContext, rules: SkuRule[]): string {
     return (consonants.length >= 3 ? consonants : name.replace(/[^A-Za-z]/g, '').toUpperCase()).slice(0, 3).padEnd(3, 'X');
   };
 
-  const { format, modelName, fabricName, colorName, artCode } = context;
+  const { format, modelName, fabricName, colorName, modelCode, fabricCode, colorCode, artCode } = context;
 
   if (format === "PF") {
     // PF = [ARTE]-[PA] = [ARTE]-PA-MOD-MAL-COR
-    const paCode = `PA-${getAbbr('model', modelName)}-${getAbbr('fabric', fabricName)}-${getAbbr('color', colorName)}`;
+    const paCode = `PA-${getAbbr('model', modelName, modelCode)}-${getAbbr('fabric', fabricName, fabricCode)}-${getAbbr('color', colorName, colorCode)}`;
     return `${artCode || 'ARTEXXX'}-${paCode}`;
   }
 
   if (format === "MP" || format === "PA") {
     // MP-MOD-MAL-COR ou PA-MOD-MAL-COR
-    return `${format}-${getAbbr('model', modelName)}-${getAbbr('fabric', fabricName)}-${getAbbr('color', colorName)}`;
+    return `${format}-${getAbbr('model', modelName, modelCode)}-${getAbbr('fabric', fabricName, fabricCode)}-${getAbbr('color', colorName, colorCode)}`;
   }
 
   // Insumo ou Serviço podem ter formatos livres ou manter o SKU atual

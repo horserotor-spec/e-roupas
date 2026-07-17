@@ -266,11 +266,18 @@ export function ProductFormDrawer({ open, onOpenChange, product }: ProductFormDr
 
     // Gerar SKU Automático
     if (!customSkuMode) {
+      const selectedModel = models.find(m => m.id === formData.model_id);
+      const selectedFabric = fabrics.find(f => f.id === formData.fabric_id);
+      const selectedColor = colors.find(c => c.id === formData.color_id);
+
       const generated = generateSku({
         format: formData.format || "",
-        modelName: models.find(m => m.id === formData.model_id)?.name,
-        fabricName: fabrics.find(f => f.id === formData.fabric_id)?.name,
-        colorName: colors.find(c => c.id === formData.color_id)?.name,
+        modelName: selectedModel?.name,
+        modelCode: selectedModel?.code,
+        fabricName: selectedFabric?.name,
+        fabricCode: selectedFabric?.code,
+        colorName: selectedColor?.name,
+        colorCode: selectedColor?.code,
       }, skuRules);
 
       if (generated && formData.sku !== generated) {
