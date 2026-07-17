@@ -94,9 +94,13 @@ function SeparationPage() {
   // Captura global de teclado para scanners físicos (pistola)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const activeTag = document.activeElement?.tagName.toLowerCase();
+      const isTypingInInput = activeTag === "input" || activeTag === "textarea" || activeTag === "select";
+
       if (
         !cameraOpen &&
         barcodeInputRef.current &&
+        !isTypingInInput &&
         document.activeElement !== barcodeInputRef.current &&
         e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey
       ) {

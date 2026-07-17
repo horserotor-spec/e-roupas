@@ -95,9 +95,14 @@ function ExpeditionScanPage() {
   // Captura global de teclado para scanners físicos (pistola)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const activeTag = document.activeElement?.tagName.toLowerCase();
+      const isTypingInInput = activeTag === "input" || activeTag === "textarea" || activeTag === "select";
+
       if (
         !cameraOpen &&
+        !labelModalOpen &&
         barcodeInputRef.current &&
+        !isTypingInInput &&
         document.activeElement !== barcodeInputRef.current &&
         e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey
       ) {
@@ -106,7 +111,7 @@ function ExpeditionScanPage() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [cameraOpen]);
+  }, [cameraOpen, labelModalOpen]);
 
   // (Hook useBarcodeScanner cuida da câmera agora);
 
@@ -564,7 +569,6 @@ function ExpeditionScanPage() {
                   <Input
                     id="input_peso"
                     type="text"
-                    inputMode="decimal"
                     defaultValue="0.5"
                     placeholder="0.5"
                     className="bg-slate-800 border-slate-700 text-white h-9 text-sm font-mono"
@@ -575,7 +579,6 @@ function ExpeditionScanPage() {
                   <Input
                     id="input_altura"
                     type="text"
-                    inputMode="decimal"
                     defaultValue="5"
                     placeholder="5"
                     className="bg-slate-800 border-slate-700 text-white h-9 text-sm font-mono"
@@ -586,7 +589,6 @@ function ExpeditionScanPage() {
                   <Input
                     id="input_largura"
                     type="text"
-                    inputMode="decimal"
                     defaultValue="20"
                     placeholder="20"
                     className="bg-slate-800 border-slate-700 text-white h-9 text-sm font-mono"
@@ -597,7 +599,6 @@ function ExpeditionScanPage() {
                   <Input
                     id="input_comp"
                     type="text"
-                    inputMode="decimal"
                     defaultValue="30"
                     placeholder="30"
                     className="bg-slate-800 border-slate-700 text-white h-9 text-sm font-mono"
@@ -613,7 +614,6 @@ function ExpeditionScanPage() {
                 <Input
                   id="input_valor"
                   type="text"
-                  inputMode="decimal"
                   defaultValue=""
                   placeholder="Opcional"
                   className="bg-slate-800 border-slate-700 text-white h-9 text-sm"
