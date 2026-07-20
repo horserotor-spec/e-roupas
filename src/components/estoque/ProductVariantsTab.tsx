@@ -24,7 +24,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, Loader2, Edit2, Layers, PackagePlus, PackageMinus } from "lucide-react";
+import { Search, Plus, Loader2, Edit2, Layers, PackagePlus, PackageMinus, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
@@ -78,7 +78,7 @@ export function ProductVariantsTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-md flex items-center gap-2">
+        <div className="relative flex-1 max-w-md flex items-center gap-2 print:hidden">
           <div className="relative flex-1">
             <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -99,9 +99,14 @@ export function ProductVariantsTab() {
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={openNew} className="h-9 inline-flex items-center gap-1.5 px-3">
-          <Plus className="size-4" /> Nova Variante
-        </Button>
+        <div className="flex items-center gap-2 print:hidden">
+          <Button onClick={() => window.print()} variant="outline" className="h-9 inline-flex items-center gap-1.5 px-3">
+            <Printer className="size-4" /> Imprimir
+          </Button>
+          <Button onClick={openNew} className="h-9 inline-flex items-center gap-1.5 px-3">
+            <Plus className="size-4" /> Nova Variante
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -111,8 +116,8 @@ export function ProductVariantsTab() {
               <th className="text-left font-medium px-4 py-2.5">SKU / Modelo</th>
               <th className="text-left font-medium px-4 py-2.5">Composição</th>
               <th className="text-left font-medium px-4 py-2.5">Tamanho / Gênero</th>
-              <th className="text-right font-medium px-4 py-2.5">Estoque Atual</th>
-              <th className="text-right font-medium px-4 py-2.5">Ações</th>
+              <th className="text-right font-medium px-4 py-2.5">Estoque Atual / Mínimo</th>
+              <th className="text-right font-medium px-4 py-2.5 print:hidden">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -155,18 +160,25 @@ export function ProductVariantsTab() {
                       <div className="text-xs text-muted-foreground">{v.gender}</div>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Badge
-                        variant="outline"
-                        className={`font-bold text-sm px-2 py-1 ${
-                          currentStock > 0
-                            ? "bg-blue-50 text-blue-700 border-blue-200"
-                            : "bg-red-50 text-red-700 border-red-200"
-                        }`}
-                      >
-                        {currentStock} un
-                      </Badge>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge
+                          variant="outline"
+                          className={`font-bold text-sm px-2 py-1 ${
+                            currentStock > 0 && currentStock >= (Number(v.min_stock) || 0)
+                              ? "bg-blue-50 text-blue-700 border-blue-200"
+                              : currentStock > 0 && currentStock < (Number(v.min_stock) || 0)
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : "bg-red-50 text-red-700 border-red-200"
+                          }`}
+                        >
+                          {currentStock} un
+                        </Badge>
+                        <span className="text-[10px] text-muted-foreground font-medium whitespace-nowrap">
+                          Mín: {v.min_stock || 0} un
+                        </span>
+                      </div>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right print:hidden">
                       <div className="flex items-center justify-end gap-1">
                         {/* Inserir estoque */}
                         <Button
