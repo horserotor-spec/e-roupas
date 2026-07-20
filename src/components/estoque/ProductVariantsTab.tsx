@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   useProductVariants,
   useSaveProductVariant,
@@ -33,6 +33,7 @@ import { Badge } from "@/components/ui/badge";
 // ---------------------------------------------------------------------------
 export function ProductVariantsTab() {
   const [search, setSearch] = useState("");
+  const [stockFilter, setStockFilter] = useState<"todos" | "esgotado" | "critico">("todos");
   const { data: variants = [], isLoading } = useProductVariants(search);
   const { data: stockSummary = [] } = useAllVariantStockSummary();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -59,17 +60,44 @@ export function ProductVariantsTab() {
     setAdjustOpen(true);
   };
 
+  const filteredVariants = useMemo(() => {
+    return variants.filter(v => {
+      if (stockFilter === "todos") return true;
+      
+      const currentStock = (stockSummary as any[]).find((s: any) => s.variant_id === v.id)?.available_qty || 0;
+      
+      if (stockFilter === "esgotado") return currentStock === 0;
+      if (stockFilter === "critico") {
+        const minStock = Number(v.min_stock) || 0;
+        return currentStock > 0 && currentStock < minStock;
+      }
+      return true;
+    });
+  }, [variants, stockFilter, stockSummary]);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por SKU, modelo, malha, cor..."
-            className="h-9 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm outline-none focus:border-primary"
-          />
+        <div className="relative flex-1 max-w-md flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar SKU..."
+              className="h-9 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm outline-none focus:border-primary"
+            />
+          </div>
+          <Select value={stockFilter} onValueChange={(v: any) => setStockFilter(v)}>
+            <SelectTrigger className="w-[180px] h-9">
+              <SelectValue placeholder="Filtro de Estoque" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              <SelectItem value="esgotado">Esgotado (0)</SelectItem>
+              <SelectItem value="critico">Estoque Crítico (Abaixo do Min)</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <Button onClick={openNew} className="h-9 inline-flex items-center gap-1.5 px-3">
           <Plus className="size-4" /> Nova Variante
@@ -90,13 +118,14 @@ export function ProductVariantsTab() {
           <tbody className="divide-y divide-border">
             {isLoading && (
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-sm text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin mx-auto" />
+                <td colSpan={7} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                  <Loader2 className="size-6 animate-spin mx-auto mb-2" />
+                  Carregando variantes...
                 </td>
               </tr>
             )}
             {!isLoading &&
-              variants.map((v) => {
+              filteredVariants.map((v) => {
                 const currentStock =
                   (stockSummary as any[]).find((s: any) => s.variant_id === v.id)?.available_qty || 0;
                 return (
