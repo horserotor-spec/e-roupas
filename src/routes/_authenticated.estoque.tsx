@@ -33,14 +33,14 @@ function EstoquePage() {
 
   return (
     <div className="px-6 md:px-10 py-8 max-w-[1400px] mx-auto min-h-[calc(100vh-64px)] flex flex-col">
-      <div className="flex items-end justify-between mb-8 flex-wrap gap-3">
+      <div className="flex items-end justify-between mb-8 flex-wrap gap-3 print:hidden">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Estoque</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">Estoque Inteligente</h1>
         </div>
       </div>
 
-      <div className="flex space-x-1 border-b mb-6 overflow-x-auto pb-px">
+      <div className="flex space-x-1 border-b mb-6 overflow-x-auto pb-px print:hidden">
         {TABS.map(tab => {
           const active = activeTab === tab.id;
           const Icon = tab.icon;
