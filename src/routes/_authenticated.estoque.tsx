@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Boxes, Package, Factory, Truck, Settings, FileBox, AlertTriangle, TrendingDown, Loader2, FileText } from "lucide-react";
 import { SuppliersTab } from "@/components/estoque/SuppliersTab";
 import { ConfigTab } from "@/components/estoque/ConfigTab";
@@ -72,8 +73,12 @@ function EstoquePage() {
 }
 
 function DashboardTab({ onNavigate }: { onNavigate: (tabId: string) => void }) {
+  const queryClient = useQueryClient();
+
+  // Usa as MESMAS queryKeys que as mutations de inventory.ts invalidam,
+  // garantindo atualização automática ao adicionar/subtrair peças.
   const { data: batches = [], isLoading: isLoadingBatches } = useQuery({
-    queryKey: ["dashboard_batches"],
+    queryKey: ["inventory_batches", undefined],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("inventory_batches")
@@ -89,22 +94,27 @@ function DashboardTab({ onNavigate }: { onNavigate: (tabId: string) => void }) {
         .eq("active", true);
       if (error) throw error;
       return data || [];
-    }
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   const { data: soldItems = [], isLoading: isLoadingSold } = useQuery({
-    queryKey: ["dashboard_sold_items"],
+    queryKey: ["order_items_dashboard"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("order_items")
         .select("*");
       if (error) throw error;
       return data || [];
-    }
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
+  // Usa a mesma queryKey ["stock_movements"] que as mutations já invalidam
   const { data: movements = [], isLoading: isLoadingMovements } = useQuery({
-    queryKey: ["dashboard_movements"],
+    queryKey: ["stock_movements", {}],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("inventory_movements")
@@ -122,8 +132,16 @@ function DashboardTab({ onNavigate }: { onNavigate: (tabId: string) => void }) {
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
-    }
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
+
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["inventory_batches"] });
+    queryClient.invalidateQueries({ queryKey: ["stock_movements"] });
+    queryClient.invalidateQueries({ queryKey: ["order_items_dashboard"] });
+  };
 
   if (isLoadingBatches || isLoadingSold || isLoadingMovements) {
     return (
@@ -237,6 +255,17 @@ function DashboardTab({ onNavigate }: { onNavigate: (tabId: string) => void }) {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-end">
+        <button
+          onClick={handleRefresh}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors border rounded-lg px-3 py-1.5 hover:border-primary"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>
+          </svg>
+          Atualizar Dashboard
+        </button>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div onClick={() => onNavigate("lotes")} className="bg-white p-5 rounded-2xl border shadow-sm cursor-pointer hover:border-amber-400 hover:shadow-md transition-all">
             <div className="text-sm font-medium text-muted-foreground flex items-center justify-between">Baixo Estoque <AlertTriangle className="size-4 text-amber-500"/></div>
