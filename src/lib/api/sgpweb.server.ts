@@ -68,27 +68,27 @@ export const criarPrepostagemServer = createServerFn({ method: "POST" })
           cpf_cnpj: (data.destinatario.cpf_cnpj || "00000000000").replace(/\D/g, ""),
           endereco: data.destinatario.logradouro,
           telefone: data.destinatario.fone || "(88) 99452-8989",
-          remetente: data.remetente?.nome || "Brogan 3",
+          remetente: data.remetente?.nome || "e-roupas lab têxtil ltda.",
           observacao: data.observacao || `Envio SGP - Ref: ${data.referencia}`,
           complemento: data.destinatario.complemento || "Casa",
           nota_fiscal: data.nota_fiscal || "",
           destinatario: data.destinatario.nome,
-          uf_remetente: data.remetente?.uf || "SP",
-          cep_remetente: data.remetente?.cep || "14405415",
+          uf_remetente: data.remetente?.uf || "PR",
+          cep_remetente: data.remetente?.cep || "86063380",
           identificador: data.referencia,
-          email_remetente: data.remetente?.email || "rmscalcados1@gmail.com",
+          email_remetente: data.remetente?.email || "contato@e-roupas.com.br",
           valor_declarado: data.valorDeclarado ? String(data.valorDeclarado.toFixed(2)) : "0.00",
-          bairro_remetente: data.remetente?.bairro || "Jardim Integração",
-          cidade_remetente: data.remetente?.cidade || "Franca",
-          numero_remetente: data.remetente?.numero || "3830",
+          bairro_remetente: data.remetente?.bairro || "Térreo",
+          cidade_remetente: data.remetente?.cidade || "Londrina",
+          numero_remetente: data.remetente?.numero || "71",
           servico_correios: data.servico,
           aviso_recebimento: "2",
           chave_nota_fiscal: data.chave_nota_fiscal || "",
-          empresa_remetente: data.remetente?.nome || "Brogan 3",
+          empresa_remetente: data.remetente?.nome || "e-roupas lab têxtil ltda.",
           serie_nota_fiscal: data.serie_nota_fiscal || "1",
           cpf_cnpj_remetente: data.remetente?.cpf_cnpj || "48871285000162",
-          endereco_remetente: data.remetente?.logradouro || "Rua Hipólito Antônio Pinheiro",
-          telefone_remetente: data.remetente?.telefone || "1637242374"
+          endereco_remetente: data.remetente?.logradouro || "Rua Etienne Lenoir",
+          telefone_remetente: data.remetente?.telefone || ""
         }
       ]
     };
@@ -126,10 +126,28 @@ export const criarPrepostagemServer = createServerFn({ method: "POST" })
         };
       }
 
+      let trackingCode = "";
+      let pedidoId = "";
+      
+      const findData = (obj: any) => {
+        if (Array.isArray(obj) && obj.length > 0) {
+           pedidoId = obj[0].id || obj[0].pedido_id || obj[0].numero || obj[0].codigo || pedidoId;
+           trackingCode = obj[0].codigo_rastreio || obj[0].tracking || obj[0].etiqueta || obj[0].rastreio || trackingCode;
+        } else if (typeof obj === 'object' && obj !== null) {
+           pedidoId = obj.id || obj.pedido_id || obj.numero || obj.codigo || pedidoId;
+           trackingCode = obj.codigo_rastreio || obj.tracking || obj.etiqueta || obj.rastreio || trackingCode;
+           
+           if (!trackingCode && obj.data) findData(obj.data);
+           if (!trackingCode && obj.objetos) findData(obj.objetos);
+           if (!trackingCode && obj.retorno) findData(obj.retorno);
+        }
+      }
+      findData(json);
+
       return {
         success: true,
-        pedidoId: String(json.id || json.pedido_id || json.numero || json.codigo || ""),
-        trackingCode: json.codigo_rastreio || json.tracking || json.etiqueta || json.rastreio || "",
+        pedidoId: String(pedidoId || ""),
+        trackingCode: trackingCode || "",
         message: "Pré-postagem criada com sucesso!",
         raw: json,
       };
