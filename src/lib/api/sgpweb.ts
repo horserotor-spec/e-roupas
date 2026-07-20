@@ -87,6 +87,7 @@ export async function criarPrepostagemSGPWeb(order: SGPWebOrder): Promise<SGPWeb
       // Salvar no banco
       await supabase.from("orders").update({
         tracking_code: result.trackingCode || null,
+        logistics_integration: result.pedidoId || null,
         logistics_status: "Etiqueta gerada",
         status: "finalizado"
       }).eq("id", order.orderId);

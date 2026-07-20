@@ -2,8 +2,9 @@ import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-ro
 import { formatCurrency } from "@/lib/utils";
 import { statusLabel, statusTone, processLabel, type OrderStatus } from "@/lib/constants";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Trash2, Flame, Calendar, User, Package, MessageSquare, Paperclip, CheckCircle2, CircleDashed, Loader2, Lock, Plus, Activity, Edit, RefreshCw, Check, Truck, MapPin, Tag, FileText, ExternalLink } from "lucide-react";
+import { ArrowLeft, Trash2, Flame, Calendar, User, Package, MessageSquare, Paperclip, CheckCircle2, CircleDashed, Loader2, Lock, Plus, Activity, Edit, RefreshCw, Check, Truck, MapPin, Tag, FileText, ExternalLink, Printer } from "lucide-react";
 import { useOrder, useUpdateOrder, useDeleteOrder, useOverrideStockBatch, consumeStockForOrder } from "@/lib/api/orders";
+import { obterEtiquetaSGPWeb } from "@/lib/api/sgpweb";
 import { useOrderItems } from "@/lib/api/order_items";
 import { useOrderTimeline, logTimelineEvent } from "@/lib/api/timeline";
 import { Button } from "@/components/ui/button";
@@ -306,6 +307,23 @@ function OrderPage() {
                       <div className="text-[10px] font-medium mt-1 px-1.5 py-0.5 rounded-full inline-flex bg-amber-100 text-amber-700">
                         {order.logistics_status || "Aguardando Postagem"}
                       </div>
+                      {order.logistics_integration && (
+                        <div className="mt-2 pt-2 border-t border-blue-50">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full text-[10px] h-7 bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200"
+                            onClick={async () => {
+                              toast.info("Baixando etiqueta...");
+                              const res = await obterEtiquetaSGPWeb(order.logistics_integration!, order.code);
+                              if (!res.success) toast.error(res.message);
+                            }}
+                          >
+                            <Printer className="size-3 mr-1" />
+                            Reimprimir Etiqueta
+                          </Button>
+                        </div>
+                      )}
                     </>
                   ) : (
                     <div className="text-[11px] text-slate-500 italic mt-1">
