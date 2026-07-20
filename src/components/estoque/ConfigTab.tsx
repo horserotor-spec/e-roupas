@@ -161,7 +161,7 @@ export function ConfigTab() {
               <li key={f.id} className="px-4 py-2 hover:bg-muted/50 group">
                 <div className="flex items-start">
                   <div className="flex-1">
-                    <div className="font-medium">{f.name}</div>
+                    <div className="font-medium">{f.name} {f.code ? <span className="text-muted-foreground text-xs ml-1">(CÓD. {f.code})</span> : null}</div>
                     <div className="text-xs text-muted-foreground mt-0.5">
                       {f.grammage ? `Gramatura: ${f.grammage}` : ""}
                       {f.composition ? ` · ${f.composition}` : ""}
