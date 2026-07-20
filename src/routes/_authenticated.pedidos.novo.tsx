@@ -126,6 +126,7 @@ function NewOrderPage() {
     origin_channel: "Internet",
     carrier_name: "",
     freight_payer: "CIF",
+    tracking_code: "",
     volumes_quantity: 0,
     gross_weight: 0,
     freight_cost: 0,
@@ -933,7 +934,7 @@ function NewOrderPage() {
             <div className="h-px flex-1 bg-slate-200 ml-4"></div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
             <div className="space-y-1.5 md:col-span-1">
               <Label className="text-xs text-muted-foreground text-blue-600">Tipo Logístico</Label>
               <Select value={formData.logistics_type || "Correios"} onValueChange={(v) => setFormData({ ...formData, logistics_type: v })}>
@@ -963,6 +964,15 @@ function NewOrderPage() {
                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent><SelectItem value="CIF">Remetente (CIF)</SelectItem><SelectItem value="FOB">Destinatário (FOB)</SelectItem></SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1.5 md:col-span-1">
+              <Label className="text-xs text-muted-foreground text-blue-600">Cód. Rastreio</Label>
+              <Input 
+                className="h-9 font-mono text-xs uppercase" 
+                value={formData.tracking_code || ""} 
+                onChange={(e) => setFormData({ ...formData, tracking_code: e.target.value.toUpperCase() })} 
+                placeholder="Ex: AB123456789BR"
+              />
             </div>
           </div>
 
