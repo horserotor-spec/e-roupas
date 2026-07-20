@@ -234,6 +234,10 @@ function ExpeditionScanPage() {
         },
         valorDeclarado: valorDeclInput ? parseNum(valorDeclInput, 0) : undefined,
         observacao: obsInput || order.code,
+        produtos: order.order_items?.map((item: any) => item.product_name) || ["Produto E-Roupas"],
+        nota_fiscal: (order as any).invoice_number || undefined,
+        chave_nota_fiscal: (order as any).invoice_key || undefined,
+        serie_nota_fiscal: (order as any).invoice_series || undefined,
       });
 
       if (result.success) {

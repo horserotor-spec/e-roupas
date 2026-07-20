@@ -11,6 +11,10 @@ export interface SGPWebPrepostagemPayload {
   referencia: string;
   valorDeclarado?: number;
   observacao?: string;
+  produtos?: string[];
+  nota_fiscal?: string;
+  chave_nota_fiscal?: string;
+  serie_nota_fiscal?: string;
   destinatario: {
     nome: string;
     cpf_cnpj?: string;
@@ -24,6 +28,18 @@ export interface SGPWebPrepostagemPayload {
     uf: string;
     cep: string;
   };
+  remetente?: {
+    nome?: string;
+    cpf_cnpj?: string;
+    email?: string;
+    telefone?: string;
+    logradouro?: string;
+    numero?: string;
+    bairro?: string;
+    cidade?: string;
+    uf?: string;
+    cep?: string;
+  };
   volumes: {
     peso: number;
     altura: number;
@@ -36,13 +52,50 @@ export interface SGPWebPrepostagemPayload {
 export const criarPrepostagemServer = createServerFn({ method: "POST" })
   .handler(async ({ data }: { data: SGPWebPrepostagemPayload }) => {
     const payload = {
-      token: SGPWEB_TOKEN,
-      app: SGPWEB_APP,
-      ...data,
+      objetos: [
+        {
+          uf: data.destinatario.uf,
+          cep: data.destinatario.cep.replace(/\D/g, ""),
+          peso: data.volumes[0]?.peso || 1000,
+          tipo: 1,
+          email: data.destinatario.email || "sal.luz@outlook.com",
+          bairro: data.destinatario.bairro,
+          cartao: "",
+          cidade: data.destinatario.cidade,
+          numero: data.destinatario.numero || "S/N",
+          empresa: "",
+          produto: data.produtos || ["Produto E-Roupas"],
+          cpf_cnpj: (data.destinatario.cpf_cnpj || "00000000000").replace(/\D/g, ""),
+          endereco: data.destinatario.logradouro,
+          telefone: data.destinatario.fone || "(88) 99452-8989",
+          remetente: data.remetente?.nome || "Brogan 3",
+          observacao: data.observacao || `Envio SGP - Ref: ${data.referencia}`,
+          complemento: data.destinatario.complemento || "Casa",
+          nota_fiscal: data.nota_fiscal || "",
+          destinatario: data.destinatario.nome,
+          uf_remetente: data.remetente?.uf || "SP",
+          cep_remetente: data.remetente?.cep || "14405415",
+          identificador: data.referencia,
+          email_remetente: data.remetente?.email || "rmscalcados1@gmail.com",
+          valor_declarado: data.valorDeclarado ? String(data.valorDeclarado.toFixed(2)) : "0.00",
+          bairro_remetente: data.remetente?.bairro || "Jardim Integração",
+          cidade_remetente: data.remetente?.cidade || "Franca",
+          numero_remetente: data.remetente?.numero || "3830",
+          servico_correios: data.servico,
+          aviso_recebimento: "2",
+          chave_nota_fiscal: data.chave_nota_fiscal || "",
+          empresa_remetente: data.remetente?.nome || "Brogan 3",
+          serie_nota_fiscal: data.serie_nota_fiscal || "1",
+          cpf_cnpj_remetente: data.remetente?.cpf_cnpj || "48871285000162",
+          endereco_remetente: data.remetente?.logradouro || "Rua Hipólito Antônio Pinheiro",
+          telefone_remetente: data.remetente?.telefone || "1637242374"
+        }
+      ]
     };
 
     try {
-      const response = await fetch(`${SGPWEB_BASE}/api/pre-postagem`, {
+      const url = `${SGPWEB_BASE}/api/pre-postagem?chave_integracao=${SGPWEB_APP}`;
+      const response = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

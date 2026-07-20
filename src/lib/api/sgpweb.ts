@@ -37,6 +37,10 @@ export interface SGPWebOrder {
   volume: SGPWebPackage;
   valorDeclarado?: number;
   observacao?: string;
+  produtos?: string[];
+  nota_fiscal?: string;
+  chave_nota_fiscal?: string;
+  serie_nota_fiscal?: string;
 }
 
 export interface SGPWebResult {
@@ -62,6 +66,10 @@ export async function criarPrepostagemSGPWeb(order: SGPWebOrder): Promise<SGPWeb
         referencia: order.orderCode,
         valorDeclarado: order.valorDeclarado,
         observacao: order.observacao || order.orderCode,
+        produtos: order.produtos,
+        nota_fiscal: order.nota_fiscal,
+        chave_nota_fiscal: order.chave_nota_fiscal,
+        serie_nota_fiscal: order.serie_nota_fiscal,
         destinatario: {
           ...order.destinatario,
           cep: formatCep(order.destinatario.cep),
