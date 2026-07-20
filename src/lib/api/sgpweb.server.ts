@@ -129,20 +129,31 @@ export const criarPrepostagemServer = createServerFn({ method: "POST" })
       let trackingCode = "";
       let pedidoId = "";
       
-      const findData = (obj: any) => {
-        if (Array.isArray(obj) && obj.length > 0) {
-           pedidoId = obj[0].id || obj[0].pedido_id || obj[0].numero || obj[0].codigo || pedidoId;
-           trackingCode = obj[0].codigo_rastreio || obj[0].tracking || obj[0].etiqueta || obj[0].rastreio || trackingCode;
-        } else if (typeof obj === 'object' && obj !== null) {
-           pedidoId = obj.id || obj.pedido_id || obj.numero || obj.codigo || pedidoId;
-           trackingCode = obj.codigo_rastreio || obj.tracking || obj.etiqueta || obj.rastreio || trackingCode;
-           
-           if (!trackingCode && obj.data) findData(obj.data);
-           if (!trackingCode && obj.objetos) findData(obj.objetos);
-           if (!trackingCode && obj.retorno) findData(obj.retorno);
+      // Estrutura real da API SGPWeb:
+      // json.retorno.objetos.success[0].obj  → código de rastreio
+      // json.retorno.objetos.success[0].objetoDetalhes.etiqueta → também contém o rastreio
+      // json.retorno.objetos.success[0].id (número interno do pedido SGP)
+      try {
+        const success = json?.retorno?.objetos?.success;
+        if (Array.isArray(success) && success.length > 0) {
+          const first = success[0];
+          trackingCode = first?.obj || first?.objetoDetalhes?.etiqueta || first?.codigo_rastreio || first?.tracking || first?.rastreio || "";
+          pedidoId = String(first?.id || first?.pedido_id || first?.numero || first?.codigo || "");
         }
+      } catch {}
+
+      // Fallback genérico caso a estrutura mude
+      if (!trackingCode) {
+        const findData = (obj: any): void => {
+          if (typeof obj !== "object" || obj === null) return;
+          if (Array.isArray(obj)) { obj.forEach(findData); return; }
+          if (obj.obj && !trackingCode) { trackingCode = obj.obj; }
+          if (obj.etiqueta && !trackingCode) { trackingCode = obj.etiqueta; }
+          if (obj.codigo_rastreio && !trackingCode) { trackingCode = obj.codigo_rastreio; }
+          Object.values(obj).forEach(v => { if (typeof v === "object") findData(v); });
+        };
+        findData(json);
       }
-      findData(json);
 
       return {
         success: true,
