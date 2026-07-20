@@ -169,7 +169,7 @@ function ExpeditionScanPage() {
 
     const { error: statusError } = await supabase
       .from("orders")
-      .update({ status: "expedicao", logistics_status: isPartial ? "parcialmente_conferido" : "conferido_pronto" })
+      .update({ status: isPartial ? "expedicao" : "finalizado", logistics_status: isPartial ? "parcialmente_conferido" : "conferido_pronto" })
       .eq("id", orderId);
 
     if (statusError) {

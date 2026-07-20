@@ -86,7 +86,7 @@ export const criarPrepostagemServer = createServerFn({ method: "POST" })
           chave_nota_fiscal: data.chave_nota_fiscal || "",
           empresa_remetente: data.remetente?.nome || "e-roupas lab têxtil ltda.",
           serie_nota_fiscal: data.serie_nota_fiscal || "1",
-          cpf_cnpj_remetente: data.remetente?.cpf_cnpj || "48871285000162",
+          cpf_cnpj_remetente: data.remetente?.cpf_cnpj || "",
           endereco_remetente: data.remetente?.logradouro || "Rua Etienne Lenoir",
           telefone_remetente: data.remetente?.telefone || ""
         }
