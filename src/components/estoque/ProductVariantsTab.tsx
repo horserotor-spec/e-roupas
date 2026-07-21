@@ -9,6 +9,7 @@ import {
   useAllVariantStockSummary,
   useAdjustInventoryBatch,
   useInventoryBatches,
+  useSoftDeleteProductVariant,
 } from "@/lib/api/inventory";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +25,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, Loader2, Edit2, Layers, PackagePlus, PackageMinus, Printer } from "lucide-react";
+import { Search, Plus, Loader2, Edit2, Layers, PackagePlus, PackageMinus, Printer, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
@@ -33,11 +34,13 @@ import { Badge } from "@/components/ui/badge";
 // ---------------------------------------------------------------------------
 export function ProductVariantsTab() {
   const [search, setSearch] = useState("");
-  const [stockFilter, setStockFilter] = useState<"todos" | "esgotado" | "critico">("todos");
-  const { data: variants = [], isLoading } = useProductVariants(search);
+  const [stockFilter, setStockFilter] = useState<"todos" | "esgotado" | "critico" | "excluidos">("todos");
+  const { data: variants = [], isLoading } = useProductVariants(search, stockFilter === "excluidos" ? "inactive" : "active");
   const { data: stockSummary = [] } = useAllVariantStockSummary();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingVariant, setEditingVariant] = useState<Partial<ProductVariant> | null>(null);
+  
+  const deleteMutation = useSoftDeleteProductVariant();
 
   // Adjustment modal state
   const [adjustOpen, setAdjustOpen] = useState(false);
@@ -63,6 +66,7 @@ export function ProductVariantsTab() {
   const filteredVariants = useMemo(() => {
     return variants.filter(v => {
       if (stockFilter === "todos") return true;
+      if (stockFilter === "excluidos") return true;
       
       const currentStock = (stockSummary as any[]).find((s: any) => s.variant_id === v.id)?.available_qty || 0;
       
@@ -88,16 +92,17 @@ export function ProductVariantsTab() {
               className="h-9 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm outline-none focus:border-primary"
             />
           </div>
-          <Select value={stockFilter} onValueChange={(v: any) => setStockFilter(v)}>
-            <SelectTrigger className="w-[180px] h-9">
-              <SelectValue placeholder="Filtro de Estoque" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos</SelectItem>
-              <SelectItem value="esgotado">Esgotado (0)</SelectItem>
-              <SelectItem value="critico">Estoque Crítico (Abaixo do Min)</SelectItem>
-            </SelectContent>
-          </Select>
+            <Select value={stockFilter} onValueChange={(v: any) => setStockFilter(v)}>
+              <SelectTrigger className="w-[180px] h-9">
+                <SelectValue placeholder="Filtro de Estoque" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="esgotado">Esgotado (0)</SelectItem>
+                <SelectItem value="critico">Estoque Crítico (Abaixo do Min)</SelectItem>
+                <SelectItem value="excluidos">Produtos Excluídos</SelectItem>
+              </SelectContent>
+            </Select>
         </div>
         <div className="flex items-center gap-2 print:hidden">
           <Button onClick={() => window.print()} variant="outline" className="h-9 inline-flex items-center gap-1.5 px-3">
@@ -210,6 +215,23 @@ export function ProductVariantsTab() {
                         >
                           <Edit2 className="size-4" />
                         </Button>
+                        {/* Excluir variante */}
+                        {stockFilter !== "excluidos" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              if (window.confirm("Deseja realmente inativar / excluir este produto? Ele não aparecerá mais nas listas ativas.")) {
+                                deleteMutation.mutate(v.id);
+                              }
+                            }}
+                            className="h-8 w-8 text-muted-foreground hover:text-rose-600"
+                            title="Inativar Variante"
+                            disabled={deleteMutation.isPending}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>

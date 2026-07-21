@@ -325,6 +325,18 @@ export function useColors() {
   });
 }
 
+export function useSoftDeleteProductVariant() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("product_variants").update({ active: false }).eq("id", id);
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["product_variants"] }),
+  });
+}
+
 export function useLines() {
   return useQuery({
     queryKey: ["product_lines"],
@@ -457,9 +469,9 @@ export function useCreateSizeGrid() {
 // 3. Product Variants & Inventory Batches
 // ----------------------------------------------------------------------
 
-export function useProductVariants(search?: string) {
+export function useProductVariants(search?: string, filterMode: "active" | "inactive" | "all" = "active") {
   return useQuery({
-    queryKey: ["product_variants", search],
+    queryKey: ["product_variants", search, filterMode],
     queryFn: async () => {
       let query = supabase
         .from("product_variants")
@@ -470,8 +482,13 @@ export function useProductVariants(search?: string) {
           fabrics(*),
           canonical_colors(*)
         `)
-        .eq("active", true)
         .order("created_at", { ascending: false });
+
+      if (filterMode === "active") {
+        query = query.eq("active", true);
+      } else if (filterMode === "inactive") {
+        query = query.eq("active", false);
+      }
 
       const { data, error } = await query;
       if (error) throw error;
