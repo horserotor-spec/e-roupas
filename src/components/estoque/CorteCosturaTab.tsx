@@ -112,6 +112,7 @@ interface CorteCosturaSheet {
   quantidadeCosturada: GridRow[];
   quantidadeCosturadaEntrada: string;
   quantidadeCosturadaEntrega: string;
+  observacaoGradePedido?: string;
 }
 
 const defaultSheet = (): CorteCosturaSheet => ({
@@ -146,6 +147,7 @@ const defaultSheet = (): CorteCosturaSheet => ({
   quantidadeCosturada: [],
   quantidadeCosturadaEntrada: "",
   quantidadeCosturadaEntrega: "",
+  observacaoGradePedido: "",
 });
 
 const syncTableRows = (source: GridRow[], target: GridRow[]): GridRow[] => {
@@ -1237,6 +1239,16 @@ export function CorteCosturaTab() {
                         {getTableTotal("gradePedido")}
                       </td>
                       <td className="print:hidden"></td>
+                    </tr>
+                    <tr>
+                      <td colSpan={6} className="p-0 border-t border-slate-200">
+                        <input
+                          value={sheet.observacaoGradePedido || ""}
+                          onChange={(e) => setSheet({ ...sheet, observacaoGradePedido: e.target.value })}
+                          placeholder="Observações da Grade do Pedido (Planejado)..."
+                          className="w-full text-xs font-normal border-none outline-none focus:ring-0 shadow-none px-4 py-2.5 bg-transparent placeholder:text-slate-400 text-slate-700"
+                        />
+                      </td>
                     </tr>
                   </tfoot>
                 )}
