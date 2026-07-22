@@ -57,12 +57,7 @@ export const exchangeBlingToken = createServerFn("POST", async (code: string) =>
       status: "conectado"
     };
 
-    await supabase
-      .from("system_settings")
-      .update({ value: newSettings })
-      .eq("id", data.id);
-
-    return { success: true };
+    return { success: true, newSettings };
   } catch (err: any) {
     console.error("SERVER ERROR EXCHANGING BLING TOKEN:", err);
     throw new Error(err.message || "Erro interno no servidor.");
