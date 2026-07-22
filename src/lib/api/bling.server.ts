@@ -32,7 +32,7 @@ export const exchangeBlingToken = createServerFn("POST", async (code: string) =>
     body: new URLSearchParams({
       grant_type: "authorization_code",
       code: code,
-      redirect_uri: "http://localhost:8080/configuracoes/bling-callback"
+      redirect_uri: "http://localhost:8080/bling-callback"
     }).toString()
   });
 

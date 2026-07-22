@@ -25,6 +25,7 @@ import { Route as AuthenticatedExpedicaoRouteImport } from './routes/_authentica
 import { Route as AuthenticatedEstoqueRouteImport } from './routes/_authenticated.estoque'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated.dashboard'
 import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated.configuracoes'
+import { Route as AuthenticatedBlingCallbackRouteImport } from './routes/_authenticated.bling-callback'
 import { Route as AuthenticatedUsuariosIndexRouteImport } from './routes/_authenticated.usuarios.index'
 import { Route as AuthenticatedProdutosIndexRouteImport } from './routes/_authenticated.produtos.index'
 import { Route as AuthenticatedPedidosIndexRouteImport } from './routes/_authenticated.pedidos.index'
@@ -125,6 +126,12 @@ const AuthenticatedConfiguracoesRoute =
   AuthenticatedConfiguracoesRouteImport.update({
     id: '/configuracoes',
     path: '/configuracoes',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedBlingCallbackRoute =
+  AuthenticatedBlingCallbackRouteImport.update({
+    id: '/bling-callback',
+    path: '/bling-callback',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedUsuariosIndexRoute =
@@ -255,6 +262,7 @@ export interface FileRoutesByFullPath {
   '/debug-estoque': typeof DebugEstoqueRoute
   '/login': typeof LoginRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
+  '/bling-callback': typeof AuthenticatedBlingCallbackRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/estoque': typeof AuthenticatedEstoqueRoute
@@ -293,6 +301,7 @@ export interface FileRoutesByTo {
   '/debug-estoque': typeof DebugEstoqueRoute
   '/login': typeof LoginRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
+  '/bling-callback': typeof AuthenticatedBlingCallbackRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/estoque': typeof AuthenticatedEstoqueRoute
@@ -332,6 +341,7 @@ export interface FileRoutesById {
   '/debug-estoque': typeof DebugEstoqueRoute
   '/login': typeof LoginRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
+  '/_authenticated/bling-callback': typeof AuthenticatedBlingCallbackRoute
   '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/estoque': typeof AuthenticatedEstoqueRoute
@@ -372,6 +382,7 @@ export interface FileRouteTypes {
     | '/debug-estoque'
     | '/login'
     | '/redefinir-senha'
+    | '/bling-callback'
     | '/configuracoes'
     | '/dashboard'
     | '/estoque'
@@ -410,6 +421,7 @@ export interface FileRouteTypes {
     | '/debug-estoque'
     | '/login'
     | '/redefinir-senha'
+    | '/bling-callback'
     | '/configuracoes'
     | '/dashboard'
     | '/estoque'
@@ -448,6 +460,7 @@ export interface FileRouteTypes {
     | '/debug-estoque'
     | '/login'
     | '/redefinir-senha'
+    | '/_authenticated/bling-callback'
     | '/_authenticated/configuracoes'
     | '/_authenticated/dashboard'
     | '/_authenticated/estoque'
@@ -605,6 +618,13 @@ declare module '@tanstack/react-router' {
       path: '/configuracoes'
       fullPath: '/configuracoes'
       preLoaderRoute: typeof AuthenticatedConfiguracoesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/bling-callback': {
+      id: '/_authenticated/bling-callback'
+      path: '/bling-callback'
+      fullPath: '/bling-callback'
+      preLoaderRoute: typeof AuthenticatedBlingCallbackRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/usuarios/': {
@@ -790,6 +810,7 @@ const AuthenticatedFinanceiroRouteWithChildren =
   )
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedBlingCallbackRoute: typeof AuthenticatedBlingCallbackRoute
   AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedEstoqueRoute: typeof AuthenticatedEstoqueRoute
@@ -814,6 +835,7 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedBlingCallbackRoute: AuthenticatedBlingCallbackRoute,
   AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedEstoqueRoute: AuthenticatedEstoqueRoute,

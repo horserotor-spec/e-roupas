@@ -51,7 +51,7 @@ export async function updateBlingSettings(settings: Partial<BlingSettings>) {
 
 // Retorna a URL para o usuario autorizar o aplicativo
 export function getBlingAuthorizationUrl(clientId: string, state: string) {
-  return `${BLING_OAUTH_URL}?response_type=code&client_id=${clientId}&state=${state}&redirect_uri=http://localhost:8080/configuracoes/bling-callback`;
+  return `${BLING_OAUTH_URL}?response_type=code&client_id=${clientId}&state=${state}&redirect_uri=http://localhost:8080/bling-callback`;
 }
 
 export function useEmitirNFSe() {

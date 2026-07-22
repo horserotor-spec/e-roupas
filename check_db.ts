@@ -1,0 +1,1 @@
+import { supabase } from './src/lib/supabase'; async function check() { const {data} = await supabase.from('system_settings').select('value').eq('key', 'bling_integration').single(); console.log(data); } check();  

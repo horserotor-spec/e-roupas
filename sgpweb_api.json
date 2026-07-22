@@ -1,0 +1,206 @@
+{
+  "info": {
+    "_postman_id": "1d2642bc-0d45-4654-96f1-5c001ec1dc21",
+    "name": "SGPWEB PUBLIC",
+    "schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+    "toc": [],
+    "description": "<html><head></head><body></body></html>",
+    "owner": "8367961",
+    "collectionId": "1d2642bc-0d45-4654-96f1-5c001ec1dc21",
+    "publishedId": "UyrBkGtL",
+    "public": true,
+    "customColor": {
+      "top-bar": "FFFFFF",
+      "right-sidebar": "303030",
+      "highlight": "EF5B25"
+    },
+    "publishDate": "2022-04-25T19:41:48.000Z"
+  },
+  "item": [
+    {
+      "name": "IMPRIMIR ETIQUETA VIA API",
+      "id": "a2bb9f52-55a2-457c-a552-9e6f28594f1a",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "https://sgpweb.com.br/novo/webservice.php?opcao=pdf&key=729bc5160d6c530d3374e12e4c85ec5f&postObjeto=QH455839268BR&ordem=id",
+        "description": "<p>Requisição para imprimir as etiquetas de um cliente</p>\n<p>A chave de integração é a identificação unica de cada cliente, sendo assim cada cliente poderá imprimir apenas os seus próprios objetos.</p>\n<p>Caso a chave de integração seja invalida a impressão não será feita.</p>\n<p>Se necessário mais de um objeto poderá ser impresso, para isso os objetos devem ser separados por | .</p>\n<p>Exemplo :</p>\n<p><strong><a href=\"https://sgpweb.com.br/novo/webservice.php?opcao=pdf&amp;key=729bc5160d6c530d3374e12e4c85ec5f&amp;postObjeto=QH455839268BR%7CQG766518885BR&amp;ordem=id\">https://sgpweb.com.br/novo/webservice.php?opcao=pdf&amp;key=729bc5160d6c530d3374e12e4c85ec5f&amp;postObjeto=QH455839268BR|QG766518885BR&amp;ordem=id</a></strong></p>\n",
+        "urlObject": {
+          "protocol": "https",
+          "path": [
+            "novo",
+            "webservice.php"
+          ],
+          "host": [
+            "sgpweb",
+            "com",
+            "br"
+          ],
+          "query": [
+            {
+              "key": "opcao",
+              "value": "pdf"
+            },
+            {
+              "key": "key",
+              "value": "729bc5160d6c530d3374e12e4c85ec5f"
+            },
+            {
+              "key": "postObjeto",
+              "value": "QH455839268BR"
+            },
+            {
+              "key": "ordem",
+              "value": "id"
+            }
+          ],
+          "variable": []
+        }
+      },
+      "response": [],
+      "_postman_id": "a2bb9f52-55a2-457c-a552-9e6f28594f1a"
+    },
+    {
+      "name": "IMPRIMIR ETIQUETA COM DECLARAÇÃO VIA API",
+      "id": "f71d47c9-392c-4892-82cb-7cadc5d90187",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "https://sgpweb.com.br/novo/webservice.php?opcao=pdf&key=729bc5160d6c530d3374e12e4c85ec5f&postObjeto=QH455839268BR&declaracao=comDeclaracao&ordem=id",
+        "description": "<p>Requisição para imprimir as etiquetas de um cliente</p>\n<p>A chave de integração é a identificação unica de cada cliente, sendo assim cada cliente poderá imprimir apenas os seus próprios objetos.</p>\n<p>Caso a chave de integração seja invalida a impressão não será feita.</p>\n<p>Se necessário mais de um objeto poderá ser impresso, para isso os objetos devem ser separados por | .</p>\n<p>Exemplo :</p>\n<p><a href=\"https://sgpweb.com.br/novo/webservice.php?opcao=pdf&amp;key=729bc5160d6c530d3374e12e4c85ec5f&amp;postObjeto=QH455839268BR%7CQG766518885BR**&amp;declaracao=comDeclaracao**&amp;ordem=id\">https://sgpweb.com.br/novo/webservice.php?opcao=pdf&amp;key=729bc5160d6c530d3374e12e4c85ec5f&amp;postObjeto=QH455839268BR|QG766518885BR**&amp;declaracao=comDeclaracao**&amp;ordem=id</a></p>\n",
+        "urlObject": {
+          "protocol": "https",
+          "path": [
+            "novo",
+            "webservice.php"
+          ],
+          "host": [
+            "sgpweb",
+            "com",
+            "br"
+          ],
+          "query": [
+            {
+              "key": "opcao",
+              "value": "pdf"
+            },
+            {
+              "key": "key",
+              "value": "729bc5160d6c530d3374e12e4c85ec5f"
+            },
+            {
+              "key": "postObjeto",
+              "value": "QH455839268BR"
+            },
+            {
+              "key": "declaracao",
+              "value": "comDeclaracao"
+            },
+            {
+              "key": "ordem",
+              "value": "id"
+            }
+          ],
+          "variable": []
+        }
+      },
+      "response": [],
+      "_postman_id": "f71d47c9-392c-4892-82cb-7cadc5d90187"
+    },
+    {
+      "name": "Consulta objetos-webhook",
+      "id": "55ca528e-fe51-4b40-94a3-6874ced081cd",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "https://www.sgpweb.com.br/novo/api/objetos-webhook?chave_integracao=c27fe42eacd426dd02affe2dd67b6600&data_inicial=2022-04-20&data_final=2022-04-25",
+        "description": "<p>Requisição para buscar os dados gravados na tabela webhook.</p>\n<p>A chave de integração utilizada pode ser de uma franquia dos correios ou de um cliente de uma franquia.</p>\n<p>Se a chave utilizada for de uma franquia a api retornará todos os objetos de todos os clientes da tabela do seu respectivo banco, entretanto não atualizará o Status dos objetos.</p>\n<p>Caso a chave de integração seja de um cliente a consulta retorna apenas os objetos do cliente e modificará o Status dos objetos consultados, não sendo possível os trazer novamente via api.</p>\n<p><strong>Se necessário consultar os objetos com status modificados, deverá ser feito via sgpweb, onde é permitido alterar o status e exportar para um arquivo xls ou json.</strong></p>\n",
+        "urlObject": {
+          "protocol": "https",
+          "path": [
+            "novo",
+            "api",
+            "objetos-webhook"
+          ],
+          "host": [
+            "www",
+            "sgpweb",
+            "com",
+            "br"
+          ],
+          "query": [
+            {
+              "key": "chave_integracao",
+              "value": "c27fe42eacd426dd02affe2dd67b6600"
+            },
+            {
+              "key": "data_inicial",
+              "value": "2022-04-20"
+            },
+            {
+              "key": "data_final",
+              "value": "2022-04-25"
+            }
+          ],
+          "variable": []
+        }
+      },
+      "response": [],
+      "_postman_id": "55ca528e-fe51-4b40-94a3-6874ced081cd"
+    },
+    {
+      "name": "Consulta de Preços e Prazos",
+      "id": "4ec34b83-fc9a-4205-8cc9-ca1f4e62df24",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n\t\"identificador\": 1,\r\n\t\"cep_origem\": \"80230-110\",\r\n\t\"cep_destino\": \"83606-594\",\r\n\t\"formato\": \"1\",\r\n\t\"peso\": \"3,75\",\r\n\t\"comprimento\": \"25\",\r\n\t\"altura\": \"40\",\r\n\t\"largura\": \"11\",\r\n\t\"mao_propria\": \"S\",\r\n\t\"aviso_recebimento\": \"S\",\r\n\t\"valor_declarado\": \"100,80\",\r\n\t\"servicos\": [\"04162\", \"04669\"]\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "https://www.sgpweb.com.br/novo/api/consulta-precos-prazos?chave_integracao=729bc5160d6c530d3374e12e4c85ec5f",
+        "description": "<h1 id=\"sgpweb-api---consulta-de-preços-e-prazos\">SGPWEB API - Consulta de Preços e Prazos</h1>\n<p>Este documento tem por finalidade o esclarecimento das rotinas necessárias para integração de sistemas terceiros ao SGPWEB, utilizando a API RESTful.</p>\n<p>É possível consultar preços e prazos dos correios no sistema SGPWEB utilizando arquitetura REST.</p>\n<p>Este serviço funciona com recebimento de requisições por protocolo HTTP contendo as informações: Content-Type: application/json no Header e os parâmetros para cálculo em formato JSON no Body. Se a operação for completada será retornado um código HTTP 200 - Ok contendo as informações resultantes em formato JSON.</p>\n<p>URL para consumo do serviço pré-postagens da API:</p>\n<pre class=\"click-to-expand-wrapper is-snippet-wrapper\"><code class=\"language-html\">https://www.sgpweb.com.br/novo/api/consulta-precos-prazos?chave_integracao={{chave_integração}}\nOBS.: É necessário passar sua chave de integração como parâmetro da requisição e as informações das pré-postagens devem ser enviadas em formato JSON no corpo da requisição por método POST.\n\n</code></pre>\n<p>Consulta de preços e prazos de postagem.</p>\n<p>Descrição dos atributos:</p>\n<ul>\n<li>identificador: (opcional) Identificador para seu controle interno;</li>\n<li>cep_origem: (obrigatório) CEP de origem;</li>\n<li>cep_destino: (obrigatório) CEP de destino;</li>\n<li>formato: (opcional) Formato da postagem (1=Pacote/Caixa,2=Rolo/Prisma,3=Envelope);</li>\n<li>peso: (obrigatório) Peso em kilos;</li>\n<li>comprimento: (opcional) Comprimento em centímetros;</li>\n<li>altura: (opcional) Altura em centímetros;</li>\n<li>largura: (opcional) Largura em centímetros;</li>\n<li>diametro: (opcional) Diametro em centímetros (Rolo/Prisma);</li>\n<li>mao_propria: (opcional) Flag para indicar opção de entrega em mão própria;</li>\n<li>aviso_recebimento: (opcional) Flag para indicar opção de aviso de recebimento;</li>\n<li>valor_declarado: (opcional) Valor declarado do objeto;</li>\n<li>servicos: Serviços desejados em formaro array;</li>\n</ul>\n",
+        "urlObject": {
+          "protocol": "https",
+          "path": [
+            "novo",
+            "api",
+            "consulta-precos-prazos"
+          ],
+          "host": [
+            "www",
+            "sgpweb",
+            "com",
+            "br"
+          ],
+          "query": [
+            {
+              "key": "chave_integracao",
+              "value": "729bc5160d6c530d3374e12e4c85ec5f"
+            }
+          ],
+          "variable": []
+        }
+      },
+      "response": [],
+      "_postman_id": "4ec34b83-fc9a-4205-8cc9-ca1f4e62df24"
+    }
+  ]
+}

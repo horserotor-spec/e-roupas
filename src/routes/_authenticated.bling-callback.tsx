@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { updateBlingSettings } from "@/lib/api/bling";
 
-export const Route = createFileRoute("/_authenticated/configuracoes/bling-callback")({
+export const Route = createFileRoute("/_authenticated/bling-callback")({
   component: BlingCallbackPage,
 });
 
@@ -16,9 +16,10 @@ function BlingCallbackPage() {
   useEffect(() => {
     const processCallback = async () => {
       try {
-        const code = (search as any).code;
-        const state = (search as any).state;
-        const error = (search as any).error;
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get("code");
+        const state = urlParams.get("state");
+        const error = urlParams.get("error");
 
         if (error) {
           throw new Error("Autorização negada pelo usuário no Bling.");
