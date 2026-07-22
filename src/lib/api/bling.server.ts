@@ -20,7 +20,7 @@ export const exchangeBlingToken = createServerFn("POST", async (code: string) =>
     throw new Error("Client ID ou Client Secret não configurados.");
   }
 
-  const credentials = Buffer.from(`${settings.client_id}:${settings.client_secret}`).toString("base64");
+  const credentials = btoa(`${settings.client_id}:${settings.client_secret}`);
 
   const response = await fetch(BLING_TOKEN_URL, {
     method: "POST",
@@ -31,7 +31,8 @@ export const exchangeBlingToken = createServerFn("POST", async (code: string) =>
     },
     body: new URLSearchParams({
       grant_type: "authorization_code",
-      code: code
+      code: code,
+      redirect_uri: "http://localhost:8080/configuracoes/bling-callback"
     }).toString()
   });
 
