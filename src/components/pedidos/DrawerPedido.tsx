@@ -322,7 +322,7 @@ export function DrawerPedido({ order, open, onOpenChange }: DrawerPedidoProps) {
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-sm font-medium">
                 <Receipt className="size-4" /> NFS-e Emitida (Bling)
               </div>
-            ) : order.status === "pronto" || order.status === "entregue" || order.status === "finalizado" ? (
+            ) : (
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -340,7 +340,7 @@ export function DrawerPedido({ order, open, onOpenChange }: DrawerPedidoProps) {
                 {emitirNFSe.isPending ? <Loader2 className="size-4 mr-1.5 animate-spin" /> : <Receipt className="size-4 mr-1.5" />}
                 Emitir NFS-e
               </Button>
-            ) : null}
+            )}
             <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Fechar</Button>
           </div>
         </div>
