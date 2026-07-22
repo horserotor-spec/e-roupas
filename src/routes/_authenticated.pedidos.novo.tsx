@@ -249,6 +249,16 @@ function NewOrderPage() {
         ...item.sizes,
         [sz]: parseFloat(value) || 0
       };
+    } else if (field === "active_sizes") {
+      const oldActive = item.active_sizes || [];
+      const newActive = value || [];
+      const removedSizes = oldActive.filter((s: string) => !newActive.includes(s));
+      removedSizes.forEach((s: string) => {
+        if (item.sizes && item.sizes[s]) {
+          item.sizes[s] = 0;
+        }
+      });
+      item.active_sizes = newActive;
     } else if (field === "grid_type") {
       item.grid_type = value;
       // Limpa os tamanhos ao trocar de grade para evitar misturar quantidades
