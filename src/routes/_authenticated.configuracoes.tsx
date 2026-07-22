@@ -9,9 +9,11 @@ import { Button } from "@/components/ui/button";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { useState, useEffect } from "react";
 import { getSgpSettings, SgpSettings } from "@/lib/api/sgp";
+import { getBlingSettings, updateBlingSettings, getBlingAuthorizationUrl, BlingSettings } from "@/lib/api/bling";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { Loader2, Link2, Unlink, AlertTriangle, Trash2, Plus } from "lucide-react";
+import { Loader2, Link2, Unlink, AlertTriangle, Trash2, Plus, FileText } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/configuracoes")({
   head: () => ({ meta: [{ title: "Configurações · e-roupas OS" }] }),
@@ -52,6 +54,18 @@ function Config() {
   const [loadingSgp, setLoadingSgp] = useState(true);
   const [savingSgp, setSavingSgp] = useState(false);
 
+  // Estados do Bling
+  const [blingConfig, setBlingConfig] = useState<BlingSettings>({
+    client_id: "",
+    client_secret: "",
+    access_token: "",
+    refresh_token: "",
+    expires_at: 0,
+    status: "desconectado"
+  });
+  const [loadingBling, setLoadingBling] = useState(true);
+  const [savingBling, setSavingBling] = useState(false);
+
   // Estados do CMV
   interface CmvItem {
     id: string;
@@ -66,6 +80,11 @@ function Config() {
     getSgpSettings().then(data => {
       if (data) setSgpConfig(data);
       setLoadingSgp(false);
+    });
+
+    getBlingSettings().then(data => {
+      if (data) setBlingConfig(data);
+      setLoadingBling(false);
     });
 
     // Buscar configurações de CMV
@@ -123,6 +142,38 @@ function Config() {
       toast.error("Erro ao salvar: " + err.message);
     } finally {
       setSavingSgp(false);
+    }
+  };
+
+  const handleSaveBling = async () => {
+    setSavingBling(true);
+    try {
+      if (!blingConfig.client_id || !blingConfig.client_secret) {
+        toast.error("Preencha o Client ID e Client Secret.");
+        setSavingBling(false);
+        return;
+      }
+      
+      const isOk = blingConfig.access_token.length > 5 && blingConfig.expires_at > Date.now();
+      const updatedConfig = { 
+        ...blingConfig, 
+        status: isOk ? "conectado" : "desconectado" 
+      } as const;
+
+      await updateBlingSettings(updatedConfig);
+      setBlingConfig(updatedConfig);
+      
+      if (!isOk) {
+        const state = Math.random().toString(36).substring(7);
+        localStorage.setItem("bling_oauth_state", state);
+        window.location.href = getBlingAuthorizationUrl(updatedConfig.client_id, state);
+      } else {
+        toast.success("Configurações salvas.");
+      }
+    } catch (err: any) {
+      toast.error("Erro ao salvar Bling: " + err.message);
+    } finally {
+      setSavingBling(false);
     }
   };
 
@@ -276,6 +327,65 @@ function Config() {
                 </Button>
               </CardFooter>
             </Card>
+
+            {/* BLING (NFS-E) CARD */}
+            <Card>
+              <CardHeader className="pb-4 border-b">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg">Bling (NFS-e)</CardTitle>
+                    <CardDescription>Integração para emissão de Nota Fiscal de Serviço (NFS-e)</CardDescription>
+                  </div>
+                  {loadingBling ? (
+                    <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                  ) : blingConfig.status === "conectado" ? (
+                    <div className="flex items-center text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-200">
+                      <Link2 className="size-3.5 mr-1" /> Conectado
+                    </div>
+                  ) : blingConfig.status === "erro" ? (
+                    <div className="flex items-center text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded-full border border-red-200">
+                      <AlertTriangle className="size-3.5 mr-1" /> Erro Auth
+                    </div>
+                  ) : (
+                    <div className="flex items-center text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-full border">
+                      <Unlink className="size-3.5 mr-1" /> Desconectado
+                    </div>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-4">
+                <div className="space-y-1.5">
+                  <Label>Client ID</Label>
+                  <Input 
+                    placeholder="Cole seu Client ID..." 
+                    value={blingConfig.client_id} 
+                    onChange={e => setBlingConfig({...blingConfig, client_id: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Client Secret</Label>
+                  <Input 
+                    type="password" 
+                    placeholder="Cole seu Client Secret..." 
+                    value={blingConfig.client_secret}
+                    onChange={e => setBlingConfig({...blingConfig, client_secret: e.target.value})}
+                  />
+                </div>
+                <div className="rounded-md bg-blue-50/50 p-4 border border-blue-100 mt-2">
+                  <p className="text-xs text-blue-800 flex items-start gap-2 leading-relaxed">
+                    <FileText className="size-4 shrink-0 mt-0.5 text-blue-600" />
+                    <span>Ao clicar em "Autorizar e Salvar", você será redirecionado para a página do Bling para dar acesso ao aplicativo. O Callback retornará automaticamente para o sistema e salvará os tokens gerados.</span>
+                  </p>
+                </div>
+              </CardContent>
+              <CardFooter className="border-t pt-4 bg-muted/20">
+                <Button onClick={handleSaveBling} disabled={loadingBling || savingBling} className="w-full bg-[#18C3B1] hover:bg-[#15A898] text-white">
+                  {savingBling && <Loader2 className="mr-2 size-4 animate-spin" />}
+                  {blingConfig.status === "conectado" ? "Atualizar Credenciais" : "Autorizar e Salvar"}
+                </Button>
+              </CardFooter>
+            </Card>
+
           </div>
         </TabsContent>
 
