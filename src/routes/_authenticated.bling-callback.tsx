@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router"
 import { useEffect, useState } from "react";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { updateBlingSettings } from "@/lib/api/bling";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/bling-callback")({
   component: BlingCallbackPage,
@@ -48,7 +49,10 @@ function BlingCallbackPage() {
         const result = await exchangeBlingToken({ data: code });
 
         if (result.newSettings) {
+          toast.info("Salvando: " + result.newSettings.status);
           await updateBlingSettings(result.newSettings as any);
+        } else {
+          toast.error("Servidor não retornou as novas configurações!");
         }
 
         setStatus("success");
