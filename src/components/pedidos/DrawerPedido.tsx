@@ -18,9 +18,10 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Save, Factory, X, MessageSquare, Phone } from "lucide-react";
+import { Trash2, Save, Factory, X, MessageSquare, Phone, Receipt, FileText } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useEmitirNFSe } from "@/lib/api/bling";
 
 interface DrawerPedidoProps {
   order: Order | null;
@@ -34,6 +35,7 @@ export function DrawerPedido({ order, open, onOpenChange }: DrawerPedidoProps) {
 
   const updateOrder = useUpdateOrder();
   const deleteOrder = useDeleteOrder();
+  const emitirNFSe = useEmitirNFSe();
   const { data: clients = [] } = useClients();
   const suppliers = clients.filter(c => c.entity_type === "fornecedor");
 
@@ -315,7 +317,32 @@ export function DrawerPedido({ order, open, onOpenChange }: DrawerPedidoProps) {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Fechar</Button>
+          <div className="flex gap-2">
+            {order.metadata?.nfse_bling_id ? (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-sm font-medium">
+                <Receipt className="size-4" /> NFS-e Emitida (Bling)
+              </div>
+            ) : order.status === "pronto" || order.status === "entregue" || order.status === "finalizado" ? (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 border-blue-200"
+                onClick={async () => {
+                  try {
+                    await emitirNFSe.mutateAsync(order.id);
+                    toast.success("Comando de emissão enviado para o Bling!");
+                  } catch (e: any) {
+                    toast.error(e.message || "Erro ao emitir NFS-e");
+                  }
+                }}
+                disabled={emitirNFSe.isPending}
+              >
+                {emitirNFSe.isPending ? <Loader2 className="size-4 mr-1.5 animate-spin" /> : <Receipt className="size-4 mr-1.5" />}
+                Emitir NFS-e
+              </Button>
+            ) : null}
+            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Fechar</Button>
+          </div>
         </div>
       </SheetContent>
 

@@ -1,4 +1,6 @@
 import { supabase } from "../supabase";
+import { useMutation, useQueryClient } from "@tanstack/react-query";  
+import { emitirNFSeBling } from "./bling.server"; 
 
 const BLING_API_BASE = "https://www.bling.com.br/Api/v3";
 const BLING_OAUTH_URL = "https://www.bling.com.br/Api/v3/oauth/authorize";
@@ -51,3 +53,18 @@ export async function updateBlingSettings(settings: Partial<BlingSettings>) {
 export function getBlingAuthorizationUrl(clientId: string, state: string) {
   return `${BLING_OAUTH_URL}?response_type=code&client_id=${clientId}&state=${state}`;
 }
+
+export function useEmitirNFSe() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      return await emitirNFSeBling({ data: orderId });
+    },
+    onSuccess: (_, orderId) => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["orders", orderId] });
+    }
+  });
+}
+import { useMutation, useQueryClient } from "@tanstack/react-query";  
+import { emitirNFSeBling } from "./bling.server"; 
