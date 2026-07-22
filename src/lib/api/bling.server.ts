@@ -3,7 +3,9 @@ import { supabase } from "../supabase";
 
 const BLING_TOKEN_URL = "https://www.bling.com.br/Api/v3/oauth/token";
 
-export const exchangeBlingToken = createServerFn("POST", async (code: string) => {
+export const exchangeBlingToken = createServerFn({ method: "POST" })
+  .validator((d: string) => d)
+  .handler(async ({ data: code }) => {
   try {
     // Get credentials from system_settings
     const { data, error } = await supabase
@@ -64,7 +66,9 @@ export const exchangeBlingToken = createServerFn("POST", async (code: string) =>
   }
 });
 
-export const emitirNFSeBling = createServerFn("POST", async (orderId: string) => {
+export const emitirNFSeBling = createServerFn({ method: "POST" })
+  .validator((d: string) => d)
+  .handler(async ({ data: orderId }) => {
   // 1. Get the Bling token
   const { data: settingsData } = await supabase
     .from("system_settings")
