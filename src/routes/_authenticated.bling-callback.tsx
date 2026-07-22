@@ -48,11 +48,11 @@ function BlingCallbackPage() {
         
         const result = await exchangeBlingToken({ data: code });
 
-        if (result.newSettings) {
+        if (result && result.newSettings) {
           toast.info("Salvando: " + result.newSettings.status);
           await updateBlingSettings(result.newSettings as any);
         } else {
-          toast.error("Servidor não retornou as novas configurações!");
+          toast.error("Retorno: " + JSON.stringify(result));
         }
 
         setStatus("success");
