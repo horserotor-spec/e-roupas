@@ -44,7 +44,7 @@ function BlingCallbackPage() {
         // This relies on `exchangeBlingToken` which we will create in `src/lib/api/bling.server.ts`
         const { exchangeBlingToken } = await import("@/lib/api/bling.server");
         
-        await exchangeBlingToken(code);
+        await exchangeBlingToken({ data: code });
 
         setStatus("success");
         setMessage("Integração concluída com sucesso! Redirecionando...");
