@@ -101,12 +101,12 @@ function PedidosPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="flex flex-wrap items-center gap-1.5 pb-1">
           {secondaryFilters.map((flt) => (
             <button
               key={flt.key}
               onClick={() => setF(flt.key as any)}
-              className={`shrink-0 h-6 px-2.5 rounded-md text-[10px] uppercase tracking-wider font-semibold transition-colors ${f === flt.key ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"}`}
+              className={`h-6 px-2 rounded-md text-[9px] uppercase tracking-wider font-semibold transition-colors ${f === flt.key ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"}`}
             >
               {flt.label}
             </button>
