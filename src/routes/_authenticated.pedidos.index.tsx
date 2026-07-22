@@ -1,11 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { statusLabel, statusTone, type OrderStatus } from "@/lib/constants";
-import { useOrders, Order, useUpdateOrder } from "@/lib/api/orders";
+import { useOrders, useUpdateOrder } from "@/lib/api/orders";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useState, useDeferredValue } from "react";
-import { Search, Plus, Flame, Loader2, Edit2 } from "lucide-react";
+import { Search, Plus, Flame, Loader2, Edit2, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useEmitirNFSe } from "@/lib/api/bling";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/pedidos/")({
   head: () => ({ meta: [{ title: "Pedidos · e-roupas OS" }] }),
@@ -50,6 +52,7 @@ function PedidosPage() {
   
   const { data: orders = [], isLoading } = useOrders(deferredQ);
   const updateOrderMutation = useUpdateOrder();
+  const emitirNFSe = useEmitirNFSe();
 
   const filtered = orders.filter((o) => {
     // Hide orcamentos from the general orders list
@@ -183,11 +186,36 @@ function PedidosPage() {
                   </td>
                   <td className="px-4 py-3 text-right number font-medium">R$ {o.final_total.toLocaleString("pt-BR")}</td>
                   <td className="px-4 py-3 text-right">
-                    <Link to="/pedidos/$id" params={{ id: o.id }}>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Edit2 className="size-4" />
-                      </Button>
-                    </Link>
+                    <div className="flex items-center justify-end gap-1">
+                      {o.metadata?.nfse_bling_id ? (
+                        <div title="NFS-e Emitida" className="flex items-center justify-center h-8 w-8 text-emerald-500 bg-emerald-50 rounded-md">
+                          <Receipt className="size-4" />
+                        </div>
+                      ) : (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-muted-foreground hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Emitir NFS-e"
+                          onClick={async () => {
+                            try {
+                              await emitirNFSe.mutateAsync(o.id);
+                              toast.success("Comando de emissão enviado para o Bling!");
+                            } catch (e: any) {
+                              toast.error(e.message || "Erro ao emitir NFS-e");
+                            }
+                          }}
+                          disabled={emitirNFSe.isPending}
+                        >
+                          {emitirNFSe.isPending ? <Loader2 className="size-4 animate-spin" /> : <Receipt className="size-4" />}
+                        </Button>
+                      )}
+                      <Link to="/pedidos/$id" params={{ id: o.id }}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Edit2 className="size-4" />
+                        </Button>
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               );
