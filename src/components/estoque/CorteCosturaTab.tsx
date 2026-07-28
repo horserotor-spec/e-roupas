@@ -1174,11 +1174,11 @@ export function CorteCosturaTab() {
                         <div className="flex flex-wrap gap-1 items-end">
                           {(row.activeSizes || []).map((sz: string) => (
                             <div key={sz} className="flex flex-col items-center gap-0.5 relative group">
-                              <span className="text-[10px] print:text-sm font-bold text-slate-600 print:text-black uppercase">{sz}</span>
+                              <span className="text-[10px] print:text-xs font-bold text-slate-600 print:text-black uppercase">{sz}</span>
                               <Input
                                 type="number"
                                 min={0}
-                                className="h-8 print:h-12 px-1 text-center text-xs print:text-lg w-10 print:w-16 bg-white border border-slate-200 print:border-slate-400 rounded focus:border-green-500"
+                                className="h-8 print:h-9 px-1 text-center text-xs print:text-sm w-10 print:w-12 bg-white border border-slate-200 print:border-slate-400 rounded focus:border-green-500"
                                 value={row.quantities[sz] === 0 ? "" : (row.quantities[sz] || "")}
                                 onChange={e => updateRowQuantity("gradePedido", row.id, sz, parseInt(e.target.value) || 0)}
                                 placeholder="0"
@@ -1300,11 +1300,11 @@ export function CorteCosturaTab() {
                           <div className="flex flex-wrap gap-1 items-end">
                             {(row.activeSizes || []).map((sz: string) => (
                               <div key={sz} className="flex flex-col items-center gap-0.5">
-                                <span className="text-[10px] print:text-sm font-bold text-slate-600 print:text-black uppercase">{sz}</span>
+                                <span className="text-[10px] print:text-xs font-bold text-slate-600 print:text-black uppercase">{sz}</span>
                                 <Input
                                   type="number"
                                   min={0}
-                                  className="h-8 print:h-12 px-1 text-center text-xs print:text-lg w-10 print:w-16 bg-white border border-slate-200 print:border-slate-400 rounded focus:border-blue-500"
+                                  className="h-8 print:h-9 px-1 text-center text-xs print:text-sm w-10 print:w-12 bg-white border border-slate-200 print:border-slate-400 rounded focus:border-blue-500"
                                   value={row.quantities[sz] === 0 ? "" : (row.quantities[sz] || "")}
                                   onChange={e => updateRowQuantity("rendimentoCorte", row.id, sz, parseInt(e.target.value) || 0)}
                                   placeholder="0"
@@ -1412,11 +1412,11 @@ export function CorteCosturaTab() {
                           <div className="flex flex-wrap gap-1 items-end">
                             {(row.activeSizes || []).map((sz: string) => (
                               <div key={sz} className="flex flex-col items-center gap-0.5">
-                                <span className="text-[10px] print:text-sm font-bold text-slate-600 print:text-black uppercase">{sz}</span>
+                                <span className="text-[10px] print:text-xs font-bold text-slate-600 print:text-black uppercase">{sz}</span>
                                 <Input
                                   type="number"
                                   min={0}
-                                  className="h-8 print:h-12 px-1 text-center text-xs print:text-lg w-10 print:w-16 bg-white border border-slate-200 print:border-slate-400 rounded focus:border-indigo-500"
+                                  className="h-8 print:h-9 px-1 text-center text-xs print:text-sm w-10 print:w-12 bg-white border border-slate-200 print:border-slate-400 rounded focus:border-indigo-500"
                                   value={row.quantities[sz] === 0 ? "" : (row.quantities[sz] || "")}
                                   onChange={e => updateRowQuantity("quantidadeCosturada", row.id, sz, parseInt(e.target.value) || 0)}
                                   placeholder="0"
