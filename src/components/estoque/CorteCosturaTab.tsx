@@ -1178,7 +1178,7 @@ export function CorteCosturaTab() {
                               <Input
                                 type="number"
                                 min={0}
-                                className="h-8 print:h-9 px-1 text-center text-xs print:text-sm w-10 print:w-12 bg-white border border-slate-200 print:border-slate-400 rounded focus:border-green-500"
+                                className="h-8 px-1 text-center text-xs print:text-sm w-10 bg-white border border-slate-200 print:border-slate-400 rounded focus:border-green-500"
                                 value={row.quantities[sz] === 0 ? "" : (row.quantities[sz] || "")}
                                 onChange={e => updateRowQuantity("gradePedido", row.id, sz, parseInt(e.target.value) || 0)}
                                 placeholder="0"
@@ -1304,7 +1304,7 @@ export function CorteCosturaTab() {
                                 <Input
                                   type="number"
                                   min={0}
-                                  className="h-8 print:h-9 px-1 text-center text-xs print:text-sm w-10 print:w-12 bg-white border border-slate-200 print:border-slate-400 rounded focus:border-blue-500"
+                                  className="h-8 px-1 text-center text-xs print:text-sm w-10 bg-white border border-slate-200 print:border-slate-400 rounded focus:border-blue-500"
                                   value={row.quantities[sz] === 0 ? "" : (row.quantities[sz] || "")}
                                   onChange={e => updateRowQuantity("rendimentoCorte", row.id, sz, parseInt(e.target.value) || 0)}
                                   placeholder="0"
@@ -1416,7 +1416,7 @@ export function CorteCosturaTab() {
                                 <Input
                                   type="number"
                                   min={0}
-                                  className="h-8 print:h-9 px-1 text-center text-xs print:text-sm w-10 print:w-12 bg-white border border-slate-200 print:border-slate-400 rounded focus:border-indigo-500"
+                                  className="h-8 px-1 text-center text-xs print:text-sm w-10 bg-white border border-slate-200 print:border-slate-400 rounded focus:border-indigo-500"
                                   value={row.quantities[sz] === 0 ? "" : (row.quantities[sz] || "")}
                                   onChange={e => updateRowQuantity("quantidadeCosturada", row.id, sz, parseInt(e.target.value) || 0)}
                                   placeholder="0"
