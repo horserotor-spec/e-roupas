@@ -129,9 +129,14 @@ function CrmPage() {
       // Remove BOM if present
       const clean = text.replace(/^\uFEFF/, "");
 
-      // Detect delimiter: use semicolon if more ';' than ',' in first line
+      // Detect delimiter based on the first line
       const firstLine = clean.split("\n")[0] || "";
-      const delimiter = (firstLine.split(";").length > firstLine.split(",").length) ? ";" : ",";
+      let delimiter = ",";
+      if (firstLine.includes("\t")) {
+        delimiter = "\t";
+      } else if (firstLine.split(";").length > firstLine.split(",").length) {
+        delimiter = ";";
+      }
 
       Papa.parse(clean, {
         header: true,
