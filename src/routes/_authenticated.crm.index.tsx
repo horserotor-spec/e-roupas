@@ -152,11 +152,18 @@ function CrmPage() {
             console.log("[Importação CRM] Colunas detectadas:", detectedCols);
             console.log("[Importação CRM] Primeira linha:", rows[0]);
 
-            const parsedClients = rows.map(row => ({
-              name:               get(row, "Nome", "name", "Nome Completo") || "Sem Nome",
-              entity_class:       (get(row, "Tipo", "entity_class", "Tipo Pessoa") || 'pf').toLowerCase(),
-              entity_type:        (get(row, "Categoria", "entity_type") || 'cliente').toLowerCase(),
-              document:           get(row, "CPF/CNPJ", "CNPJ/CPF", "CNPJ / CPF", "CPF / CNPJ", "CNPJ", "CPF", "document"),
+            const parsedClients = rows.map(row => {
+              const rawClass = get(row, "Tipo", "entity_class", "Tipo Pessoa", "Tipo pessoa") || 'pf';
+              const entity_class = rawClass.toLowerCase().includes("jur") || rawClass.toLowerCase().includes("pj") ? "pj" : "pf";
+              
+              const rawType = get(row, "Categoria", "entity_type") || 'cliente';
+              const entity_type = rawType.toLowerCase().trim();
+
+              return {
+                name:               get(row, "Nome", "name", "Nome Completo") || "Sem Nome",
+                entity_class,
+                entity_type,
+                document:           get(row, "CPF/CNPJ", "CNPJ/CPF", "CNPJ / CPF", "CPF / CNPJ", "CNPJ", "CPF", "document"),
               state_registration: get(row, "RG/IE", "IE/RG", "RG / IE", "IE / RG", "RG", "IE", "state_registration"),
               phone:              get(row, "Celular", "phone", "Telefone", "Fone", "WhatsApp"),
               landline_phone:     get(row, "Telefone Fixo", "Fixo", "landline_phone"),
@@ -177,7 +184,8 @@ function CrmPage() {
               created_at:         parseDateStr(get(row, "Cliente Desde", "created_at")),
               active: true,
               is_first_purchase: false
-            }));
+            };
+          });
 
             const res = await importMutation.mutateAsync(parsedClients);
             toast.success(`Importação concluída: ${res.imported} adicionados, ${res.skipped} ignorados. (${rows.length} linhas lidas, separador: '${delimiter}')`);
