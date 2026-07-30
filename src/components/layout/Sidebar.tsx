@@ -13,7 +13,7 @@ const allNavItems: NavItem[] = [
   { to: "/crm", label: "CRM", icon: Users, module: "Clientes" },
   { to: "/produtos", label: "Produtos", icon: Package, module: "Estoque" },
   { to: "/orcamentos", label: "Orçamentos", icon: FileText, module: "Pedidos" },
-  { to: "/pedidos", label: "Pedidos", icon: ShoppingBag, highlighted: true, module: "Pedidos" },
+  { to: "/pedidos", label: "Pedidos", icon: ShoppingBag, module: "Pedidos" },
   { to: "/producao", label: "Produção", icon: Factory, module: "Produção" },
   { to: "/estoque", label: "Estoque", icon: Boxes, module: "Estoque" },
   { 
