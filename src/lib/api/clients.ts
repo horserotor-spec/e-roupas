@@ -130,9 +130,15 @@ export function useImportClients() {
       const existingDocs = new Set(existing?.map(c => c.document).filter(Boolean));
 
       const toInsert = clients.filter(c => {
-        if (!c.document) return true; // Let them through if they have no document (we can't accurately deduplicate)
-        if (existingDocs.has(c.document)) return false;
-        existingDocs.add(c.document); // Add to set so we don't duplicate within the same batch
+        const doc = c.document?.trim();
+        const isPlaceholder = !doc || doc === "-" || doc === "0" || doc.toLowerCase() === "n/a" || doc.toLowerCase() === "na" || doc.toLowerCase() === "não informado";
+        
+        if (isPlaceholder) {
+          c.document = null;
+          return true; // Let them through if they have no valid document
+        }
+        if (existingDocs.has(doc)) return false;
+        existingDocs.add(doc); // Add to set so we don't duplicate within the same batch
         return true;
       });
 
