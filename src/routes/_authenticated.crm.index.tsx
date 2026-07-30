@@ -90,14 +90,14 @@ function CrmPage() {
 
     // Helper: try multiple possible column name variations (case-insensitive)
     const get = (row: any, ...keys: string[]) => {
+      const clean = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/gi, "").toLowerCase();
+      
       for (const key of keys) {
         // Exact match first
         if (row[key] !== undefined && row[key] !== "") return row[key];
-        // Case-insensitive / space-insensitive match (and strip BOM)
-        const normalized = key.toLowerCase().replace(/\s*\/\s*/g, "/").replace(/\s+/g, " ").trim();
-        const found = Object.keys(row).find(k =>
-          k.replace(/[\uFEFF\u200B]/g, "").toLowerCase().replace(/\s*\/\s*/g, "/").replace(/\s+/g, " ").trim() === normalized
-        );
+        // Ultra-aggressive match (ignores spaces, slashes, BOMs, accents, symbols)
+        const normalized = clean(key);
+        const found = Object.keys(row).find(k => clean(k) === normalized);
         if (found && row[found] !== undefined && row[found] !== "") return row[found];
       }
       return null;
