@@ -432,19 +432,36 @@ export function ClientFormDrawer({ open, onOpenChange, client, onSuccess }: Clie
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>CEP</Label>
-                  <div className="relative">
-                    <Input 
-                      value={formData.zip_code || ""} 
-                      onChange={e => {
-                        const val = applyCepMask(e.target.value);
-                        setFormData({ ...formData, zip_code: val });
-                        if (val.length === 9) fetchCep(val);
-                      }}
-                      onBlur={() => fetchCep(formData.zip_code || "")}
-                      placeholder="00000-000"
-                      maxLength={9}
-                    />
-                    {isLoadingCep && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />}
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Input 
+                        value={formData.zip_code || ""} 
+                        onChange={e => {
+                          const val = applyCepMask(e.target.value);
+                          setFormData({ ...formData, zip_code: val });
+                          if (val.length === 9) fetchCep(val);
+                        }}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            fetchCep(formData.zip_code || "");
+                          }
+                        }}
+                        onBlur={() => fetchCep(formData.zip_code || "")}
+                        placeholder="00000-000"
+                        maxLength={9}
+                      />
+                    </div>
+                    <Button 
+                      type="button" 
+                      variant="secondary" 
+                      className="px-3 shrink-0"
+                      onClick={() => fetchCep(formData.zip_code || "")}
+                      disabled={isLoadingCep || !formData.zip_code || formData.zip_code.length < 8}
+                      title="Buscar endereço por CEP"
+                    >
+                      {isLoadingCep ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
+                    </Button>
                   </div>
                 </div>
                 <div className="space-y-2">
