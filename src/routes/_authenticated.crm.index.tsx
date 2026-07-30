@@ -117,14 +117,20 @@ function CrmPage() {
       return null;
     };
 
-    // Read the file as text first so we can detect delimiter and encoding
+    // Read as ArrayBuffer so we can detect encoding before decoding
     const reader = new FileReader();
     reader.onload = (event) => {
-      const text = event.target?.result as string;
-      if (!text) {
+      const buffer = event.target?.result as ArrayBuffer;
+      if (!buffer) {
         toast.error("Não foi possível ler o arquivo.");
         return;
       }
+
+      // Detect encoding: if starts with UTF-8 BOM (EF BB BF), use UTF-8; otherwise Windows-1252
+      const bytes = new Uint8Array(buffer);
+      const hasUtf8Bom = bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF;
+      const encoding = hasUtf8Bom ? "utf-8" : "windows-1252";
+      const text = new TextDecoder(encoding).decode(buffer);
 
       // Remove BOM if present
       const clean = text.replace(/^\uFEFF/, "");
@@ -207,7 +213,7 @@ function CrmPage() {
         }
       });
     };
-    reader.readAsText(file, "UTF-8");
+    reader.readAsArrayBuffer(file);
   };
 
   const handleDownloadTemplate = () => {
