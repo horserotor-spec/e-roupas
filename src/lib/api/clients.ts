@@ -153,11 +153,10 @@ export function useCleanBadImports() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const { error } = await supabase.from("clients")
         .delete()
-        .gte("created_at", today.toISOString());
+        .or(`created_at.is.null,created_at.gte.${yesterday.toISOString()}`);
       if (error) throw error;
     },
     onSuccess: () => {
