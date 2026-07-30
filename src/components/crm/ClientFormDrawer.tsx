@@ -9,7 +9,7 @@ import { Switch } from "../ui/switch";
 import { Checkbox } from "../ui/checkbox";
 import { Client, useCreateClient, useUpdateClient } from "@/lib/api/clients";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 
 interface ClientFormDrawerProps {
   open: boolean;
