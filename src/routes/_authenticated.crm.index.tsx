@@ -161,7 +161,8 @@ function CrmPage() {
               state:              get(row, "UF", "Estado", "state"),
               notes:              get(row, "Observações", "Observacoes", "Obs", "notes"),
               created_at:         get(row, "Cliente Desde", "created_at"),
-              active: true
+              active: true,
+              is_first_purchase: false
             }));
 
             const res = await importMutation.mutateAsync(parsedClients);
