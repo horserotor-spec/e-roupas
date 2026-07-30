@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { formatCurrency } from "@/lib/utils";
-import { useClients, Client, useImportClients, useCleanBadImports } from "@/lib/api/clients";
+import { useClients, Client, useImportClients, useCleanBadImports, useReactivateClient } from "@/lib/api/clients";
 import { useState, useDeferredValue, useRef } from "react";
-import { Search, Plus, Loader2, Edit2, Download, Upload } from "lucide-react";
+import { Search, Plus, Loader2, Edit2, Download, Upload, Columns, RotateCcw } from "lucide-react";
 import { ClientFormDrawer } from "@/components/crm/ClientFormDrawer";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -17,14 +17,34 @@ function CrmPage() {
   const [q, setQ] = useState("");
   const deferredQ = useDeferredValue(q);
   const [brand, setBrand] = useState<"all" | "ER" | "PG8">("all");
+  const [activeFilter, setActiveFilter] = useState<"active" | "inactive" | "all">("active");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
-  
+  const [colMenuOpen, setColMenuOpen] = useState(false);
+
+  // Column visibility - all on by default
+  const ALL_COLUMNS = [
+    { key: "contato",       label: "Contato" },
+    { key: "cidade",        label: "Cidade / UF" },
+    { key: "origem",        label: "Origem" },
+    { key: "desde",         label: "Cliente Desde" },
+    { key: "ultima",        label: "Última Compra" },
+    { key: "pedidos",       label: "Pedidos" },
+    { key: "total",         label: "Total" },
+  ] as const;
+  type ColKey = typeof ALL_COLUMNS[number]["key"];
+  const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(
+    new Set(ALL_COLUMNS.map(c => c.key))
+  );
+  const toggleCol = (k: ColKey) =>
+    setVisibleCols(prev => { const s = new Set(prev); s.has(k) ? s.delete(k) : s.add(k); return s; });
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: clients = [], isLoading } = useClients(deferredQ);
+  const { data: clients = [], isLoading } = useClients(deferredQ, activeFilter);
   const importMutation = useImportClients();
   const cleanBadImports = useCleanBadImports();
+  const reactivate = useReactivateClient();
 
   const filtered = clients; // Search is handled by the API now
 
@@ -297,6 +317,7 @@ function CrmPage() {
         </div>
       </div>
 
+      {/* Filters bar */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <div className="relative flex-1 min-w-[240px] max-w-md">
           <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -306,6 +327,22 @@ function CrmPage() {
             className="h-9 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm outline-none focus:border-primary"
           />
         </div>
+
+        {/* Active/Inactive filter */}
+        <div className="inline-flex rounded-lg border border-border bg-surface p-0.5 text-xs">
+          {(["active", "inactive", "all"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setActiveFilter(f)}
+              className={`px-3 h-7 rounded-md font-medium transition-colors ${
+                activeFilter === f ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {f === "active" ? "Ativos" : f === "inactive" ? "Inativos" : "Todos"}
+            </button>
+          ))}
+        </div>
+
         <div className="inline-flex rounded-lg border border-border bg-surface p-0.5 text-xs">
           {(["all", "ER", "PG8"] as const).map((b) => (
             <button
@@ -317,6 +354,31 @@ function CrmPage() {
             </button>
           ))}
         </div>
+
+        {/* Column chooser */}
+        <div className="relative">
+          <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={() => setColMenuOpen(v => !v)}>
+            <Columns className="size-4" /> Colunas
+          </Button>
+          {colMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setColMenuOpen(false)} />
+              <div className="absolute right-0 top-10 z-20 w-48 rounded-xl border border-border bg-card shadow-lg p-2">
+                {ALL_COLUMNS.map(col => (
+                  <label key={col.key} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted/50 cursor-pointer text-sm select-none">
+                    <input
+                      type="checkbox"
+                      checked={visibleCols.has(col.key)}
+                      onChange={() => toggleCol(col.key)}
+                      className="accent-primary"
+                    />
+                    {col.label}
+                  </label>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -324,19 +386,20 @@ function CrmPage() {
           <thead className="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="text-left font-medium px-4 py-2.5">Cliente</th>
-              <th className="text-left font-medium px-4 py-2.5 hidden md:table-cell">Contato</th>
-              <th className="text-left font-medium px-4 py-2.5 hidden lg:table-cell">Origem</th>
-              <th className="text-left font-medium px-4 py-2.5 hidden lg:table-cell">Cliente Desde</th>
-              <th className="text-left font-medium px-4 py-2.5 hidden lg:table-cell">Última Compra</th>
-              <th className="text-right font-medium px-4 py-2.5 number">Pedidos</th>
-              <th className="text-right font-medium px-4 py-2.5 number">Total</th>
+              {visibleCols.has("contato")   && <th className="text-left font-medium px-4 py-2.5 hidden md:table-cell">Contato</th>}
+              {visibleCols.has("cidade")    && <th className="text-left font-medium px-4 py-2.5 hidden lg:table-cell">Cidade / UF</th>}
+              {visibleCols.has("origem")    && <th className="text-left font-medium px-4 py-2.5 hidden lg:table-cell">Origem</th>}
+              {visibleCols.has("desde")     && <th className="text-left font-medium px-4 py-2.5 hidden lg:table-cell">Cliente Desde</th>}
+              {visibleCols.has("ultima")    && <th className="text-left font-medium px-4 py-2.5 hidden lg:table-cell">Última Compra</th>}
+              {visibleCols.has("pedidos")   && <th className="text-right font-medium px-4 py-2.5 number">Pedidos</th>}
+              {visibleCols.has("total")     && <th className="text-right font-medium px-4 py-2.5 number">Total</th>}
               <th className="text-right font-medium px-4 py-2.5">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {isLoading && (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                <td colSpan={10} className="px-4 py-12 text-center text-sm text-muted-foreground">
                   <div className="flex justify-center items-center gap-2">
                     <Loader2 className="size-4 animate-spin" /> Carregando clientes...
                   </div>
@@ -344,7 +407,7 @@ function CrmPage() {
               </tr>
             )}
             {!isLoading && filtered.map((c) => (
-              <tr key={c.id} className="hover:bg-muted/30 transition-colors group">
+              <tr key={c.id} className={`hover:bg-muted/30 transition-colors group ${!c.active ? "opacity-60" : ""}`}>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     <Link to="/crm/$clientId" params={{ clientId: c.id }} className="font-medium hover:text-primary">{c.name}</Link>
@@ -353,38 +416,70 @@ function CrmPage() {
                         {c.code}
                       </span>
                     )}
+                    {!c.active && (
+                      <span className="inline-flex items-center rounded-full bg-destructive/15 text-destructive px-2 py-0.5 text-[10px] font-bold uppercase">Inativo</span>
+                    )}
                   </div>
                   <div className="text-xs text-muted-foreground">{c.document || "—"}</div>
                 </td>
-                <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">
-                  <div>{c.phone || "—"}</div>
-                  <div className="text-xs">{c.email || "—"}</div>
-                </td>
-                <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">{c.lead_source || "—"}</td>
-                <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">
-                  {c.created_at ? new Date(c.created_at).toLocaleDateString("pt-BR") : "—"}
-                </td>
-                <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">
-                  <div className="flex flex-col items-start gap-1">
-                    <span>{c.last_purchase_date ? new Date(c.last_purchase_date).toLocaleDateString("pt-BR") : "—"}</span>
-                    {c.entity_type === "cliente" && c.is_first_purchase && (
-                      <span className="inline-flex items-center rounded-full bg-gray-400 px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
-                        PRIMEIRA COMPRA
-                      </span>
+                {visibleCols.has("contato") && (
+                  <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">
+                    <div>{c.phone || "—"}</div>
+                    <div className="text-xs">{c.email || "—"}</div>
+                  </td>
+                )}
+                {visibleCols.has("cidade") && (
+                  <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">
+                    {[c.city, c.state].filter(Boolean).join(" / ") || "—"}
+                  </td>
+                )}
+                {visibleCols.has("origem") && (
+                  <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">{c.lead_source || "—"}</td>
+                )}
+                {visibleCols.has("desde") && (
+                  <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">
+                    {c.created_at ? new Date(c.created_at).toLocaleDateString("pt-BR") : "—"}
+                  </td>
+                )}
+                {visibleCols.has("ultima") && (
+                  <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">
+                    <div className="flex flex-col items-start gap-1">
+                      <span>{c.last_purchase_date ? new Date(c.last_purchase_date).toLocaleDateString("pt-BR") : "—"}</span>
+                      {c.entity_type === "cliente" && c.is_first_purchase && (
+                        <span className="inline-flex items-center rounded-full bg-gray-400 px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
+                          PRIMEIRA COMPRA
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                )}
+                {visibleCols.has("pedidos") && <td className="px-4 py-3 text-right number">{c.orders}</td>}
+                {visibleCols.has("total")   && <td className="px-4 py-3 text-right number font-medium">{formatCurrency(c.total)}</td>}
+                <td className="px-4 py-3 text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    {!c.active ? (
+                      <Button
+                        variant="ghost" size="icon"
+                        onClick={async () => {
+                          await reactivate.mutateAsync(c.id);
+                          toast.success(`${c.name} reativado!`);
+                        }}
+                        className="h-8 w-8 text-green-500 hover:text-green-600"
+                        title="Reativar cliente"
+                      >
+                        <RotateCcw className="size-4" />
+                      </Button>
+                    ) : (
+                      <Button variant="ghost" size="icon" onClick={() => openEditClient(c)} className="h-8 w-8 text-muted-foreground hover:text-primary">
+                        <Edit2 className="size-4" />
+                      </Button>
                     )}
                   </div>
-                </td>
-                <td className="px-4 py-3 text-right number">{c.orders}</td>
-                <td className="px-4 py-3 text-right number font-medium">{formatCurrency(c.total)}</td>
-                <td className="px-4 py-3 text-right">
-                  <Button variant="ghost" size="icon" onClick={() => openEditClient(c)} className="h-8 w-8 text-muted-foreground hover:text-primary">
-                    <Edit2 className="size-4" />
-                  </Button>
                 </td>
               </tr>
             ))}
             {!isLoading && filtered.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</td></tr>
+              <tr><td colSpan={10} className="px-4 py-12 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</td></tr>
             )}
           </tbody>
         </table>

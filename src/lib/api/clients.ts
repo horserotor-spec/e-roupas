@@ -38,15 +38,18 @@ export interface Client {
   created_at: string;
 }
 
-export function useClients(search?: string) {
+export function useClients(search?: string, activeFilter: "active" | "inactive" | "all" = "active") {
   return useQuery({
-    queryKey: ["clients", search],
+    queryKey: ["clients", search, activeFilter],
     queryFn: async () => {
       let query = supabase
         .from("clients")
         .select("*")
-        .eq("active", true)
         .order("name");
+
+      if (activeFilter === "active") query = query.eq("active", true);
+      else if (activeFilter === "inactive") query = query.eq("active", false);
+      // "all" = no filter
 
       if (search) {
         query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,document.ilike.%${search}%,company_name.ilike.%${search}%,phone.ilike.%${search}%,entity_type.ilike.%${search}%,code.ilike.%${search}%`);
@@ -111,6 +114,19 @@ export function useDeleteClient() {
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("clients").update({ active: false }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+    },
+  });
+}
+
+export function useReactivateClient() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("clients").update({ active: true }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
