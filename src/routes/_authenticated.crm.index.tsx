@@ -93,10 +93,10 @@ function CrmPage() {
       for (const key of keys) {
         // Exact match first
         if (row[key] !== undefined && row[key] !== "") return row[key];
-        // Case-insensitive / space-insensitive match
+        // Case-insensitive / space-insensitive match (and strip BOM)
         const normalized = key.toLowerCase().replace(/\s*\/\s*/g, "/").replace(/\s+/g, " ").trim();
         const found = Object.keys(row).find(k =>
-          k.toLowerCase().replace(/\s*\/\s*/g, "/").replace(/\s+/g, " ").trim() === normalized
+          k.replace(/[\uFEFF\u200B]/g, "").toLowerCase().replace(/\s*\/\s*/g, "/").replace(/\s+/g, " ").trim() === normalized
         );
         if (found && row[found] !== undefined && row[found] !== "") return row[found];
       }
