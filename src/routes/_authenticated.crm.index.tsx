@@ -53,6 +53,7 @@ function CrmPage() {
       Celular: c.phone || '',
       "Telefone Fixo": c.landline_phone || '',
       Email: c.email || '',
+      "Email NF": c.email_nfe || '',
       Instagram: c.instagram || '',
       "Nome Fantasia": c.company_name || '',
       "Origem": c.lead_source || '',
@@ -106,6 +107,7 @@ function CrmPage() {
             phone: row.Celular || row.phone || null,
             landline_phone: row["Telefone Fixo"] || row.landline_phone || null,
             email: row.Email || row.email || null,
+            email_nfe: row["Email NF"] || row.email_nfe || null,
             instagram: row.Instagram || row.instagram || null,
             company_name: row["Nome Fantasia"] || row.company_name || null,
             lead_source: row.Origem || row.lead_source || null,
@@ -139,7 +141,7 @@ function CrmPage() {
   const handleDownloadTemplate = () => {
     const headers = [
       "Nome", "Tipo", "Categoria", "CPF/CNPJ", "RG/IE", "Celular", 
-      "Telefone Fixo", "Email", "Instagram", "Nome Fantasia", 
+      "Telefone Fixo", "Email", "Email NF", "Instagram", "Nome Fantasia", 
       "Origem", "Status Crédito", "CEP", "Endereço", "Número", 
       "Complemento", "Bairro", "Cidade", "UF", "Observações", "Cliente Desde"
     ];
