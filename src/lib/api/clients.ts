@@ -148,3 +148,21 @@ export function useImportClients() {
     },
   });
 }
+
+export function useCleanBadImports() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const { error } = await supabase.from("clients")
+        .delete()
+        .is("document", null)
+        .gte("created_at", today.toISOString());
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+    },
+  });
+}

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { formatCurrency } from "@/lib/utils";
-import { useClients, Client, useImportClients } from "@/lib/api/clients";
+import { useClients, Client, useImportClients, useCleanBadImports } from "@/lib/api/clients";
 import { useState, useDeferredValue, useRef } from "react";
 import { Search, Plus, Loader2, Edit2, Download, Upload } from "lucide-react";
 import { ClientFormDrawer } from "@/components/crm/ClientFormDrawer";
@@ -24,6 +24,7 @@ function CrmPage() {
 
   const { data: clients = [], isLoading } = useClients(deferredQ);
   const importMutation = useImportClients();
+  const cleanBadImports = useCleanBadImports();
 
   const filtered = clients; // Search is handled by the API now
 
@@ -212,15 +213,27 @@ function CrmPage() {
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">CRM</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">Clientes</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <input 
-            type="file" 
-            accept=".csv" 
-            className="hidden" 
-            ref={fileInputRef} 
-            onChange={handleImportCSV} 
-          />
-          <Button variant="outline" className="h-9 gap-1.5" onClick={() => fileInputRef.current?.click()} disabled={importMutation.isPending}>
+          <div className="flex gap-2 flex-wrap">
+            <input 
+              type="file" 
+              accept=".csv" 
+              className="hidden" 
+              ref={fileInputRef} 
+              onChange={handleImportCSV} 
+            />
+            <Button variant="destructive" className="h-9 gap-1.5" onClick={async () => {
+              if (confirm("Isso irá deletar todos os clientes criados HOJE que não possuem CPF/CNPJ. Continuar?")) {
+                try {
+                  await cleanBadImports.mutateAsync();
+                  toast.success("Limpeza concluída com sucesso!");
+                } catch (e: any) {
+                  toast.error("Erro ao limpar: " + e.message);
+                }
+              }
+            }} disabled={cleanBadImports.isPending} title="Limpar importaçao com erro">
+              {cleanBadImports.isPending ? <Loader2 className="size-4 animate-spin" /> : "🧹 Limpar Erros de Hoje"}
+            </Button>
+            <Button variant="outline" className="h-9 gap-1.5" onClick={() => fileInputRef.current?.click()} disabled={importMutation.isPending}>
             {importMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />} 
             Importar
           </Button>
