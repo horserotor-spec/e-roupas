@@ -126,10 +126,22 @@ function CrmPage() {
         return;
       }
 
-      // Detect encoding: if starts with UTF-8 BOM (EF BB BF), use UTF-8; otherwise Windows-1252
+      // Detect encoding: UTF-8 BOM = EF BB BF. Otherwise try windows-1252.
       const bytes = new Uint8Array(buffer);
       const hasUtf8Bom = bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF;
-      const encoding = hasUtf8Bom ? "utf-8" : "windows-1252";
+      // Also detect if file looks like UTF-8 even without BOM (check for valid multi-byte sequences)
+      let encoding = "windows-1252";
+      if (hasUtf8Bom) {
+        encoding = "utf-8";
+      } else {
+        // Try decoding as UTF-8 and check for replacement chars - if clean, use UTF-8
+        const tryUtf8 = new TextDecoder("utf-8", { fatal: false }).decode(buffer);
+        const hasCorruption = tryUtf8.includes("\uFFFD"); // replacement char = bad UTF-8
+        if (!hasCorruption && /[\u00C0-\u024F]/.test(tryUtf8)) {
+          // Has proper accented chars in UTF-8 range without corruption - use UTF-8
+          encoding = "utf-8";
+        }
+      }
       const text = new TextDecoder(encoding).decode(buffer);
 
       // Remove BOM if present
