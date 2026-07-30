@@ -103,6 +103,20 @@ function CrmPage() {
       return null;
     };
 
+    // Helper: parse DD/MM/YYYY into YYYY-MM-DD for PostgreSQL
+    const parseDateStr = (dateStr: string | null | undefined) => {
+      if (!dateStr) return null;
+      if (dateStr.includes("-")) return dateStr; // Already ISO format or DB export
+      const parts = dateStr.split("/");
+      if (parts.length === 3) {
+        const day = parts[0].padStart(2, '0');
+        const month = parts[1].padStart(2, '0');
+        const year = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
+        return `${year}-${month}-${day}`;
+      }
+      return null;
+    };
+
     // Read the file as text first so we can detect delimiter and encoding
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -160,7 +174,7 @@ function CrmPage() {
               city:               get(row, "Cidade", "city", "Município"),
               state:              get(row, "UF", "Estado", "state"),
               notes:              get(row, "Observações", "Observacoes", "Obs", "notes"),
-              created_at:         get(row, "Cliente Desde", "created_at"),
+              created_at:         parseDateStr(get(row, "Cliente Desde", "created_at")),
               active: true,
               is_first_purchase: false
             }));
