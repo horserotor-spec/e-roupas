@@ -223,7 +223,7 @@ function CrmPage() {
               onChange={handleImportCSV} 
             />
             <Button variant="destructive" className="h-9 gap-1.5" onClick={async () => {
-              if (confirm("Isso irá deletar todos os clientes criados HOJE que não possuem CPF/CNPJ. Continuar?")) {
+              if (confirm("🚨 ATENÇÃO: Isso irá DELETAR COMPLETAMENTE TODOS os clientes que foram cadastrados HOJE no sistema. Tem certeza absoluta?")) {
                 try {
                   await cleanBadImports.mutateAsync();
                   toast.success("Limpeza concluída com sucesso!");

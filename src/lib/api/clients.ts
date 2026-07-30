@@ -157,7 +157,6 @@ export function useCleanBadImports() {
       today.setHours(0, 0, 0, 0);
       const { error } = await supabase.from("clients")
         .delete()
-        .is("document", null)
         .gte("created_at", today.toISOString());
       if (error) throw error;
     },
