@@ -87,55 +87,96 @@ function CrmPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        try {
-          const rows = results.data as any[];
-          if (!rows.length) {
-            toast.error("O arquivo CSV está vazio.");
-            return;
-          }
-
-          const parsedClients = rows.map(row => ({
-            name: row.Nome || row.name || "Sem Nome",
-            entity_class: (row.Tipo || row.entity_class || 'pf').toLowerCase(),
-            entity_type: (row.Categoria || row.entity_type || 'cliente').toLowerCase(),
-            document: row["CPF/CNPJ"] || row.document || null,
-            state_registration: row["RG/IE"] || row.state_registration || null,
-            phone: row.Celular || row.phone || null,
-            landline_phone: row["Telefone Fixo"] || row.landline_phone || null,
-            email: row.Email || row.email || null,
-            email_nfe: row["Email NF"] || row.email_nfe || null,
-            instagram: row.Instagram || row.instagram || null,
-            company_name: row["Nome Fantasia"] || row.company_name || null,
-            lead_source: row.Origem || row.lead_source || null,
-            credit_status: row["Status Crédito"] || row.credit_status || 'bom',
-            zip_code: row.CEP || row.zip_code || null,
-            street: row["Endereço"] || row.street || null,
-            number: row["Número"] || row.number || null,
-            complement: row.Complemento || row.complement || null,
-            neighborhood: row.Bairro || row.neighborhood || null,
-            city: row.Cidade || row.city || null,
-            state: row.UF || row.state || null,
-            notes: row["Observações"] || row.notes || null,
-            created_at: row["Cliente Desde"] || row.created_at || null,
-            active: true
-          }));
-
-          const res = await importMutation.mutateAsync(parsedClients);
-          toast.success(`Importação concluída: ${res.imported} adicionados, ${res.skipped} ignorados.`);
-        } catch (error: any) {
-          toast.error("Erro na importação: " + error.message);
-        } finally {
-          if (fileInputRef.current) fileInputRef.current.value = "";
-        }
-      },
-      error: (error) => {
-        toast.error("Erro ao ler arquivo: " + error.message);
+    // Helper: try multiple possible column name variations (case-insensitive)
+    const get = (row: any, ...keys: string[]) => {
+      for (const key of keys) {
+        // Exact match first
+        if (row[key] !== undefined && row[key] !== "") return row[key];
+        // Case-insensitive / space-insensitive match
+        const normalized = key.toLowerCase().replace(/\s*\/\s*/g, "/").replace(/\s+/g, " ").trim();
+        const found = Object.keys(row).find(k =>
+          k.toLowerCase().replace(/\s*\/\s*/g, "/").replace(/\s+/g, " ").trim() === normalized
+        );
+        if (found && row[found] !== undefined && row[found] !== "") return row[found];
       }
-    });
+      return null;
+    };
+
+    // Read the file as text first so we can detect delimiter and encoding
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (!text) {
+        toast.error("Não foi possível ler o arquivo.");
+        return;
+      }
+
+      // Remove BOM if present
+      const clean = text.replace(/^\uFEFF/, "");
+
+      // Detect delimiter: use semicolon if more ';' than ',' in first line
+      const firstLine = clean.split("\n")[0] || "";
+      const delimiter = (firstLine.split(";").length > firstLine.split(",").length) ? ";" : ",";
+
+      Papa.parse(clean, {
+        header: true,
+        skipEmptyLines: true,
+        delimiter,
+        transformHeader: (h) => h.trim(), // Remove leading/trailing spaces from headers
+        complete: async (results) => {
+          try {
+            const rows = results.data as any[];
+            if (!rows.length) {
+              toast.error("O arquivo CSV está vazio.");
+              return;
+            }
+
+            // Diagnostic: show detected columns
+            const detectedCols = results.meta.fields || [];
+            console.log("[Importação CRM] Delimitador detectado:", delimiter);
+            console.log("[Importação CRM] Colunas detectadas:", detectedCols);
+            console.log("[Importação CRM] Primeira linha:", rows[0]);
+
+            const parsedClients = rows.map(row => ({
+              name:               get(row, "Nome", "name", "Nome Completo") || "Sem Nome",
+              entity_class:       (get(row, "Tipo", "entity_class", "Tipo Pessoa") || 'pf').toLowerCase(),
+              entity_type:        (get(row, "Categoria", "entity_type") || 'cliente').toLowerCase(),
+              document:           get(row, "CPF/CNPJ", "CNPJ/CPF", "CNPJ / CPF", "CPF / CNPJ", "CNPJ", "CPF", "document"),
+              state_registration: get(row, "RG/IE", "IE/RG", "RG / IE", "IE / RG", "RG", "IE", "state_registration"),
+              phone:              get(row, "Celular", "phone", "Telefone", "Fone", "WhatsApp"),
+              landline_phone:     get(row, "Telefone Fixo", "Fixo", "landline_phone"),
+              email:              get(row, "Email", "E-mail", "email"),
+              email_nfe:          get(row, "Email NF", "Email NF-e", "Email NFe", "E-mail NF", "email_nfe"),
+              instagram:          get(row, "Instagram", "instagram"),
+              company_name:       get(row, "Nome Fantasia", "Fantasia", "company_name"),
+              lead_source:        get(row, "Origem", "lead_source"),
+              credit_status:      get(row, "Status Crédito", "Status Credito", "credit_status") || 'bom',
+              zip_code:           get(row, "CEP", "zip_code", "Código Postal"),
+              street:             get(row, "Endereço", "Endereco", "street", "Logradouro"),
+              number:             get(row, "Número", "Numero", "number"),
+              complement:         get(row, "Complemento", "complement"),
+              neighborhood:       get(row, "Bairro", "neighborhood"),
+              city:               get(row, "Cidade", "city", "Município"),
+              state:              get(row, "UF", "Estado", "state"),
+              notes:              get(row, "Observações", "Observacoes", "Obs", "notes"),
+              created_at:         get(row, "Cliente Desde", "created_at"),
+              active: true
+            }));
+
+            const res = await importMutation.mutateAsync(parsedClients);
+            toast.success(`Importação concluída: ${res.imported} adicionados, ${res.skipped} ignorados. (${rows.length} linhas lidas, separador: '${delimiter}')`);
+          } catch (error: any) {
+            toast.error("Erro na importação: " + error.message);
+          } finally {
+            if (fileInputRef.current) fileInputRef.current.value = "";
+          }
+        },
+        error: (error) => {
+          toast.error("Erro ao ler arquivo: " + error.message);
+        }
+      });
+    };
+    reader.readAsText(file, "UTF-8");
   };
 
   const handleDownloadTemplate = () => {
