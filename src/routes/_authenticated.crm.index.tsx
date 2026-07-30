@@ -171,26 +171,28 @@ function CrmPage() {
                 document:           get(row, "CPF/CNPJ", "CNPJ/CPF", "CNPJ / CPF", "CPF / CNPJ", "CNPJ", "CPF", "document"),
               state_registration: get(row, "RG/IE", "IE/RG", "RG / IE", "IE / RG", "RG", "IE", "state_registration"),
               phone:              get(row, "Celular", "phone", "Telefone", "Fone", "WhatsApp"),
-              landline_phone:     get(row, "Telefone Fixo", "Fixo", "landline_phone"),
-              email:              get(row, "Email", "E-mail", "email"),
-              email_nfe:          get(row, "Email NF", "Email NF-e", "Email NFe", "E-mail NF", "email_nfe"),
-              instagram:          get(row, "Instagram", "instagram"),
-              company_name:       get(row, "Nome Fantasia", "Fantasia", "company_name"),
-              lead_source:        get(row, "Origem", "lead_source"),
-              credit_status:      get(row, "Status Crédito", "Status Credito", "credit_status") || 'bom',
-              zip_code:           get(row, "CEP", "zip_code", "Código Postal"),
-              street:             get(row, "Endereço", "Endereco", "street", "Logradouro"),
-              number:             get(row, "Número", "Numero", "number"),
-              complement:         get(row, "Complemento", "complement"),
-              neighborhood:       get(row, "Bairro", "neighborhood"),
-              city:               get(row, "Cidade", "city", "Município"),
-              state:              get(row, "UF", "Estado", "state"),
-              notes:              get(row, "Observações", "Observacoes", "Obs", "notes"),
-              created_at:         parseDateStr(get(row, "Cliente Desde", "created_at")),
-              active: true,
-              is_first_purchase: false
-            };
-          });
+                state_registration: get(row, "RG/IE", "IE/RG", "RG / IE", "IE / RG", "RG", "IE", "state_registration"),
+                phone:              get(row, "Celular", "phone", "Telefone", "Fone", "WhatsApp"),
+                landline_phone:     get(row, "Telefone Fixo", "Fixo", "landline_phone"),
+                email:              get(row, "Email", "E-mail", "email"),
+                email_nfe:          get(row, "Email NF", "Email NF-e", "Email NFe", "E-mail NF", "email_nfe"),
+                instagram:          get(row, "Instagram", "instagram"),
+                company_name:       get(row, "Nome Fantasia", "Fantasia", "company_name"),
+                lead_source:        get(row, "Origem", "lead_source"),
+                credit_status:      get(row, "Status Crédito", "Status Credito", "credit_status", "Status Crdito") || 'bom',
+                zip_code:           get(row, "CEP", "zip_code", "Código Postal", "Codigo Postal"),
+                street:             get(row, "Endereço", "Endereco", "street", "Logradouro", "Endereo"),
+                number:             get(row, "Número", "Numero", "number", "Nmero"),
+                complement:         get(row, "Complemento", "complement"),
+                neighborhood:       get(row, "Bairro", "neighborhood"),
+                city:               get(row, "Cidade", "city", "Município", "Municipio", "Municpio"),
+                state:              get(row, "UF", "Estado", "state"),
+                notes:              get(row, "Observações", "Observacoes", "Obs", "notes", "Observaes"),
+                created_at:         parseDateStr(get(row, "Cliente Desde", "created_at")),
+                active: true,
+                is_first_purchase: false
+              };
+            });
 
             const res = await importMutation.mutateAsync(parsedClients);
             toast.success(`Importação concluída: ${res.imported} adicionados, ${res.skipped} ignorados. (${rows.length} linhas lidas, separador: '${delimiter}')`);
